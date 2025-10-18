@@ -18,7 +18,7 @@ export async function getHabitActivity(habitId: string) {
   const db = await getDb();
   try {
     const result = await db.getAllAsync(
-      `SELECT entry_date, status, actual_time_minutes
+      `SELECT id, entry_date, status, actual_time_minutes
        FROM habit_entries
        WHERE habit_id = ?
        ORDER BY entry_date DESC
@@ -93,6 +93,34 @@ export async function trackHabit(formData: any) {
     return formData;
   } catch (error) {
     console.error('Error adding habit entry:', error);
+    throw error;
+  }
+}
+
+export async function deleteEntry(entry_id: number) {
+  const db = await getDb();
+  try {
+    await db.runAsync(
+      `DELETE FROM habit_entries WHERE id = ?`,
+      [entry_id]
+    );
+    return entry_id;
+  } catch (error) {
+    console.error('Error deleting habit entry:', error);
+    throw error;
+  }
+}
+
+export async function deleteHabit(habitId: number) {
+  const db = await getDb();
+  try {
+    await db.runAsync(
+      `DELETE FROM habits WHERE id = ?`,
+      [habitId]
+    );
+    return habitId;
+  } catch (error) {
+    console.error('Error deleting habit:', error);
     throw error;
   }
 }

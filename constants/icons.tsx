@@ -1,15 +1,15 @@
-// import bookmark from '@/assets/icons/bookmark.svg'
+import bin from '../assets/icons/bin.png'
 import home from '../assets/icons/home.png'
 // import leftArrow from '../assets/icons/left.svg'
-// import notification from '../assets/icons/notification.svg'
-// import plus from '../assets/icons/plus.svg'
+import notification from '../assets/icons/notification.png'
+import plus from '../assets/icons/plus.png'
 // import rightArrow from '../assets/icons/right.svg'
 
 export default {
-	// bookmark,
+	bin,
 	home,
-	// plus,
+	plus,
 	// leftArrow,
 	// rightArrow,
-	// notification,
+	notification,
 }

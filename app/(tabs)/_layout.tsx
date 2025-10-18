@@ -23,7 +23,7 @@ export default function TabLayout() {
         borderTopWidth: 1,
         borderTopColor: colorScheme === 'light' ? '#f5f5f5' : '#232533',
         height: 84,
-        paddingTop: 12,
+        paddingTop: 12
       },
     }}>
       <Tabs.Screen
@@ -48,7 +48,7 @@ export default function TabLayout() {
 					headerShown: false,
 					tabBarIcon: ({ color, focused }) => (
 						<TabBarIcon
-							icon={icons.home}
+							icon={icons.plus}
 							color={color}
 							name='Create'
 							focused={focused}

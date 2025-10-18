@@ -1,26 +1,26 @@
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import Button from "@/components/ui/Button";
+import FormInput from "@/components/ui/FormInput";
+import { Colors } from "@/constants/theme";
+import { createHabit } from "@/utils/actions";
+import { getBasePoints } from "@/utils/points";
+import { Habit } from "@/utils/types";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { Picker } from "@react-native-picker/picker";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { router } from "expo-router";
 import React, { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import FormInput from "@/components/ui/FormInput";
-import { Picker } from "@react-native-picker/picker";
 import {
   Alert,
-  SafeAreaView,
   ScrollView,
   Switch,
   Text,
   View,
   useColorScheme,
 } from "react-native";
-import Button from "@/components/ui/Button";
-import { Colors } from "@/constants/theme";
-import { Habit } from "@/utils/types";
-import { router } from "expo-router";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createHabit } from "@/utils/actions";
-import { getBasePoints } from "@/utils/points";
-import { ThemedView } from "@/components/themed-view";
-import { ThemedText } from "@/components/themed-text";
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function CreateScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -88,7 +88,7 @@ export default function CreateScreen() {
       className="h-full"
     >
       <ScrollView>
-        <ThemedView className="flex-1 flex-col space-y-2 gap-2 p-3 mt-10 pb-20">
+        <ThemedView className="flex-1 flex-col space-y-2 gap-4 p-3 mt-10 pb-20">
           <ThemedText className="text-3xl font-pbold">Create Habit</ThemedText>
 
           <Controller

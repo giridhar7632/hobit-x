@@ -44,7 +44,7 @@ export default function TrackScreen() {
     mutation.mutate({
       habit_id: id,
       ...formData,
-      entry_date: new Date(),
+      entry_date: new Date().toISOString(),
     });
 
   return (

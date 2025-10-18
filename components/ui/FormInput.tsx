@@ -39,7 +39,7 @@ export default function FormInput({
   const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <View className="w-full space-y-2 px-4 mt-2">
+    <View key={label} className="w-full space-y-2 px-4 mt-2">
       <Text
         style={{ color: Colors[colorScheme ?? "light"].tabIconDefault }}
         className="text-base"

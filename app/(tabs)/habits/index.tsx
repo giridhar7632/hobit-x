@@ -42,7 +42,7 @@ export default function HabitsScreen() {
             <ThemedText className="text-xl font-pbold mb-4">
               Your habits:
             </ThemedText>
-            <View className="space-y-2">
+            <View className="space-y-2 gap-2">
               {isLoading ? (
                 <View className="mt-10">
                   <ActivityIndicator
@@ -63,9 +63,9 @@ export default function HabitsScreen() {
                 habits?.map((habit: any) => (
                   <ThemedView
                     key={habit.id}
-                    className="flex-row items-center justify-between p-3 border border-gray-200 rounded-lg"
+                    className="flex-row items-center justify-between p-3 border border-neutral-700 rounded-lg"
                   >
-                    <ThemedText className="font-pbold">{habit.name}</ThemedText>
+                    <ThemedText className="flex-1 font-pbold">{habit.name}</ThemedText>
                     <View className="flex flex-row items-center gap-4">
                       <Link
                         className="text-lime-600"

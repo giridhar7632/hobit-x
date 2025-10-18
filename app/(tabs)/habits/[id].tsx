@@ -3,16 +3,18 @@ import { ThemedView } from "@/components/themed-view";
 import Button from "@/components/ui/Button";
 import icons from "@/constants/icons";
 import { Colors } from "@/constants/theme";
-import { getHabitActivity, getHabitActivitySummary } from "@/utils/actions";
-import { useQuery } from "@tanstack/react-query";
-import { formatRelative } from "date-fns";
+import { deleteEntry, deleteHabit, getHabitActivity, getHabitActivitySummary } from "@/utils/actions";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { formatRelative } from 'date-fns';
 import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   ScrollView,
   Text,
+  TouchableOpacity,
   useColorScheme,
   View,
 } from "react-native";
@@ -47,6 +49,36 @@ export default function HabitScreen() {
     queryFn: () => getHabitActivitySummary(id?.toString() ?? ""),
   });
 
+
+  const queryClient = useQueryClient();
+  const deleteMutation = useMutation({
+    mutationFn: deleteEntry,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["habit_entries", id] });
+      queryClient.invalidateQueries({ queryKey: ["habit_summary", id] });
+    },
+    onError: (error) => {
+      console.error("Error deleting entry:", error);
+      Alert.alert("Error deleting entry:", error.message);
+    },
+  })
+  const onDeleteEntry = async (entry_id: number) =>
+    await deleteMutation.mutate(entry_id);
+
+  const deleteHabitMutation = useMutation({
+    mutationFn: deleteHabit,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["habit_entries", id] });
+      queryClient.invalidateQueries({ queryKey: ["habit_summary", id] });
+    },
+    onError: (error) => {
+      console.error("Error deleting entry:", error);
+      Alert.alert("Error deleting entry:", error.message);
+    },
+  })
+  const onDeleteHabit = async (entry_id: number) =>
+    deleteHabitMutation.mutate(entry_id);
+
   const handleToolTip: any = {};
 
   return (
@@ -62,15 +94,23 @@ export default function HabitScreen() {
             }`}
           >
             {notify === "true" ? (
-              <View className="absolute top-4 right-4">
+              <View className="absolute top-4 right-12">
                 <Image
-                  source={icons.home}
+                  source={icons.notification}
                   resizeMode="contain"
                   tintColor={Colors[colorScheme ?? "light"].tint}
                   className="w-6 h-6 rotate-45 opacity-80"
                 />
               </View>
             ) : null}
+            <TouchableOpacity className="absolute top-4 right-4" onPress={() => onDeleteHabit(Number(id))}>
+                <Image
+                  source={icons.bin}
+                  resizeMode="contain"
+                  tintColor={'#f00'}
+                  className="w-6 h-6"
+                />
+              </TouchableOpacity>
             <ThemedText className="text-3xl font-pbold">{name}</ThemedText>
             <ThemedText className="font-pmedium">{description}</ThemedText>
             <ThemedText
@@ -86,7 +126,7 @@ export default function HabitScreen() {
                 : null}
             </ThemedText>
           </View>
-          <ThemedText>{activitySummary?.length}</ThemedText>
+          {/* <ThemedText>{activitySummary?.length}</ThemedText> */}
           <ScrollView horizontal>
             {isLoadingSummary ? (
               <View className="h-60 max-h-96 w-96 mx-auto flex items-center justify-center">
@@ -159,11 +199,20 @@ export default function HabitScreen() {
                 >
                   <ThemedText className="font-pbold">{entry.status}</ThemedText>
 
-                  <ThemedText className="font-pregular">
-                    {entry?.entry_date
-                      ? formatRelative(new Date(entry.entry_date), new Date())
-                      : ""}
-                  </ThemedText>
+                  <View className="flex flex-row gap-2">
+                    <ThemedText className="font-pregular">
+                      {entry?.entry_date ? formatRelative(new Date(entry.entry_date), new Date()) : null}
+                    </ThemedText>
+                    <TouchableOpacity onPress={() => onDeleteEntry(entry.id)}>
+                      <Image
+                        source={icons.bin}
+                        resizeMode="contain"
+                        tintColor={'#f00'}
+                        className="w-6 h-6"
+                      />
+                    </TouchableOpacity>
+                  </View>
+                  
                 </ThemedView>
               ))
             )}
