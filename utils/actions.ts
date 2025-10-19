@@ -62,15 +62,14 @@ export async function createHabit(formData: any) {
     description,
     planned_time_minutes,
     notify,
-    total_points,
-    user_id,
+    total_points
   } = formData;
 
   try {
     const result = await db.runAsync(
-      `INSERT INTO habits (name, frequency, description, planned_time_minutes, notify, total_points, user_id)
+      `INSERT INTO habits (name, frequency, description, planned_time_minutes, notify, total_points)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [name, frequency, description, planned_time_minutes, notify ? 1 : 0, total_points, user_id]
+      [name, frequency, description, planned_time_minutes, notify ? 1 : 0, total_points]
     );
 
     return { ...formData, id: result.lastInsertRowId };

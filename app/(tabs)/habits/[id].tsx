@@ -7,7 +7,6 @@ import { deleteEntry, deleteHabit, getHabitActivity, getHabitActivitySummary } f
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatRelative } from 'date-fns';
 import { router, useLocalSearchParams } from "expo-router";
-import React from "react";
 import {
   ActivityIndicator,
   Alert,
