@@ -18,7 +18,7 @@ import {
   useColorScheme,
   View,
 } from "react-native";
-import { ContributionGraph } from "react-native-chart-kit";
+// import { ContributionGraph } from "react-native-chart-kit";
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 
@@ -128,7 +128,7 @@ export default function HabitScreen() {
             </ThemedText>
           </View>
           <ThemedText className="text-center">Streak: <Text className="text-lime-500">{current_streak}</Text>🔥</ThemedText>
-          <ScrollView horizontal>
+          {/* <ScrollView horizontal>
             {isLoadingSummary ? (
               <View className="h-60 max-h-96 w-96 mx-auto flex items-center justify-center">
                 <ActivityIndicator />
@@ -157,7 +157,7 @@ export default function HabitScreen() {
                 />
               </View>
             ) : null}
-          </ScrollView>
+          </ScrollView> */}
           <View className="flex flex-col space-y-2 px-4">
             <View className="flex flex-row items-center justify-between mb-4">
               <ThemedText className="text-xl font-pbold">
