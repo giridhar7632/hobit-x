@@ -1,7 +1,7 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import Button from "@/components/ui/Button";
-import FormInput from "@/components/ui/FormInput";
+import Button from "@/components/ui/button";
+import FormInput from "@/components/ui/form-input";
 import { Colors } from "@/constants/theme";
 import { createHabit } from "@/utils/actions";
 import { getBasePoints } from "@/utils/points";

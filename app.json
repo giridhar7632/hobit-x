@@ -12,16 +12,16 @@
     "ios": {
       "supportsTablet": true,
       "config": {
-				"usesNonExemptEncryption": false
-			},
-			"bundleIdentifier": "app.giridhar.hobit",
-			"entitlements": {
-				"aps-environment": "development"
-			},
-			"buildNumber": "1"
+        "usesNonExemptEncryption": false
+      },
+      "bundleIdentifier": "app.giridhar.hobit",
+      "entitlements": {
+        "aps-environment": "development"
+      },
+      "buildNumber": "1"
     },
     "android": {
-			"package": "app.giridhar.hobit",
+      "package": "app.giridhar.hobit",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
@@ -36,9 +36,9 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#232323",
-          "image": "./assets/splash.png",
+          "image": "./assets/images/splash.png",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#151718"
           },
           "imageWidth": 200,
           "imageResizeMode": "contain"
@@ -49,6 +49,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "9d684d52-edae-4c3d-b6bf-00d2608b5cb5"
+      }
+    },
+    "owner": "giridhar7632"
   }
 }

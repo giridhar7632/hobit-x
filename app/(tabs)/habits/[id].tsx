@@ -1,6 +1,6 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import Button from "@/components/ui/Button";
+import Button from "@/components/ui/button";
 import icons from "@/constants/icons";
 import { Colors } from "@/constants/theme";
 import { deleteEntry, deleteHabit, getHabitActivity, getHabitActivitySummary } from "@/utils/actions";
