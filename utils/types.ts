@@ -21,3 +21,9 @@ export interface User {
     status?: string;
     actual_time_minutes?: string;
   }
+
+  export interface HabitStreak {
+    current_streak?: number;
+    longest_streak?: number;
+    last_completed_date?: string;
+  };

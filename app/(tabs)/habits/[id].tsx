@@ -27,6 +27,7 @@ export default function HabitScreen() {
     id,
     name,
     description,
+    current_streak,
     frequency,
     planned_time,
     notify,
@@ -126,7 +127,7 @@ export default function HabitScreen() {
                 : null}
             </ThemedText>
           </View>
-          {/* <ThemedText>{activitySummary?.length}</ThemedText> */}
+          <ThemedText className="text-center">Streak: <Text className="text-lime-500">{current_streak}</Text>🔥</ThemedText>
           <ScrollView horizontal>
             {isLoadingSummary ? (
               <View className="h-60 max-h-96 w-96 mx-auto flex items-center justify-center">
@@ -148,7 +149,7 @@ export default function HabitScreen() {
                     backgroundGradientFrom: "#fff",
                     backgroundGradientTo: "#fff",
                     color: (opacity = 1) => `rgba(132, 204, 22, ${opacity})`,
-                    labelColor: (opacity = 1) => `rgb(101, 163, 13)`,
+                    labelColor: () => `rgb(101, 163, 13)`,
                     style: {
                       borderRadius: 16,
                     },

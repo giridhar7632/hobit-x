@@ -4,6 +4,8 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import '../global.css';
 
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { initDatabase } from '@/utils/database';
@@ -42,22 +44,27 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (loaded && ready) {
+    if (loaded) {
       SplashScreen.hideAsync();
     }
-  }, [loaded, ready]);
+  }, [loaded]);
 
-  if (!loaded && !ready) {
+  if (!loaded) {
     return null;
   }
 
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" />
-        </Stack>
+        {!ready ?
+          <ThemedView className='flex justify-center items-center h-full'>
+            <ThemedText>Setting up...</ThemedText>
+          </ThemedView>
+          :
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="+not-found" />
+          </Stack>}
         <StatusBar
           backgroundColor={Colors[colorScheme ?? "light"].background}
           style={colorScheme === "light" ? "dark" : "light"}

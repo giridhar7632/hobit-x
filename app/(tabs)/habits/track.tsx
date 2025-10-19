@@ -2,13 +2,14 @@ import { ThemedView } from "@/components/themed-view";
 import Button from "@/components/ui/Button";
 import FormInput from "@/components/ui/FormInput";
 import { Colors } from "@/constants/theme";
-import { trackHabit } from "@/utils/actions";
+import { trackHabit, updateStreakOnComplete } from "@/utils/actions";
 import { Picker } from "@react-native-picker/picker";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Alert, Text, useColorScheme, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function TrackScreen() {
   const colorScheme = useColorScheme();
@@ -28,8 +29,11 @@ export default function TrackScreen() {
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: trackHabit,
-    onSuccess: () => {
+    onSuccess: async (data, variables) => {
       reset();
+      if (variables.status === "Completed") {
+        await updateStreakOnComplete(Number(id), variables.entry_date);
+      }
       queryClient.invalidateQueries({ queryKey: ["habit_entries", id] });
       queryClient.invalidateQueries({ queryKey: ["habit_summary", id] });
       router.push(`../`);
@@ -48,7 +52,7 @@ export default function TrackScreen() {
     });
 
   return (
-    <ThemedView className="h-full">
+    <SafeAreaView className="h-full">
       <Text className="h-16 bg-lime-500 text-white font-psemibold text-xl py-4 text-center">
         Track: {name}
       </Text>
@@ -123,6 +127,6 @@ export default function TrackScreen() {
           />
         </View>
       </ThemedView>
-    </ThemedView>
+    </SafeAreaView>
   );
 }

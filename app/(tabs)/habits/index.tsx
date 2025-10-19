@@ -75,7 +75,7 @@ export default function HabitsScreen() {
                       </Link>
                       <Link
                         className="text-lime-600"
-                        href={`/habits/${habit.id}?name=${habit.name}&description=${habit.description}&frequency=${habit.frequency}&planned_time=${habit.planned_time_minutes}&notify=${habit.notify}&total_points=${habit.total_points}`}
+                        href={`/habits/${habit.id}?name=${habit.name}&description=${habit.description}&current_streak=${habit.current_streak}&frequency=${habit.frequency}&planned_time=${habit.planned_time_minutes}&notify=${habit.notify}&total_points=${habit.total_points}`}
                       >
                         View
                       </Link>
