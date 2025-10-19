@@ -1,53 +1,60 @@
-> Edited for use in IDX on 07/09/12
+<div align="center">
+      <!--<img src="https://raw.githubusercontent.com/binarybard-dvk/hobit-app/main/assets/images/adaptive-icon.png" width="100px"><br/>-->
+        <h1>Hobit App</h1>
+  <p>The app to track your habits without forgetting</p>
+     </div>
+<p align="center"> <a href="https://testflight.apple.com/join/bPpR3QBB" target="_blank"><img alt="" src="https://img.shields.io/badge/TestFlight-Hobit-blue" style="vertical-align:center" /></a></p>
 
-# Welcome to your Expo app 👋
+Hello people! Introducing **Hobit** — a personal habit tracker app designed to help you stay on top of your habits without cluttering your calendar. 🎯
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+<div style="display: flex; flex-wrap: nowrap; gap: 10px; align-items: center; justify-content: space-around;">
+  <img src="https://github.com/user-attachments/assets/47ca6a7e-7998-4444-a7b2-becf8f862067" alt="Screenshot 1" width="180">
+  <img src="https://github.com/user-attachments/assets/c6f63ce7-5e0d-495e-ab6e-ff127ba9878d" alt="Screenshot 2" width="180">
+  <img src="https://github.com/user-attachments/assets/d8bb276e-772f-4648-94c0-6314926ab543" alt="Screenshot 3" width="180">
+  <img src="https://github.com/user-attachments/assets/74a7874a-1c2c-40b9-bae6-1df65e1f57ee" alt="Screenshot 4" width="180">
+</div>
 
-## Get started
+## ✨ About
 
-#### Android
+I often forget to do things on time, and adding reminders to my calendar just made it harder to see my schedule. That's why I created **Hobit** — to help people like me remember the small habits we don't want to miss. It lets you set daily, weekly, and monthly goals, track your progress, and get timely reminders to keep you on track. 
 
-Android previews are defined as a `workspace.onStart` hook and started as a vscode task when the workspace is opened/started.
+**Current Status:** The app is live on TestFlight! 🎉 (finally, after many rejections). Feel free to test it out and share your thoughts.
 
-Note, if you can't find the task, either:
-- Rebuild the environment (using command palette: `IDX: Rebuild Environment`), or
-- Run `npm run android -- --tunnel` command manually run android and see the output in your terminal. The device should pick up this new command and switch to start displaying the output from it.
+[![Download on TestFlight](https://img.shields.io/badge/TestFlight-Hobit-blue)](https://testflight.apple.com/join/bPpR3QBB)
 
-In the output of this command/task, you'll find options to open the app in a
+## 🚀 Features
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- **Simple Habit Tracking**: Easy tracking of habits
+- **AI-Powered Points System**: Earn points for sticking to your habits.  
+- **Streak Tracking**: Keep your streaks alive and build long-term habits.  
+- **Activity Graph**: Visualize your progress for each habit over time.  
+- **Timely Notifications**: Get reminders exactly when you need them. *(Currently on hold due to the lack of a push API key)*.
 
-You'll also find options to open the app's developer menu, reload the app, and more.
+## 💻 Installation & Usage
 
-#### Web
+### iOS Installation via TestFlight
 
-Web previews will be started and managred automatically. Use the toolbar to manually refresh.
+1. Download TestFlight from the [App Store](https://apps.apple.com/us/app/testflight/id899247664).
+2. Open the TestFlight link: [Hobit on TestFlight](https://testflight.apple.com/join/bPpR3QBB).
+3. Install **Hobit** and start tracking your habits!
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+**Note**: You can use the email `tester.71a220ff@hobit.app` if you don't want to register.
 
-## Get a fresh project
+## 📝 Feedback
 
-When you're ready, run:
+Any type of feedback is appreciated!  
+Please feel free to [open an issue](https://github.com/binarybard-dvk/hobit-app/issues) or contact me directly.
 
-```bash
-npm run reset-project
-```
+## 🛠️ Optimizations
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+I plan to optimize **Hobit** in the future, so stay tuned for updates! 😊
 
-## Learn more
+## 👨‍💻 Contributing
 
-To learn more about developing your project with Expo, look at the following resources:
+Contributions are welcome! If you'd like to contribute, please fork the repository and use a feature branch. Pull requests are warmly welcome.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## 📜 License
 
-## Join the community
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Thanks in advance for trying out **Hobit**! 🍀
