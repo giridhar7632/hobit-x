@@ -3,7 +3,7 @@ import { ThemedView } from "@/components/themed-view";
 import Button from "@/components/ui/button";
 import icons from "@/constants/icons";
 import { Colors } from "@/constants/theme";
-import { deleteEntry, deleteHabit, getHabitActivity, getHabitActivitySummary } from "@/utils/actions";
+import { deleteEntry, deleteHabit, getHabitActivity } from "@/utils/actions";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatRelative } from 'date-fns';
 import { router, useLocalSearchParams } from "expo-router";
@@ -44,10 +44,10 @@ export default function HabitScreen() {
     queryFn: () => getHabitActivity(id?.toString() ?? ""),
   });
 
-  const { data: activitySummary, isLoading: isLoadingSummary } = useQuery({
-    queryKey: ["habit_summary", id],
-    queryFn: () => getHabitActivitySummary(id?.toString() ?? ""),
-  });
+  // const { data: activitySummary, isLoading: isLoadingSummary } = useQuery({
+  //   queryKey: ["habit_summary", id],
+  //   queryFn: () => getHabitActivitySummary(id?.toString() ?? ""),
+  // });
 
 
   const queryClient = useQueryClient();
@@ -70,6 +70,7 @@ export default function HabitScreen() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["habit_entries", id] });
       queryClient.invalidateQueries({ queryKey: ["habit_summary", id] });
+      router.push("/habits");
     },
     onError: (error) => {
       console.error("Error deleting entry:", error);
@@ -78,8 +79,6 @@ export default function HabitScreen() {
   })
   const onDeleteHabit = async (entry_id: number) =>
     deleteHabitMutation.mutate(entry_id);
-
-  const handleToolTip: any = {};
 
   return (
     <SafeAreaView
@@ -126,7 +125,7 @@ export default function HabitScreen() {
                 : null}
             </ThemedText>
           </View>
-          <ThemedText className="text-center">Streak: <Text className="text-lime-500">{current_streak}</Text>🔥</ThemedText>
+          {Number(current_streak) > 0 ? <ThemedText className="text-center">Streak: <Text className="text-lime-500">{current_streak}</Text>🔥</ThemedText> : null }
           {/* <ScrollView horizontal>
             {isLoadingSummary ? (
               <View className="h-60 max-h-96 w-96 mx-auto flex items-center justify-center">

@@ -45,6 +45,7 @@ export async function initDatabase() {
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT,
       points INTEGER DEFAULT 0,
+      streak_on_day INTEGER DEFAULT 0,
       FOREIGN KEY(habit_id) REFERENCES habits(id)
     );
   `);

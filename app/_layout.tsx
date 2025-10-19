@@ -59,8 +59,8 @@ export default function RootLayout() {
           </ThemedView>
           :
           <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="+not-found" />
+            <Stack.Screen name="/home" options={{ headerShown: false }} />
+            <Stack.Screen name="+not-found" options={{ headerShown: false }} />
           </Stack>}
         <StatusBar
           backgroundColor={Colors[colorScheme ?? "light"].background}
