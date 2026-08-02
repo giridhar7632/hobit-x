@@ -21,6 +21,7 @@ export type FormInputProps = TextInputProps & {
   error?: any;
   disabled?: boolean;
   keyboardType?: string;
+  accentColor?: string;
 };
 
 export default function FormInput({
@@ -33,31 +34,43 @@ export default function FormInput({
   otherStyles,
   error,
   disabled,
+  accentColor,
   ...rest
 }: FormInputProps) {
-  const colorScheme = useColorScheme();
+  const rawColorScheme = useColorScheme();
+  const colorScheme: 'light' | 'dark' = rawColorScheme === 'dark' ? 'dark' : 'light';
   const [showPassword, setShowPassword] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+
+  const accent = accentColor || '#84cc16';
 
   return (
     <View key={label} className="w-full space-y-2 px-4 mt-2">
       <Text
-        style={{ color: Colors[colorScheme ?? "light"].tabIconDefault }}
+        style={{ color: Colors[colorScheme].tabIconDefault }}
         className="text-base"
       >
         {label}
       </Text>
       <View
-        className={`w-full h-16 px-4 border focus:border-lime-500 rounded-xl flex-row items-center ${
+        style={isFocused ? { borderColor: accent } : undefined}
+        className={`w-full h-16 px-4 border rounded-xl flex-row items-center ${
           colorScheme === "light"
             ? "bg-neutral-100 border-neutral-200"
             : "bg-neutral-800 border-neutral-700"
         } ${containerStyles}`}
       >
         <TextInput
-          className={`flex-1 caret-lime-500 font-pmedium text-base ${
+          className={`flex-1 font-pmedium text-base ${
             colorScheme === "light" ? "text-black" : "text-white"
           } ${disabled ? "opacity-50" : ""} ${otherStyles}`}
-          onBlur={handleBlur}
+          selectionColor={accent}
+          cursorColor={accent}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => {
+            setIsFocused(false);
+            handleBlur?.();
+          }}
           onChangeText={handleChangeText}
           value={value}
           editable={!disabled}
@@ -78,3 +91,4 @@ export default function FormInput({
     </View>
   );
 }
+

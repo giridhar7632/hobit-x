@@ -1,15 +1,39 @@
+import { HabitCard } from "@/components/habit-card";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Colors } from "@/constants/theme";
+import { useAppTheme } from "@/context/theme-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { getHabits } from "@/utils/actions";
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "expo-router";
-import { ActivityIndicator, ScrollView, View } from "react-native";
+import { getHabits, trackHabit } from "@/utils/actions";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import * as Haptics from 'expo-haptics';
+import { router, useFocusEffect } from "expo-router";
+import { useCallback } from "react";
+import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+function getTodayISO() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function formatDate() {
+  return new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  });
+}
 
 export default function HabitsScreen() {
   const colorScheme = useColorScheme();
+  const currentTheme = colorScheme === 'dark' ? 'dark' : 'light';
+  const { resetColor } = useAppTheme();
+
+  useFocusEffect(
+    useCallback(() => {
+      resetColor();
+    }, [resetColor])
+  );
 
   const {
     data: habits,
@@ -21,70 +45,121 @@ export default function HabitsScreen() {
     queryFn: getHabits,
   });
 
+  const queryClient = useQueryClient();
+  const quickTrackMutation = useMutation({
+    mutationFn: trackHabit,
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["habits"] });
+      queryClient.invalidateQueries({ queryKey: ["habit_entries", variables.habit_id] });
+      queryClient.invalidateQueries({ queryKey: ["habit-dates", variables.habit_id] });
+    }
+  });
+
+  const handleQuickTrack = (habit: any) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    quickTrackMutation.mutate({
+      habit_id: habit.id,
+      actual_time_minutes: habit.planned_time_minutes,
+      status: 'Completed',
+      entry_date: new Date().toISOString(),
+      note: "",
+    });
+  };
+
+  const todayISO = getTodayISO();
+  const isCompletedToday = (habit: any) => habit.last_completed_date?.startsWith(todayISO);
+  const completedCount = habits?.filter(isCompletedToday).length || 0;
+  const totalCount = habits?.length || 0;
+
   return (
     <SafeAreaView
-      style={{ backgroundColor: Colors[colorScheme ?? "light"].background }}
-      className="h-full"
+      style={{ backgroundColor: Colors[currentTheme].background }}
+      className="flex-1"
     >
-      <ScrollView contentContainerStyle={{ height: "100%" }}>
-        <ThemedView className="flex-1 flex-col space-y-2">
-          <View
-            className={`flex flex-col py-10 my-10 items-center justify-center ${
-              colorScheme === "light" ? "bg-neutral-100" : "bg-neutral-800"
-            }`}
-          >
-            <ThemedText className="text-3xl font-pbold mt-10">
-              Welcome back!
+      <ScrollView contentContainerStyle={{ paddingBottom: 40, paddingTop: 20 }}>
+        <ThemedView className="flex-1 px-5" style={{ backgroundColor: 'transparent' }}>
+
+          {/* Header */}
+          <View className="mb-6">
+            <ThemedText type="title" className="font-pbold">
+              Today
             </ThemedText>
+            <Text className="text-sm font-pregular opacity-50 mt-1" style={{ color: Colors[currentTheme].text }}>
+              {formatDate()}
+            </Text>
           </View>
 
-          <View className="px-4">
-            <ThemedText className="text-xl font-pbold mb-4">
-              Your habits:
-            </ThemedText>
-            <View className="space-y-2 gap-2">
-              {isLoading ? (
-                <View className="mt-10">
-                  <ActivityIndicator
-                    animating={isLoading}
-                    color="#84cc16"
-                    size="large"
-                  />
-                </View>
-              ) : isError ? (
-                <ThemedText className="text-lg text-center opacity-30 font-pbold">
-                  {error.message}
-                </ThemedText>
-              ) : habits?.length === 0 ? (
-                <ThemedText className="text-lg text-center opacity-30 font-pbold">
-                  No Habits added yet
-                </ThemedText>
-              ) : (
-                habits?.map((habit: any) => (
-                  <ThemedView
-                    key={habit.id}
-                    className="flex-row items-center justify-between p-3 border border-neutral-700 rounded-lg"
-                  >
-                    <ThemedText className="flex-1 font-pbold">{habit.name}</ThemedText>
-                    <View className="flex flex-row items-center gap-4">
-                      <Link
-                        className="text-lime-600"
-                        href={`/habits/track?id=${habit.id}&name=${habit.name}&frequency=${habit.frequency}&planned_time=${habit.planned_time_minutes}&to=`}
-                      >
-                        Track
-                      </Link>
-                      <Link
-                        className="text-lime-600"
-                        href={`/habits/${habit.id}?name=${habit.name}&description=${habit.description}&current_streak=${habit.current_streak}&frequency=${habit.frequency}&planned_time=${habit.planned_time_minutes}&notify=${habit.notify}&total_points=${habit.total_points}`}
-                      >
-                        View
-                      </Link>
-                    </View>
-                  </ThemedView>
-                ))
-              )}
+          {/* Progress summary */}
+          {totalCount > 0 && (
+            <View
+              className="rounded-2xl p-4 mb-5 flex-row items-center justify-between"
+              style={{
+                backgroundColor: currentTheme === 'dark' ? '#1c1c1e' : '#f5f5f4',
+              }}
+            >
+              <View>
+                <Text className="text-sm font-pregular opacity-60" style={{ color: Colors[currentTheme].text }}>
+                  Progress
+                </Text>
+                <Text className="text-lg font-pbold mt-1" style={{ color: Colors[currentTheme].text }}>
+                  {completedCount} of {totalCount} done
+                </Text>
+              </View>
+
+              {/* Mini progress bar */}
+              <View className="w-20 h-2 rounded-full bg-neutral-200 dark:bg-neutral-700 overflow-hidden">
+                <View
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${totalCount > 0 ? (completedCount / totalCount) * 100 : 0}%`,
+                    backgroundColor: '#84cc16',
+                  }}
+                />
+              </View>
             </View>
+          )}
+
+          {/* Habits list */}
+          <View>
+            {isLoading ? (
+              <View className="mt-10 items-center">
+                <ActivityIndicator color={Colors[currentTheme].tint} size="large" />
+              </View>
+            ) : isError ? (
+              <ThemedText type="default" className="text-center opacity-50 font-pmedium mt-10">
+                {error.message}
+              </ThemedText>
+            ) : habits?.length === 0 ? (
+              <View className="mt-16 items-center px-8">
+                <Text className="text-5xl mb-4">🌱</Text>
+                <ThemedText className="text-lg font-pbold text-center mb-2">
+                  Start your journey
+                </ThemedText>
+                <ThemedText className="text-sm font-pregular text-center opacity-50">
+                  Tap the + tab to create your first habit and begin building better routines.
+                </ThemedText>
+              </View>
+            ) : (
+              habits
+                ?.slice()
+                .sort((a: any, b: any) => {
+                  const aDone = isCompletedToday(a) ? 1 : 0;
+                  const bDone = isCompletedToday(b) ? 1 : 0;
+                  return aDone - bDone;
+                })
+                .map((habit: any) => (
+                  <HabitCard
+                    key={habit.id}
+                    habit={habit}
+                    completedToday={isCompletedToday(habit)}
+                    onPress={() => router.push(`/habits/${habit.id}`)}
+                    onTrack={() => handleQuickTrack(habit)}
+                  />
+                ))
+            )}
           </View>
+
         </ThemedView>
       </ScrollView>
     </SafeAreaView>

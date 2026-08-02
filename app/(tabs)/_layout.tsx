@@ -1,30 +1,31 @@
 import { Tabs } from 'expo-router';
-import React from 'react';
 
 import { TabBarIcon } from '@/components/ui/tab-icon';
+import { useAppTheme } from '@/context/theme-context';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 import icons from '@/constants/icons';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+	const colorScheme = useColorScheme();
+	const currentTheme = colorScheme === "dark" ? "dark" : "light";
+	const { activeColor } = useAppTheme();
 
-  return (
-    <Tabs
-    screenOptions={{
-      tabBarShowLabel: false,
-      tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-      headerShown: false,
-      tabBarStyle: {
-        backgroundColor: Colors[colorScheme ?? 'light'].background,
-        borderTopWidth: 1,
-        borderTopColor: colorScheme === 'light' ? '#f5f5f5' : '#232533',
-        height: 84,
-        paddingTop: 12
-      },
-    }}>
-      <Tabs.Screen
+	return (
+		<Tabs
+			screenOptions={{
+				tabBarShowLabel: false,
+				tabBarActiveTintColor: activeColor.accent,
+				headerShown: false,
+				tabBarStyle: {
+					backgroundColor: Colors[currentTheme].background,
+					borderTopWidth: 0,
+					height: 84,
+					paddingTop: 12
+				},
+			}}>
+			<Tabs.Screen
 				name='habits'
 				options={{
 					title: 'Habits',
@@ -32,7 +33,7 @@ export default function TabLayout() {
 					tabBarIcon: ({ color, focused }) => (
 						<TabBarIcon
 							icon={icons.home}
-							color={color}
+							color={color as string}
 							name='Habits'
 							focused={focused}
 						/>
@@ -47,13 +48,13 @@ export default function TabLayout() {
 					tabBarIcon: ({ color, focused }) => (
 						<TabBarIcon
 							icon={icons.plus}
-							color={color}
+							color={color as string}
 							name='Create'
 							focused={focused}
 						/>
 					),
 				}}
 			/>
-    </Tabs>
-  );
+		</Tabs>
+	);
 }

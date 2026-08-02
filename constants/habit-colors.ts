@@ -1,0 +1,58 @@
+export const HABIT_COLORS: Record<string, { id: string; name: string; hex: string; accent: string; bg: string; text: string; border: string }> = {
+    lime: {
+        id: "lime",
+        name: "Lime",
+        hex: "#d9f99d",
+        accent: "#84cc16",
+        bg: "bg-lime-100 dark:bg-lime-800/40",
+        text: "text-lime-700 dark:text-lime-300",
+        border: "border-lime-200 dark:border-lime-800",
+    },
+    rose: {
+        id: "rose",
+        name: "Rose",
+        hex: "#fecdd3",
+        accent: "#f43f5e",
+        bg: "bg-rose-100 dark:bg-rose-800/40",
+        text: "text-rose-700 dark:text-rose-300",
+        border: "border-rose-200 dark:border-rose-800",
+    },
+    emerald: {
+        id: "emerald",
+        name: "Sage",
+        hex: "#a7f3d0",
+        accent: "#10b981",
+        bg: "bg-emerald-100 dark:bg-emerald-800/40",
+        text: "text-emerald-700 dark:text-emerald-300",
+        border: "border-emerald-200 dark:border-emerald-800",
+    },
+    sky: {
+        id: "sky",
+        name: "Sky",
+        hex: "#bae6fd",
+        accent: "#0ea5e9",
+        bg: "bg-sky-100 dark:bg-sky-800/40",
+        text: "text-sky-700 dark:text-sky-300",
+        border: "border-sky-200 dark:border-sky-800",
+    },
+    amber: {
+        id: "amber",
+        name: "Peach",
+        hex: "#fef3c7",
+        accent: "#f59e0b",
+        bg: "bg-amber-100 dark:bg-amber-800/40",
+        text: "text-amber-700 dark:text-amber-300",
+        border: "border-amber-200 dark:border-amber-800",
+    },
+    indigo: {
+        id: "indigo",
+        name: "Lavender",
+        hex: "#c7d2fe",
+        accent: "#6366f1",
+        bg: "bg-indigo-100 dark:bg-indigo-800/40",
+        text: "text-indigo-700 dark:text-indigo-300",
+        border: "border-indigo-200 dark:border-indigo-800",
+    },
+};
+
+export const PASTEL_PALETTE = Object.values(HABIT_COLORS);

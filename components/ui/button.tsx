@@ -2,7 +2,10 @@ import React from "react";
 import {
   ActivityIndicator,
   Pressable,
+  StyleProp,
   Text,
+  TextStyle,
+  ViewStyle,
 } from "react-native";
 
 type ButtonProps = {
@@ -10,6 +13,8 @@ type ButtonProps = {
   handlePress: () => void;
   containerStyles?: any;
   textStyles?: any;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
   loading?: boolean;
   children?: React.ReactNode;
 };
@@ -19,6 +24,8 @@ export default function Button({
   handlePress,
   containerStyles,
   textStyles,
+  style,
+  textStyle,
   loading,
   children,
 }: ButtonProps) {
@@ -26,13 +33,14 @@ export default function Button({
     <Pressable
       onPress={handlePress}
       disabled={loading}
-      className={`rounded-xl h-16 py-3 px-6 flex flex-row items-center justify-center bg-lime-500 ${containerStyles} ${
-        loading ? "opacity-80" : ""
-      }`}
+      style={style}
+      className={`rounded-xl h-16 py-3 px-6 flex flex-row items-center justify-center bg-lime-500 ${containerStyles} ${loading ? "opacity-80" : ""
+        }`}
     >
       {children}
       <Text
         className={`text-white font-semibold font-psemibold text-lg ${textStyles}`}
+        style={textStyle}
       >
         {title}
       </Text>

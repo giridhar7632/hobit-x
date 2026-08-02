@@ -1,30 +1,29 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from "expo-font";
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import '../global.css';
 
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Colors } from '@/constants/theme';
+import { ThemeProvider } from '@/context/theme-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { initDatabase } from '@/utils/database';
+import { requestNotificationPermissions } from '@/utils/notifications';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from 'react';
 
 export const unstable_settings = {
-  anchor: '(tabs)',
+  initialRouteName: '(tabs)',
 };
 
 const queryClient = new QueryClient();
+
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [ready, setReady] = useState(false);
+  const [dbReady, setDbReady] = useState(false);
   const colorScheme = useColorScheme();
 
-  const [loaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     "Poppins-Bold": require("../assets/fonts/Poppins-Bold.ttf"),
     "Poppins-Italic": require("../assets/fonts/Poppins-Italic.ttf"),
     "Poppins-Medium": require("../assets/fonts/Poppins-Medium.ttf"),
@@ -32,41 +31,43 @@ export default function RootLayout() {
     "Poppins-SemiBold": require("../assets/fonts/Poppins-SemiBold.ttf"),
   });
 
-
   useEffect(() => {
-    (async () => {
-      await initDatabase();
-      setReady(true);
-    })();
+    // Ask for permission when the app starts
+    requestNotificationPermissions();
   }, []);
 
   useEffect(() => {
-    if (loaded) {
+    async function prepareDatabase() {
+      try {
+        await initDatabase();
+        setDbReady(true);
+      } catch (e) {
+        console.error("CRITICAL SQLITE ERROR:", e);
+        setDbReady(true);
+      }
+    }
+    prepareDatabase();
+  }, []);
+
+  useEffect(() => {
+    if ((fontsLoaded || fontError) && dbReady) {
       SplashScreen.hideAsync();
     }
-  }, [loaded]);
+  }, [fontsLoaded, fontError, dbReady]);
 
-  if (!loaded) {
+  if (!fontsLoaded && !fontError || !dbReady) {
     return null;
   }
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        {!ready ?
-          <ThemedView className='flex justify-center items-center h-full'>
-            <ThemedText>Setting up...</ThemedText>
-          </ThemedView>
-          :
-          <Stack>
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="+not-found" options={{ headerShown: false }} />
-          </Stack>}
-        <StatusBar
-          backgroundColor={Colors[colorScheme ?? "light"].background}
-          style={colorScheme === "light" ? "dark" : "light"}
-        />
+      <ThemeProvider>
+        <Stack>
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="+not-found" options={{ headerShown: false }} />
+        </Stack>
+        <StatusBar style={colorScheme === "light" ? "dark" : "light"} />
       </ThemeProvider>
     </QueryClientProvider>
   );

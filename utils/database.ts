@@ -17,9 +17,12 @@ export async function initDatabase() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       description TEXT,
+      color TEXT,
       time_spent INTEGER,
       planned_time_minutes INTEGER,
       frequency TEXT NOT NULL,
+      target_days TEXT,
+      interval INTEGER DEFAULT 1,
       start_date TEXT,
       end_date TEXT,
       created_at TEXT DEFAULT (datetime('now')),
@@ -46,7 +49,7 @@ export async function initDatabase() {
       updated_at TEXT,
       points INTEGER DEFAULT 0,
       streak_on_day INTEGER DEFAULT 0,
-      FOREIGN KEY(habit_id) REFERENCES habits(id)
+      FOREIGN KEY(habit_id) REFERENCES habits(id) ON DELETE CASCADE 
     );
   `);
 
@@ -63,11 +66,11 @@ export async function initDatabase() {
   await db.execAsync(`
     CREATE VIEW IF NOT EXISTS habit_streak_summary AS
       SELECT
-        h.id AS habit_id,
-        h.name,
-        MAX(h.current_streak) AS current_streak,
-        MAX(h.longest_streak) AS longest_streak,
-        h.last_completed_date
-      FROM habits h;
+        id AS habit_id,
+        name,
+        current_streak,
+        longest_streak,
+        last_completed_date
+      FROM habits;
   `);
 }

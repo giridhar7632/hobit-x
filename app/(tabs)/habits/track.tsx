@@ -1,132 +1,202 @@
-import { ThemedView } from "@/components/themed-view";
-import Button from "@/components/ui/button";
-import FormInput from "@/components/ui/form-input";
-import { Colors } from "@/constants/theme";
-import { trackHabit, updateStreakOnComplete } from "@/utils/actions";
-import { Picker } from "@react-native-picker/picker";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
-import React from "react";
-import { Controller, useForm } from "react-hook-form";
-import { Alert, Text, useColorScheme, View } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  useColorScheme,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { ThemedText } from "@/components/themed-text";
+import Button from "@/components/ui/button";
+import { HABIT_COLORS } from "@/constants/habit-colors";
+import { Colors } from "@/constants/theme";
+import { useAppTheme } from "@/context/theme-context";
+import { getHabitById, trackHabit } from "@/utils/actions";
+import { Habit } from "@/utils/types";
+
 export default function TrackScreen() {
+  const { id } = useLocalSearchParams();
   const colorScheme = useColorScheme();
-  const { id, name, planned_time, frequency, to } = useLocalSearchParams();
-  const {
-    control,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm({
-    defaultValues: {
-      status: "Completed",
-      actual_time_minutes: planned_time?.toString() || "",
+  const currentTheme = colorScheme === "dark" ? "dark" : "light";
+  const { activeColor } = useAppTheme();
+
+  const [actualTime, setActualTime] = useState<number>(0);
+  const [status, setStatus] = useState<'Completed' | 'Skipped'>('Completed');
+  const [note, setNote] = useState("");
+
+  const { data: habit, isLoading } = useQuery<Habit, Error>({
+    queryKey: ["habit", id],
+    queryFn: async () => {
+      const habit = await getHabitById(id?.toString() ?? "");
+      if (!habit) throw new Error("Habit not found");
+      return habit;
     },
   });
+
+  useEffect(() => {
+    if (habit && actualTime === 0) {
+      setActualTime(habit.planned_time_minutes || 0);
+    }
+  }, [habit]);
 
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: trackHabit,
-    onSuccess: async (data, variables) => {
-      reset();
-      if (variables.status === "Completed") {
-        await updateStreakOnComplete(Number(id), variables.entry_date);
-      }
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["habits"] });
       queryClient.invalidateQueries({ queryKey: ["habit_entries", id] });
-      queryClient.invalidateQueries({ queryKey: ["habit_summary", id] });
-      router.push(`../`);
+      queryClient.invalidateQueries({ queryKey: ["habit-dates", id] });
+      router.back(); // Go back to the details screen
     },
-    onError: (error) => {
-      console.error("Error tracking habit:", error);
-      Alert.alert("Error tracking habit:", error.message);
+    onError: (error: any) => {
+      Alert.alert("Error logging habit:", error.message);
     },
   });
 
-  const onTrackHabit = async (formData: any) =>
+  const handleSave = () => {
     mutation.mutate({
-      habit_id: id,
-      ...formData,
+      habit_id: Number(id),
+      actual_time_minutes: actualTime,
+      status: status,
       entry_date: new Date().toISOString(),
+      note: note.trim(),
     });
+  };
+
+  if (isLoading || !habit) {
+    return (
+      <SafeAreaView style={{ backgroundColor: Colors[currentTheme].background, flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={activeColor.accent} />
+      </SafeAreaView>
+    );
+  }
+
+  const theme = HABIT_COLORS[habit.color || "lime"] || HABIT_COLORS.lime;
 
   return (
-    <SafeAreaView className="h-full">
-      <Text className="h-16 bg-lime-500 text-white font-psemibold text-xl py-4 text-center">
-        Track: {name}
-      </Text>
-      <ThemedView className="flex flex-col space-y-2 gap-2 p-3 mt-5">
-        <Text
-          className="text-base font-pitalic mb-4"
-          style={{ color: Colors[colorScheme ?? "light"].tabIconDefault }}
-        >
-          You planned to {name}{" "}
-          <Text className="text-lime-600">{planned_time}</Text> minutes{" "}
-          {frequency}
-        </Text>
+    <SafeAreaView
+      style={{ backgroundColor: Colors[currentTheme].background }}
+      className="flex-1"
+    >
+      <ScrollView contentContainerStyle={{ paddingBottom: 60, paddingHorizontal: 20 }}>
 
-        <View className="mx-4 px-4">
-          <Text
-            style={{ color: Colors[colorScheme ?? "light"].tabIconDefault }}
-            className="text-base"
-          >
-            Select status
-          </Text>
-          <Controller
-            control={control}
-            name="status"
-            rules={{ required: "Status is required" }}
-            render={({ field: { onChange, value } }) => (
-              <Picker
-                selectedValue={value}
-                onValueChange={(itemValue) => onChange(itemValue)}
-              >
-                <Picker.Item label="Completed" value="Completed" />
-                <Picker.Item label="Missed" value="Missed" />
-                <Picker.Item label="Skipped" value="Skipped" />
-              </Picker>
-            )}
-          />
-          {errors.status && (
-            <Text className="text-red-500 px-4">{errors.status.message}</Text>
-          )}
+        {/* Drag indicator */}
+        <View className="items-center pt-3 pb-2">
+          <View className="w-10 h-1 rounded-full bg-neutral-300 dark:bg-neutral-600" />
         </View>
-        <Controller
-          control={control}
-          name="actual_time_minutes"
-          render={({ field: { onChange, onBlur, value } }) => (
-            <FormInput
-              handleBlur={onBlur}
-              handleChangeText={(value) => onChange(value)}
-              value={value}
-              label="Actual time (minutes)"
-              placeholder="Enter actual time spent"
-              keyboardType="numeric"
-            />
-          )}
-        />
-        {errors.actual_time_minutes && (
-          <Text className="text-red-500 px-4">
-            {errors.actual_time_minutes.message}
+
+        {/* Themed Header */}
+        <View className={`p-6 mt-4 rounded-3xl mb-8 ${theme.bg}`}>
+          <Text className={`text-sm font-pbold uppercase tracking-widest opacity-60 mb-2 ${theme.text}`}>
+            Detailed Log
           </Text>
+          <Text className={`text-3xl font-pbold ${theme.text}`}>
+            {habit.name}
+          </Text>
+        </View>
+
+        {/* 1. Status Selection */}
+        <ThemedText className="text-base font-pmedium opacity-70 mb-3">
+          How did it go today?
+        </ThemedText>
+        <View className="flex-row gap-3 mb-8">
+          <TouchableOpacity
+            onPress={() => setStatus('Completed')}
+            style={status === 'Completed' ? { backgroundColor: theme.accent } : {}}
+            className={`flex-1 py-3 rounded-xl items-center border ${status === 'Completed' ? 'border-transparent' : 'border-neutral-300 dark:border-neutral-700'
+              }`}
+          >
+            <Text className={`font-pbold ${status === 'Completed' ? 'text-white' : ''}`}
+              style={status !== 'Completed' ? { color: Colors[currentTheme].text } : undefined}
+            >
+              ✓ Completed
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setStatus('Skipped')}
+            className={`flex-1 py-3 rounded-xl items-center border ${status === 'Skipped' ? 'border-neutral-800 dark:border-neutral-200 bg-neutral-200 dark:bg-neutral-800' : 'border-neutral-300 dark:border-neutral-700'
+              }`}
+          >
+            <Text className="font-pbold" style={{ color: Colors[currentTheme].text }}>
+              ✗ Skipped
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 2. Actual Time Stepper (Only show if completed) */}
+        {status === 'Completed' && (
+          <View className="mb-8">
+            <View className="flex-row justify-between items-center mb-3">
+              <ThemedText className="text-base font-pmedium opacity-70">
+                Time spent (minutes)
+              </ThemedText>
+              <ThemedText className="text-xs opacity-50">
+                Planned: {habit.planned_time_minutes}m
+              </ThemedText>
+            </View>
+
+            <View className="flex-row items-center justify-between bg-neutral-100 dark:bg-neutral-900 rounded-2xl p-2 border border-neutral-200 dark:border-neutral-800">
+              <TouchableOpacity
+                onPress={() => setActualTime(Math.max(1, actualTime - 5))}
+                className="w-12 h-12 rounded-xl items-center justify-center"
+                style={{ backgroundColor: `${theme.accent}15` }}
+              >
+                <Text style={{ color: theme.accent }} className="text-2xl font-bold">−</Text>
+              </TouchableOpacity>
+
+              <View className="items-center">
+                <Text className="text-3xl font-pbold" style={{ color: Colors[currentTheme].text }}>{actualTime}</Text>
+                <Text className="text-xs opacity-40 font-pregular" style={{ color: Colors[currentTheme].text }}>min</Text>
+              </View>
+
+              <TouchableOpacity
+                onPress={() => setActualTime(actualTime + 5)}
+                className="w-12 h-12 rounded-xl items-center justify-center"
+                style={{ backgroundColor: `${theme.accent}15` }}
+              >
+                <Text style={{ color: theme.accent }} className="text-2xl font-bold">+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         )}
 
-        <View className="flex gap-4 px-4">
-          <Button
-            containerStyles={"mt-10"}
-            title={mutation.isPending ? "Adding..." : "Track Habit"}
-            handlePress={handleSubmit(onTrackHabit)}
-            loading={mutation.isPending}
-          />
+        {/* 3. Notes / Journaling */}
+        <ThemedText className="text-base font-pmedium opacity-70 mb-3">
+          Add a note (Optional)
+        </ThemedText>
+        <TextInput
+          multiline
+          numberOfLines={4}
+          placeholder="How did you feel? Any roadblocks?"
+          placeholderTextColor={currentTheme === 'dark' ? '#737373' : '#a3a3a3'}
+          value={note}
+          onChangeText={setNote}
+          className="bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-4 text-base font-pregular mb-8"
+          selectionColor={theme.accent}
+          cursorColor={theme.accent}
+          style={{
+            color: currentTheme === 'dark' ? '#fff' : '#000',
+            textAlignVertical: 'top',
+            minHeight: 120
+          }}
+        />
 
-          <Button
-            containerStyles={"mt-4"}
-            title={"Dismiss"}
-            handlePress={() => router.push(`../`)}
-          />
-        </View>
-      </ThemedView>
+        <Button
+          title={mutation.isPending ? "Saving..." : "Save Log"}
+          handlePress={handleSave}
+          loading={mutation.isPending}
+          style={{ backgroundColor: theme.accent }}
+        />
+
+      </ScrollView>
     </SafeAreaView>
   );
 }
