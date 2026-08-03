@@ -124,20 +124,6 @@ export const createHabit = async (habitData: any) => {
   }
 };
 
-export async function deleteEntry(entry_id: number) {
-  const db = await getDb();
-  try {
-    await db.runAsync(
-      `DELETE FROM habit_entries WHERE id = ?`,
-      [entry_id]
-    );
-    return entry_id;
-  } catch (error) {
-    console.error('Error deleting habit entry:', error);
-    throw error;
-  }
-}
-
 export async function deleteHabit(habitId: number) {
   const db = await getDb();
   try {
@@ -148,6 +134,55 @@ export async function deleteHabit(habitId: number) {
     return habitId;
   } catch (error) {
     console.error('Error deleting habit:', error);
+    throw error;
+  }
+}
+
+export async function deleteEntry(entry_id: number, habit_id: string) {
+  const db = await getDb();
+
+  try {
+    await db.runAsync('BEGIN TRANSACTION');
+
+    const entryToDelete: any = await db.getFirstAsync(
+      `SELECT points FROM habit_entries WHERE id = ?`,
+      [entry_id]
+    );
+    const pointsToDeduct = entryToDelete?.points || 0;
+
+    await db.runAsync(`DELETE FROM habit_entries WHERE id = ?`, [entry_id]);
+
+    const stats: any = await db.getFirstAsync(
+      `SELECT 
+        (SELECT streak_on_day FROM habit_entries WHERE habit_id = $1 ORDER BY entry_date DESC LIMIT 1) as last_streak,
+        (SELECT status FROM habit_entries WHERE habit_id = $1 ORDER BY entry_date DESC LIMIT 1) as last_status,
+        (SELECT entry_date FROM habit_entries WHERE habit_id = $1 AND status = 'Completed' ORDER BY entry_date DESC LIMIT 1) as last_completed,
+        MAX(streak_on_day) as max_streak 
+       FROM habit_entries 
+       WHERE habit_id = $1`,
+      { $1: habit_id }
+    );
+
+    const newLongestStreak = stats?.max_streak || 0;
+    const newLastCompleted = stats?.last_completed || null;
+    const newCurrentStreak = stats?.last_status === 'Completed' ? (stats?.last_streak || 0) : 0;
+
+    await db.runAsync(
+      `UPDATE habits 
+       SET total_points = MAX(0, total_points - ?),
+           current_streak = ?,
+           longest_streak = ?,
+           last_completed_date = ?
+       WHERE id = ?`,
+      [pointsToDeduct, newCurrentStreak, newLongestStreak, newLastCompleted, habit_id]
+    );
+
+    await db.runAsync('COMMIT');
+
+    return entry_id;
+  } catch (error) {
+    await db.runAsync('ROLLBACK');
+    console.error('Error deleting habit entry:', error);
     throw error;
   }
 }
@@ -211,7 +246,6 @@ export async function trackHabit(formData: any) {
         [newStreak, newLongest, entry_date, newTotalPoints, habit_id]
       );
 
-      // Update the habit_entries row with the streak and points earned today
       await db.runAsync(
         `UPDATE habit_entries 
          SET streak_on_day = ?, points = ?

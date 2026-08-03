@@ -186,8 +186,8 @@ export default function CreateScreen() {
                     key={item.id}
                     onPress={() => setValue("color", item.id)}
                     style={{
-                      backgroundColor: item.hex,
-                      borderColor: isSelected ? `${item.accent}30` : 'transparent',
+                      backgroundColor: currentTheme === 'dark' ? `${item.accent}70` : item.hex,
+                      borderColor: isSelected ? `${item.accent}` : 'transparent',
                       borderWidth: 3
                     }}
                     className={`w-10 h-10 rounded-full items-center justify-center ${isSelected ? "scale-110" : ""}`}
@@ -243,13 +243,17 @@ export default function CreateScreen() {
                             }
                           }}
                           style={{
-                            backgroundColor: isActive ? selectedTheme.hex : 'transparent',
-                            borderColor: isActive ? `${selectedTheme.accent}40` : (currentTheme === 'dark' ? '#404040' : '#d4d4d8'),
-                            borderWidth: isActive ? 3 : 1,
+                            backgroundColor: currentTheme === 'dark'
+                              ? (isActive ? `${selectedTheme.accent}40` : 'transparent')
+                              : (isActive ? selectedTheme.hex : 'transparent'),
+                            borderColor: currentTheme === 'dark'
+                              ? (isActive ? selectedTheme.accent : '#404040')
+                              : (isActive ? `${selectedTheme.accent}40` : '#d4d4d8'),
+                            borderWidth: isActive ? (currentTheme === 'dark' ? 2 : 3) : 1,
                           }}
                           className="w-10 h-10 rounded-full items-center justify-center"
                         >
-                          <Text style={{ color: isActive ? selectedTheme.accent : (currentTheme === 'dark' ? '#a3a3a3' : '#737373') }} className="font-pbold text-sm">
+                          <Text style={{ zIndex: 1, color: isActive ? selectedTheme.accent : (currentTheme === 'dark' ? selectedTheme.hex : selectedTheme.accent) }} className="font-pbold text-sm">
                             {day.label}
                           </Text>
                         </TouchableOpacity>
@@ -388,7 +392,6 @@ export default function CreateScreen() {
           )}
 
           <View className="w-full px-4 mt-6">
-            {/* Create Habit Button updated to use selectedTheme.accent */}
             <Button
               title={mutation.isPending ? "Creating..." : "Create Habit"}
               handlePress={handleSubmit(onCreateTodo)}

@@ -1,11 +1,10 @@
 import { Tabs } from 'expo-router';
 
 import { TabBarIcon } from '@/components/ui/tab-icon';
-import { useAppTheme } from '@/context/theme-context';
+import { HomeIcon, PlusIcon } from '@/constants/icons';
 import { Colors } from '@/constants/theme';
+import { useAppTheme } from '@/context/theme-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-
-import icons from '@/constants/icons';
 
 export default function TabLayout() {
 	const colorScheme = useColorScheme();
@@ -16,6 +15,7 @@ export default function TabLayout() {
 		<Tabs
 			screenOptions={{
 				tabBarShowLabel: false,
+				tabBarInactiveTintColor: currentTheme === 'dark' ? '#A3A3A3' : '#737373',
 				tabBarActiveTintColor: activeColor.accent,
 				headerShown: false,
 				tabBarStyle: {
@@ -32,7 +32,7 @@ export default function TabLayout() {
 					headerShown: false,
 					tabBarIcon: ({ color, focused }) => (
 						<TabBarIcon
-							icon={icons.home}
+							icon={HomeIcon}
 							color={color as string}
 							name='Habits'
 							focused={focused}
@@ -47,7 +47,7 @@ export default function TabLayout() {
 					headerShown: false,
 					tabBarIcon: ({ color, focused }) => (
 						<TabBarIcon
-							icon={icons.plus}
+							icon={PlusIcon}
 							color={color as string}
 							name='Create'
 							focused={focused}

@@ -5,12 +5,11 @@ import { useCallback } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Image,
   ScrollView,
   Text,
   TouchableOpacity,
   useColorScheme,
-  View,
+  View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -19,7 +18,7 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import Button from "@/components/ui/button";
 import { HABIT_COLORS } from "@/constants/habit-colors";
-import icons from "@/constants/icons";
+import { BellDisabledIcon, BellIcon, BinIcon, CancelIcon, ChevronIcon, EditIcon, FlameIcon, SkipIcon, TickIcon } from "@/constants/icons";
 import { Colors } from "@/constants/theme";
 import { useAppTheme } from "@/context/theme-context";
 import { deleteEntry, deleteHabit, getHabitActivity, getHabitById, getHabitCompletedDates } from "@/utils/actions";
@@ -63,7 +62,7 @@ export default function HabitScreen() {
   const queryClient = useQueryClient();
 
   const deleteMutation = useMutation({
-    mutationFn: deleteEntry,
+    mutationFn: ({ entry_id, habit_id }: { entry_id: number; habit_id: string }) => deleteEntry(entry_id, habit_id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["habit_entries", id] });
       queryClient.invalidateQueries({ queryKey: ["habit_summary", id] });
@@ -75,7 +74,14 @@ export default function HabitScreen() {
     },
   });
 
-  const onDeleteEntry = async (entry_id: number) => await deleteMutation.mutate(entry_id);
+  const onDeleteEntry = (entry_id: number) => {
+    if (!id) return;
+
+    deleteMutation.mutate({
+      entry_id: entry_id,
+      habit_id: id.toString()
+    });
+  };
 
   const deleteHabitMutation = useMutation({
     mutationFn: deleteHabit,
@@ -106,8 +112,6 @@ export default function HabitScreen() {
     );
   };
 
-  // Set app-wide theme to this habit's color when screen is focused
-  // Must be before early returns to satisfy React's rules of hooks
   useFocusEffect(
     useCallback(() => {
       if (habit?.color) {
@@ -154,9 +158,9 @@ export default function HabitScreen() {
 
   const getStatusEmoji = (status: string) => {
     switch (status) {
-      case 'Completed': return '✓';
-      case 'Skipped': return '⏭';
-      case 'Missed': return '✗';
+      case 'Completed': return <TickIcon color={theme.accent} size={20} />;
+      case 'Skipped': return <SkipIcon color={Colors[currentTheme].icon} size={20} />;
+      case 'Missed': return <CancelIcon color={Colors[currentTheme].icon} size={20} />;
       default: return '•';
     }
   };
@@ -169,33 +173,31 @@ export default function HabitScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }}>
         <ThemedView className="flex-1" style={{ backgroundColor: "transparent" }}>
 
-          {/* Back button */}
           <TouchableOpacity
             onPress={() => router.back()}
-            className="mx-4 mt-2 mb-2 self-start py-2 pr-4"
+            className="flex-row items-center gap-2 mx-4 mt-2 mb-2 self-start py-2 pr-4"
           >
-            <ThemedText className="text-base font-pmedium opacity-60">
+            <ChevronIcon size={18} color={theme.accent} />
+            <ThemedText className={`text-base font-pmedium opacity-60 ${theme.text}`}>
               Back
             </ThemedText>
           </TouchableOpacity>
 
-          {/* Hero Section — no border, clean themed bg */}
           <View
-            style={{ backgroundColor: `${theme.hex}90` }}
+            style={{ backgroundColor: colorScheme === 'dark' ? `${theme.accent}10` : `${theme.hex}50` }}
             className="mx-4 rounded-3xl py-10 px-6 items-center"
           >
-            {habit.notify === 1 ? (
-              <View className="absolute top-5 left-5">
-                <Image
-                  source={icons.notification}
-                  resizeMode="contain"
-                  tintColor={theme.accent}
-                  className="w-5 h-5 opacity-70"
+            <View className="absolute top-5 left-5">
+              {habit.notify === 1 ? (
+                <BellIcon
+                  color={theme.accent}
+                  size={20}
+                  style={{ opacity: 0.7 }}
                 />
-              </View>
-            ) : null}
+              ) : <BellDisabledIcon color={'#c7c7c7'} size={20} />}
+            </View>
 
-            <Text className={`text-3xl font-pbold mb-2 text-center ${theme.text}`}>
+            <Text className={`text-3xl font-pbold mb-2 text-center`} style={{ color: theme.accent }}>
               {habit.name}
             </Text>
 
@@ -208,10 +210,11 @@ export default function HabitScreen() {
             {Number(habit.current_streak) > 0 ? (
               <View
                 style={{ backgroundColor: `${theme.accent}18` }}
-                className="px-5 py-2 rounded-full mt-2"
+                className="px-5 py-2 rounded-full mt-2 flex-row items-center gap-2"
               >
+                <FlameIcon color={theme.accent} size={20} />
                 <Text style={{ color: theme.accent }} className="font-pbold text-sm">
-                  🔥 {habit.current_streak} day streak
+                  {habit.current_streak} day streak
                 </Text>
               </View>
             ) : null}
@@ -297,7 +300,10 @@ export default function HabitScreen() {
               </ThemedText>
             ) : activity?.length === 0 ? (
               <View className="mt-6 items-center py-8">
-                <Text className="text-3xl mb-3">📝</Text>
+                <View className="mb-4 opacity-40">
+                  <EditIcon color={Colors[currentTheme].icon} size={40} />
+                </View>
+
                 <ThemedText className="text-sm font-pmedium text-center opacity-40">
                   No activity logged yet.{"\n"}Tap "Track Activity" to get started!
                 </ThemedText>
@@ -306,24 +312,16 @@ export default function HabitScreen() {
               activity?.map((entry: any) => (
                 <View
                   key={entry?.id || entry?.entry_date}
-                  className="flex-row items-center mb-3 rounded-2xl p-4"
+                  className="flex-row items-center gap-3 mb-3 rounded-2xl p-4"
                   style={{
                     backgroundColor: currentTheme === "dark" ? '#1c1c1e' : '#f5f5f4',
                   }}
                 >
-                  {/* Status indicator */}
                   <View
-                    style={{
-                      backgroundColor: entry.status === 'Completed' ? `${theme.accent}20` : (currentTheme === 'dark' ? '#333' : '#e5e5e5'),
-                    }}
-                    className="w-9 h-9 rounded-full items-center justify-center mr-3"
+                    style={{ backgroundColor: entry.status === 'Completed' ? `${theme.accent}20` : `${Colors[currentTheme].icon}20` }}
+                    className="w-9 h-9 rounded-full items-center justify-center"
                   >
-                    <Text
-                      style={{ color: entry.status === 'Completed' ? theme.accent : Colors[currentTheme].icon }}
-                      className="text-sm font-pbold"
-                    >
-                      {getStatusEmoji(entry.status)}
-                    </Text>
+                    {getStatusEmoji(entry.status || 'Missed')}
                   </View>
 
                   <View className="flex-1">
@@ -347,11 +345,9 @@ export default function HabitScreen() {
                     onPress={() => onDeleteEntry(entry.id)}
                     className="p-1"
                   >
-                    <Image
-                      source={icons.bin}
-                      resizeMode="contain"
-                      tintColor="#ef4444"
-                      className="w-4 h-4 opacity-40"
+                    <BinIcon
+                      color="#ef4444"
+                      size={20}
                     />
                   </TouchableOpacity>
                 </View>

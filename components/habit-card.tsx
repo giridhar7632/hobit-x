@@ -1,4 +1,6 @@
 import { HABIT_COLORS } from '@/constants/habit-colors';
+import { BellIcon, ClockIcon, FlameIcon, PlusIcon, TickIcon } from '@/constants/icons';
+import { useColorScheme } from '@/hooks/use-color-scheme.web';
 import { Text, TouchableOpacity, View } from 'react-native';
 
 interface HabitCardProps {
@@ -9,9 +11,10 @@ interface HabitCardProps {
 }
 
 export function HabitCard({ habit, onPress, onTrack, completedToday = false }: HabitCardProps) {
+    const colorScheme = useColorScheme();
+    const currentTheme = colorScheme === "dark" ? "dark" : "light";
     const theme = HABIT_COLORS[habit.color] || HABIT_COLORS.lime;
 
-    // Safely extract the time if last_completed_date exists
     const completedTime = habit.last_completed_date
         ? new Date(habit.last_completed_date.replace(' ', 'T')).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         : 'Today';
@@ -24,19 +27,17 @@ export function HabitCard({ habit, onPress, onTrack, completedToday = false }: H
         >
             <View
                 style={{
-                    backgroundColor: `${theme.hex}${completedToday ? '60' : 'ff'}`,
-                    borderColor: `${theme.accent}25`,
+                    backgroundColor: currentTheme === 'dark' ? `${theme.accent}${completedToday ? '20' : '40'}` : `${theme.hex}${completedToday ? '60' : 'ff'}`,
+                    borderColor: currentTheme === 'dark' ? `${theme.accent}40` : `${theme.accent}25`,
                     borderWidth: 1,
                 }}
                 className="rounded-2xl p-4 flex-row items-center"
             >
-                {/* Left accent bar */}
                 <View
                     style={{ backgroundColor: theme.accent, opacity: completedToday ? 0.4 : 1 }}
                     className="w-1 h-10 rounded-full mr-4"
                 />
 
-                {/* Content */}
                 <View className="flex-1">
                     <Text
                         className={`text-base font-pbold ${theme.text}`}
@@ -46,7 +47,7 @@ export function HabitCard({ habit, onPress, onTrack, completedToday = false }: H
                         {habit.name}
                     </Text>
 
-                    <View className="flex-row items-center mt-1 gap-3">
+                    <View className="flex-row items-center mt-1 gap-4">
                         {completedToday ? (
                             <Text className={`text-xs font-pmedium opacity-70 ${theme.text}`}>
                                 Completed at {completedTime}
@@ -54,32 +55,42 @@ export function HabitCard({ habit, onPress, onTrack, completedToday = false }: H
                         ) : (
                             <>
                                 {habit.planned_time_minutes ? (
-                                    <Text className={`text-xs font-pregular opacity-60 ${theme.text}`}>
-                                        ⏱ {habit.planned_time_minutes}m
-                                    </Text>
+                                    <View className="flex-row items-center gap-1 opacity-60">
+                                        <ClockIcon size={12} color={theme.accent} />
+                                        <Text className={`text-xs font-pregular ${theme.text}`}>
+                                            {habit.planned_time_minutes}m
+                                        </Text>
+                                    </View>
                                 ) : null}
+
                                 {habit.notify === 1 && habit.notify_time ? (
-                                    <Text className={`text-xs font-pregular opacity-60 ${theme.text}`}>
-                                        🔔 {new Date(habit.notify_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </Text>
+                                    <View className="flex-row items-center gap-1 opacity-60">
+                                        <BellIcon size={12} color={theme.accent} />
+                                        <Text className={`text-xs font-pregular ${theme.text}`}>
+                                            {new Date(habit.notify_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </Text>
+                                    </View>
                                 ) : null}
-                                {habit.current_streak > 0 && (
-                                    <Text className={`text-xs font-pmedium opacity-70 ${theme.text}`}>
-                                        🔥 {habit.current_streak}
-                                    </Text>
-                                )}
+
+                                {habit.current_streak > 0 ? (
+                                    <View className="flex-row items-center gap-1 opacity-70">
+                                        <FlameIcon size={12} color={theme.accent} />
+                                        <Text className={`text-xs font-pmedium ${theme.text}`}>
+                                            {habit.current_streak}
+                                        </Text>
+                                    </View>
+                                ) : null}
                             </>
                         )}
                     </View>
                 </View>
 
-                {/* Track / Done button */}
                 {completedToday ? (
                     <View
                         style={{ backgroundColor: `${theme.accent}20` }}
                         className="w-10 h-10 rounded-full items-center justify-center ml-3"
                     >
-                        <Text style={{ color: theme.accent }} className="text-lg font-pbold">✓</Text>
+                        <TickIcon size={20} color={theme.accent} />
                     </View>
                 ) : (
                     <TouchableOpacity
@@ -90,7 +101,7 @@ export function HabitCard({ habit, onPress, onTrack, completedToday = false }: H
                         style={{ backgroundColor: theme.accent }}
                         className="w-10 h-10 rounded-full items-center justify-center ml-3"
                     >
-                        <Text className="text-white text-lg font-bold">+</Text>
+                        <PlusIcon size={20} color="#FFFFFF" />
                     </TouchableOpacity>
                 )}
             </View>

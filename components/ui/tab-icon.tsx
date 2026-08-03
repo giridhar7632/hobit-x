@@ -1,21 +1,22 @@
-import { Image, ImageSourcePropType, Text, View } from "react-native";
+import { IconProps } from "@/constants/icons";
+import React from "react";
+import { Text, View } from "react-native";
 
 type TabBarIconProps = {
-  icon: ImageSourcePropType | undefined;
+  icon: React.FC<IconProps>;
   color: string;
   name: string;
   focused: boolean;
 };
 
-export function TabBarIcon({ icon, color, name, focused }: TabBarIconProps) {
+export function TabBarIcon({ icon: Icon, color, name, focused }: TabBarIconProps) {
   return (
-    <View className="flex items-center justify-center gap-2 cursor-pointer" style={{ width: 120 }}>
-      <Image
-        source={icon}
-        resizeMode="contain"
-        tintColor={color}
-        className="w-6 h-6"
-      />
+    <View
+      className="flex items-center justify-center gap-2 cursor-pointer"
+      style={{ width: 120 }}
+    >
+      <Icon color={color} size={24} />
+
       <Text
         key={name}
         className={`${focused ? "font-psemibold" : "font-pregular"} text-xs`}
