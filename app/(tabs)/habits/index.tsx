@@ -1,4 +1,5 @@
 import { HabitCard } from "@/components/habit-card";
+import { HabitTimerScreen } from "@/components/habit-timer";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Colors } from "@/constants/theme";
@@ -8,8 +9,8 @@ import { getHabits, trackHabit } from "@/utils/actions";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect } from "expo-router";
-import { useCallback } from "react";
-import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import { useCallback, useState } from "react";
+import { ActivityIndicator, Modal, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 function getTodayISO() {
@@ -28,6 +29,9 @@ export default function HabitsScreen() {
   const colorScheme = useColorScheme();
   const currentTheme = colorScheme === 'dark' ? 'dark' : 'light';
   const { resetColor } = useAppTheme();
+
+  const [timerHabit, setTimerHabit] = useState<any>(null);
+  const [isTimerVisible, setIsTimerVisible] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -65,6 +69,18 @@ export default function HabitsScreen() {
       entry_date: new Date().toISOString(),
       note: "",
     });
+  };
+
+  const handleOpenTimer = (habit: any) => {
+    setTimerHabit(habit);
+    setIsTimerVisible(true);
+  };
+  const handleCloseTimer = () => {
+    setIsTimerVisible(false);
+
+    setTimeout(() => {
+      setTimerHabit(null);
+    }, 400);
   };
 
   const todayISO = getTodayISO();
@@ -146,7 +162,11 @@ export default function HabitsScreen() {
                 .sort((a: any, b: any) => {
                   const aDone = isCompletedToday(a) ? 1 : 0;
                   const bDone = isCompletedToday(b) ? 1 : 0;
-                  return aDone - bDone;
+                  if (aDone !== bDone) return aDone - bDone;
+                  // Within the completed group, most recent first
+                  const aDate = a.last_completed_date || '';
+                  const bDate = b.last_completed_date || '';
+                  return bDate.localeCompare(aDate);
                 })
                 .map((habit: any) => (
                   <HabitCard
@@ -155,10 +175,24 @@ export default function HabitsScreen() {
                     completedToday={isCompletedToday(habit)}
                     onPress={() => router.push(`/habits/${habit.id}`)}
                     onTrack={() => handleQuickTrack(habit)}
+                    onTimerPress={() => handleOpenTimer(habit)}
                   />
                 ))
             )}
           </View>
+          <Modal
+            visible={isTimerVisible}
+            animationType="slide"
+            presentationStyle="pageSheet"
+            onRequestClose={handleCloseTimer}
+          >
+            {timerHabit && (
+              <HabitTimerScreen
+                habit={timerHabit}
+                onClose={handleCloseTimer}
+              />
+            )}
+          </Modal>
 
         </ThemedView>
       </ScrollView>

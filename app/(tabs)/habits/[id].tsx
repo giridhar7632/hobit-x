@@ -67,6 +67,7 @@ export default function HabitScreen() {
       queryClient.invalidateQueries({ queryKey: ["habit_entries", id] });
       queryClient.invalidateQueries({ queryKey: ["habit_summary", id] });
       queryClient.invalidateQueries({ queryKey: ["habit-dates", id] });
+      queryClient.invalidateQueries({ queryKey: ["habits"] });
     },
     onError: (error) => {
       console.error("Error deleting entry:", error);

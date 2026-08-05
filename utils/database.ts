@@ -4,7 +4,7 @@ let db: SQLite.SQLiteDatabase | null = null;
 
 export async function getDb() {
   if (!db) {
-    db = await SQLite.openDatabaseAsync('habitsApp.db');
+    db = await SQLite.openDatabaseAsync('hobitApp.db');
   }
   return db;
 }
@@ -44,7 +44,7 @@ export async function initDatabase() {
       note TEXT,
       actual_time_minutes INTEGER,
       entry_date TEXT NOT NULL,
-      status TEXT NOT NULL CHECK (status IN ('Completed', 'Missed', 'Skipped')),
+      status TEXT NOT NULL CHECK (status IN ('Completed', 'Missed', 'Skipped', 'Partial')),
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT,
       points INTEGER DEFAULT 0,
