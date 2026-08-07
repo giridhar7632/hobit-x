@@ -19,6 +19,7 @@ import { HABIT_COLORS } from "@/constants/habit-colors";
 import { Colors } from "@/constants/theme";
 import { useAppTheme } from "@/context/theme-context";
 import { getHabitById, trackHabit } from "@/utils/actions";
+import { refreshHabitNotifications } from "@/utils/notifications";
 import { Habit } from "@/utils/types";
 
 export default function TrackScreen() {
@@ -60,12 +61,16 @@ export default function TrackScreen() {
     },
   });
 
-  const handleSave = () => {
-    mutation.mutate({
+  const handleSave = async () => {
+    const totalMinutesToday = actualTime;
+    const newNotificationIds = await refreshHabitNotifications(habit as Habit, totalMinutesToday);
+
+    await mutation.mutateAsync({
       habit_id: Number(id),
       actual_time_minutes: actualTime,
       status: status,
       entry_date: new Date().toISOString(),
+      notification_ids: JSON.stringify(newNotificationIds),
       note: note.trim(),
     });
   };

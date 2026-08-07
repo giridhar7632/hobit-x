@@ -22,6 +22,7 @@ import { BellDisabledIcon, BellIcon, BinIcon, CancelIcon, ChevronIcon, EditIcon,
 import { Colors } from "@/constants/theme";
 import { useAppTheme } from "@/context/theme-context";
 import { deleteEntry, deleteHabit, getHabitActivity, getHabitById, getHabitCompletedDates } from "@/utils/actions";
+import { cancelScheduledNotification } from "@/utils/notifications";
 import { Habit, HabitEntry } from "@/utils/types";
 
 export default function HabitScreen() {
@@ -107,11 +108,28 @@ export default function HabitScreen() {
         {
           text: "Delete",
           style: "destructive",
-          onPress: () => deleteHabitMutation.mutate(habit_id),
+          onPress: () => deleteHabitWithNotifications(habit_id, habit?.notification_ids || "")
         },
       ]
     );
   };
+
+  const deleteHabitWithNotifications = async (habitId: number, notificationIdsJson: string) => {
+    if (notificationIdsJson) {
+      try {
+        const ids = JSON.parse(notificationIdsJson);
+
+        for (const id of ids) {
+          if (typeof id === 'string') {
+            await cancelScheduledNotification(id);
+          }
+        }
+      } catch (e) {
+        console.error("Error deleting notifications:", e);
+      }
+    }
+    await deleteHabitMutation.mutate(habitId);
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -162,7 +180,7 @@ export default function HabitScreen() {
       case 'Completed': return <TickIcon color={theme.accent} size={20} />;
       case 'Skipped': return <SkipIcon color={Colors[currentTheme].icon} size={20} />;
       case 'Missed': return <CancelIcon color={Colors[currentTheme].icon} size={20} />;
-      default: return '•';
+      default: return <Text className={`text-lg font-pbold ${theme.text}`}>•</Text>;
     }
   };
 

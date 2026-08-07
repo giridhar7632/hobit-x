@@ -1,15 +1,5 @@
 import * as Notifications from 'expo-notifications';
 
-Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: false,
-        shouldShowBanner: true,
-        shouldShowList: true,
-    }),
-});
-
 export async function requestNotificationPermissions() {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
@@ -22,55 +12,107 @@ export async function requestNotificationPermissions() {
     return finalStatus === 'granted';
 }
 
-export async function scheduleHabitNotification(
-    habitName: string,
-    notifyTimeISO: string,
-    targetDays: number[]
+export async function refreshHabitNotifications(
+    habit: any,
+    trackedMinutesToday: number = 0
 ) {
+    try {
+        if (habit.notification_ids) {
+            let oldIds = [];
+
+            if (typeof habit.notification_ids === 'string') {
+                try {
+                    oldIds = JSON.parse(habit.notification_ids);
+                } catch (err) {
+                    oldIds = [];
+                }
+            } else if (Array.isArray(habit.notification_ids)) {
+                oldIds = habit.notification_ids;
+            }
+
+            for (const id of oldIds) {
+                if (typeof id === 'string') {
+                    await Notifications.cancelScheduledNotificationAsync(id);
+                }
+            }
+        }
+    } catch (e) {
+        console.warn("Failed to cancel old notifications", e);
+    }
+
+    if (!habit.notify || !habit.notify_time) return [];
+
     const hasPermission = await requestNotificationPermissions();
     if (!hasPermission) return [];
 
-    const notifyDate = new Date(notifyTimeISO);
+    const notifyDate = new Date(habit.notify_time);
     const hour = notifyDate.getHours();
     const minute = notifyDate.getMinutes();
 
-    const notificationIds = [];
+    const targetDays = typeof habit.target_days === 'string'
+        ? JSON.parse(habit.target_days)
+        : (habit.target_days || []);
 
-    if (!targetDays || targetDays.length === 0) {
+    const newIds = [];
+    const progress = trackedMinutesToday / (habit.planned_time_minutes || 1);
+
+    const WINDOW_DAYS = 7;
+
+    for (let i = 0; i < WINDOW_DAYS; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() + i);
+        date.setHours(hour, minute, 0, 0);
+
+        if (date.getTime() < Date.now()) continue;
+
+        const dayOfWeek = date.getDay(); // 0 is Sunday
+        const isTargetDay = targetDays.length === 0 || targetDays.includes(dayOfWeek);
+
+        if (!isTargetDay) continue;
+
+        let title = "Time for your habit! 🌱";
+        let body = `It's time to: ${habit.name}`;
+
+        if (i === 0) {
+            if (progress >= 1) {
+                continue;
+            } else if (progress >= 0.5) {
+                title = "You're halfway there! 🚀";
+                body = `You've done 50% of ${habit.name}. Finish strong!`;
+            }
+        }
+
         const id = await Notifications.scheduleNotificationAsync({
-            content: {
-                title: "Time for your habit! 🌱",
-                body: `It's time to: ${habitName}`,
-                sound: true,
-            },
+            content: { title, body, sound: true },
             trigger: {
-                hour,
-                minute,
-                repeats: true,
-            } as Notifications.NotificationTriggerInput,
+                type: Notifications.SchedulableTriggerInputTypes.DATE,
+                date: date,
+            },
         });
-        notificationIds.push(id);
-        return notificationIds;
+        newIds.push(id);
     }
 
-    for (const day of targetDays) {
-        const expoWeekday = day === 0 ? 1 : day + 1;
+    return newIds;
+}
 
-        const id = await Notifications.scheduleNotificationAsync({
-            content: {
-                title: "Time for your habit! 🌱",
-                body: `It's time to: ${habitName}`,
-                sound: true,
-            },
-            trigger: {
-                weekday: expoWeekday,
-                hour,
-                minute,
-                repeats: true,
-            } as Notifications.NotificationTriggerInput,
-        });
-        notificationIds.push(id);
+export async function scheduleTimerNotification(habitName: string, seconds: number) {
+    const id = await Notifications.scheduleNotificationAsync({
+        content: {
+            title: "Timer Complete! 🎉",
+            body: `Great job focusing on ${habitName}.`,
+            sound: true,
+        },
+        trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+            seconds: seconds
+        },
+    });
+
+    return id;
+}
+
+export async function cancelScheduledNotification(notificationId: string | null) {
+    if (notificationId) {
+        await Notifications.cancelScheduledNotificationAsync(notificationId);
     }
-
-    return notificationIds;
 }

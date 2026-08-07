@@ -100,8 +100,9 @@ export const createHabit = async (habitData: any) => {
         notify, 
         notify_time, 
         start_date, 
-        base_points
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        base_points,
+        notification_ids
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         habitData.name,
         habitData.description,
@@ -113,7 +114,8 @@ export const createHabit = async (habitData: any) => {
         habitData.notify,
         habitData.notify_time,
         habitData.start_date,
-        habitData.base_points
+        habitData.base_points,
+        habitData.notification_ids,
       ]
     );
 
@@ -282,12 +284,23 @@ export async function trackHabit(formData: any) {
       );
     }
 
-    await db.runAsync(
-      `UPDATE habits 
-       SET total_points = total_points + ?, current_streak = ?, longest_streak = ?, last_completed_date = ?
-       WHERE id = ?`,
-      [earnedPoints, newStreak, newLongest, newLastCompleted, habit_id]
-    );
+    let updateQuery = `UPDATE habits 
+                   SET total_points = total_points + ?, 
+                       current_streak = ?, 
+                       longest_streak = ?, 
+                       last_completed_date = ?`;
+
+    let updateParams = [earnedPoints, newStreak, newLongest, newLastCompleted];
+
+    if (formData.notification_ids) {
+      updateQuery += `, notification_ids = ?`;
+      updateParams.push(formData.notification_ids);
+    }
+
+    updateQuery += ` WHERE id = ?`;
+    updateParams.push(habit_id);
+
+    await db.runAsync(updateQuery, updateParams);
 
     await db.runAsync('COMMIT');
     return formData;
@@ -297,3 +310,11 @@ export async function trackHabit(formData: any) {
     throw error;
   }
 }
+
+export const updateHabitNotificationIds = async ({ id, notification_ids }: { id: number, notification_ids: string }) => {
+  const db = await getDb();
+  await db.runAsync(
+    `UPDATE habits SET notification_ids = ? WHERE id = ?;`,
+    [notification_ids, id]
+  );
+};

@@ -1,5 +1,3 @@
-import DateTimePicker from "@react-native-community/datetimepicker";
-import { Picker } from "@react-native-picker/picker";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -7,22 +5,26 @@ import { Controller, useForm } from "react-hook-form";
 import {
   Alert,
   ScrollView,
-  Switch,
   Text,
   TouchableOpacity,
   View,
-  useColorScheme,
+  useColorScheme
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { DurationSelector } from "@/components/duration";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { CustomTimePicker } from "@/components/time-picker";
 import Button from "@/components/ui/button";
 import FormInput from "@/components/ui/form-input";
+import { CustomActionSheetPicker } from "@/components/ui/picker";
+import { CustomSwitch } from "@/components/ui/switch";
 import { HABIT_COLORS, PASTEL_PALETTE } from "@/constants/habit-colors";
 import { Colors } from "@/constants/theme";
 import { useAppTheme } from "@/context/theme-context";
 import { createHabit } from "@/utils/actions";
+import { refreshHabitNotifications } from "@/utils/notifications";
 import { getBasePoints } from "@/utils/points";
 
 const WEEK_DAYS = [
@@ -33,6 +35,12 @@ const WEEK_DAYS = [
   { label: 'F', value: 5 },
   { label: 'S', value: 6 },
   { label: 'S', value: 0 },
+];
+
+const FREQUENCY_OPTIONS = [
+  { label: 'Daily', value: 'daily' },
+  { label: 'Weekly (Specific Days)', value: 'weekly' },
+  { label: 'Monthly', value: 'monthly' },
 ];
 
 export default function CreateScreen() {
@@ -99,17 +107,14 @@ export default function CreateScreen() {
       console.log("Error getting AI points, falling back to 15.");
     }
 
-    // if (formData.notify && notifyTime) {
-    //   try {
-    //     await scheduleHabitNotification(
-    //       formData.name,
-    //       notifyTime.toISOString(),
-    //       formData.target_days
-    //     );
-    //   } catch (error) {
-    //     console.error("Failed to schedule notification:", error);
-    //   }
-    // }
+    const notificationIds = await refreshHabitNotifications(
+      {
+        ...formData,
+        notification_ids: "[]",
+        notify_time: formData.notify ? notifyTime.toISOString() : null,
+      },
+      0
+    );
 
     return mutation.mutate({
       name: formData.name,
@@ -123,12 +128,8 @@ export default function CreateScreen() {
       notify_time: formData.notify ? notifyTime.toISOString() : null,
       start_date: new Date().toISOString(),
       base_points: points / Number(formData.planned_time_minutes),
+      notification_ids: JSON.stringify(notificationIds)
     });
-  };
-
-  const handleTimeChange = (event: any, selectedDate: any) => {
-    if (selectedDate) setNotifyTime(selectedDate);
-    setShowTimePicker(false);
   };
 
   return (
@@ -199,23 +200,18 @@ export default function CreateScreen() {
 
           {/* Frequency Type */}
           <View className="mx-4 mt-4">
-            <ThemedText className="text-sm opacity-70 mb-1">Frequency</ThemedText>
+            <ThemedText className="text-sm opacity-70 mb-2 ml-1">Frequency</ThemedText>
             <Controller
               control={control}
               name="frequency"
               render={({ field: { onChange, value } }) => (
-                <View className={`border rounded-xl mt-2 ${currentTheme === 'light' ? 'border-neutral-200 bg-neutral-100' : 'border-neutral-800 bg-neutral-900'}`}>
-                  <Picker
-                    selectedValue={value}
-                    onValueChange={onChange}
-                    style={{ color: Colors[currentTheme].text }}
-                    dropdownIconColor={Colors[currentTheme].text}
-                  >
-                    <Picker.Item label="Daily" value="daily" />
-                    <Picker.Item label="Weekly (Specific Days)" value="weekly" />
-                    <Picker.Item label="Monthly" value="monthly" />
-                  </Picker>
-                </View>
+                <CustomActionSheetPicker
+                  label="Frequency"
+                  value={value}
+                  options={FREQUENCY_OPTIONS}
+                  onValueChange={onChange}
+                  accentColor={selectedTheme.accent}
+                />
               )}
             />
           </View>
@@ -298,98 +294,78 @@ export default function CreateScreen() {
           </View>
 
           {/* Planned Time */}
-          <Controller
-            control={control}
-            name="planned_time_minutes"
-            rules={{
-              required: "Planned time is required",
-              validate: (value) => {
-                const parsed = Number(String(value).trim());
-
-                if (isNaN(parsed) || parsed <= 0) {
-                  return "Must be a valid number greater than 0";
-                }
-                if (parsed > 120) {
-                  return "Maximum is 120 minutes (2 hours)";
-                }
-                return true;
-              }
-            }}
-            render={({ field: { onChange, onBlur, value } }) => (
-              <FormInput
-                handleBlur={onBlur}
-                handleChangeText={onChange}
-                value={value}
-                label="Planned time (minutes)"
-                keyboardType="numeric"
-                error={errors.planned_time_minutes?.message as string}
-                accentColor={selectedTheme.accent}
-              />
+          <View className="mx-4 mt-4">
+            <ThemedText className="text-sm opacity-70 mb-2 ml-1">Planned time</ThemedText>
+            <Controller
+              control={control}
+              name="planned_time_minutes"
+              rules={{ required: "Please select a duration" }}
+              render={({ field: { onChange, value } }) => (
+                <DurationSelector
+                  value={value}
+                  onChange={onChange}
+                  accentColor={selectedTheme.accent}
+                />
+              )}
+            />
+            {errors.planned_time_minutes && (
+              <ThemedText className="text-red-500 text-xs mt-2 ml-1">
+                {errors.planned_time_minutes.message as string}
+              </ThemedText>
             )}
-          />
+          </View>
 
           {/* Notifications */}
           <View className="mx-4 mt-4 p-4 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/50">
+
             <View className="flex-row items-center justify-between">
               <ThemedText className="text-base font-pmedium">Enable Notifications</ThemedText>
               <Controller
                 control={control}
                 name="notify"
                 render={({ field: { onChange, value } }) => (
-                  <Switch
+                  <CustomSwitch
                     value={value}
-                    trackColor={{ true: selectedTheme.accent, false: "#737373" }}
                     onValueChange={onChange}
+                    activeColor={selectedTheme.accent}
                   />
                 )}
               />
             </View>
 
             {watch("notify") && (
-              <View className="mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-800">
-                <ThemedText className="text-sm opacity-70 mb-3">Notification Time</ThemedText>
-                <View className="flex-row gap-4 items-center">
-                  <Button
-                    title="8:00 AM"
-                    containerStyles="flex-1 min-h-[44px]"
-                    style={{
-                      backgroundColor: !showTimePicker ? selectedTheme.accent : 'transparent',
-                      borderColor: selectedTheme.accent,
-                      borderWidth: 1, // Keep border width on both so the size doesn't jump
-                    }}
-                    textStyle={{ color: !showTimePicker ? '#ffffff' : selectedTheme.accent }}
-                    handlePress={() => {
-                      const d = new Date();
-                      d.setHours(8, 0, 0, 0);
-                      setNotifyTime(d);
-                      setShowTimePicker(false);
-                    }}
-                  />
-                  <Button
-                    title={notifyTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    containerStyles="flex-1 min-h-[44px]"
-                    style={{
-                      backgroundColor: showTimePicker ? selectedTheme.accent : 'transparent',
-                      borderColor: selectedTheme.accent,
-                      borderWidth: 1,
-                    }}
-                    textStyle={{ color: showTimePicker ? '#ffffff' : selectedTheme.accent }}
-                    handlePress={() => setShowTimePicker(true)}
-                  />
+              <View className="mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-800 flex-row items-center justify-between">
+                <View>
+                  <ThemedText className="text-sm font-pmedium dark:text-gray-300">Notification Time</ThemedText>
+                  <ThemedText className="text-xs opacity-50 mt-1">When should we remind you?</ThemedText>
                 </View>
+
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => setShowTimePicker(true)}
+                  className="px-4 py-2.5 rounded-xl border"
+                  style={{
+                    backgroundColor: `${selectedTheme.accent}15`,
+                    borderColor: `${selectedTheme.accent}30`,
+                    borderWidth: 1
+                  }}
+                >
+                  <ThemedText style={{ color: selectedTheme.accent }} className="font-psemibold text-base">
+                    {notifyTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </ThemedText>
+                </TouchableOpacity>
               </View>
             )}
-          </View>
 
-          {showTimePicker && (
-            <DateTimePicker
-              value={notifyTime}
-              mode="time"
-              is24Hour={false}
-              display="default"
-              onChange={handleTimeChange}
+            <CustomTimePicker
+              visible={showTimePicker}
+              onClose={() => setShowTimePicker(false)}
+              initialTime={notifyTime}
+              onSave={(newTime) => setNotifyTime(newTime)}
+              accentColor={selectedTheme.accent}
             />
-          )}
+
+          </View>
 
           <View className="w-full px-4 mt-6">
             <Button

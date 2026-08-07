@@ -8,7 +8,9 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { initDatabase } from '@/utils/database';
 import { requestNotificationPermissions } from '@/utils/notifications';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import * as Notifications from 'expo-notifications';
 import * as SplashScreen from "expo-splash-screen";
+
 import { useEffect, useState } from 'react';
 
 export const unstable_settings = {
@@ -18,6 +20,14 @@ export const unstable_settings = {
 const queryClient = new QueryClient();
 
 SplashScreen.preventAutoHideAsync();
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 export default function RootLayout() {
   const [dbReady, setDbReady] = useState(false);

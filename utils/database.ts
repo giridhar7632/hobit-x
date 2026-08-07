@@ -33,9 +33,18 @@ export async function initDatabase() {
       total_points INTEGER DEFAULT 0,
       current_streak INTEGER DEFAULT 0,
       longest_streak INTEGER DEFAULT 0,
-      last_completed_date TEXT
+      last_completed_date TEXT, 
+      notification_ids TEXT DEFAULT '[]'
     );
   `);
+
+  const tableInfo: any[] = await db.getAllAsync(`PRAGMA table_info(habits);`);
+  const hasNotificationIds = tableInfo.some(column => column.name === 'notification_ids');
+
+  if (!hasNotificationIds) {
+    console.log("Migrating database: Adding notification_ids column...");
+    await db.execAsync(`ALTER TABLE habits ADD COLUMN notification_ids TEXT DEFAULT '[]';`);
+  }
 
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS habit_entries (

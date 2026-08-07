@@ -1,6 +1,4 @@
-import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
-import * as Notifications from 'expo-notifications';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Dimensions, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Line } from 'react-native-svg';
@@ -9,17 +7,8 @@ import { HABIT_COLORS } from '@/constants/habit-colors';
 import { BellIcon } from '@/constants/icons';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { trackHabit } from '@/utils/actions';
-
-// Tell Expo how to handle notifications when the app is OPEN
-Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: false,
-        shouldShowBanner: true,
-        shouldShowList: true,
-    }),
-});
+import { cancelScheduledNotification, refreshHabitNotifications, scheduleTimerNotification } from '@/utils/notifications';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const RING_SIZE = SCREEN_WIDTH * 0.85;
@@ -59,10 +48,10 @@ function formatEndTime(remainingSeconds: number) {
 }
 
 interface TickRingProps {
-    progress: number;      // 0..1 remaining time
+    progress: number;
     accentColor: string;
     isPaused: boolean;
-    isDark: boolean; // Added theme toggle
+    isDark: boolean;
 }
 
 function TickRing({ progress, accentColor, isPaused, isDark }: TickRingProps) {
@@ -128,44 +117,16 @@ export function HabitTimerScreen({ habit, onClose }: HabitTimerProps) {
 
     const targetSeconds = (habit.planned_time_minutes || 10) * 60;
 
-    // Instead of relying on setInterval ticking perfectly, we track the absolute end time
     const [secondsElapsed, setSecondsElapsed] = useState(0);
     const [isActive, setIsActive] = useState(false);
 
     const targetEndTimeRef = useRef<number | null>(null);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const notificationIdRef = useRef<string | null>(null);
-    const [sound, setSound] = useState<Audio.Sound | null>(null);
-
     const isPaused = !isActive && secondsElapsed > 0;
 
-    // ─── 1. Setup Audio & Permissions ─────────────────────────────
-    useEffect(() => {
-        async function setupAudioAndNotifications() {
-            // Load the sound file
-            const { sound: audioSound } = await Audio.Sound.createAsync(
-                require('@/assets/sounds/alarm.mp3') // ⚠️ UPDATE THIS PATH TO YOUR ACTUAL SOUND FILE
-            );
-            setSound(audioSound);
-
-            // Request notification permissions
-            const { status } = await Notifications.requestPermissionsAsync();
-            if (status !== 'granted') {
-                console.warn('Notification permissions not granted!');
-            }
-        }
-        setupAudioAndNotifications();
-
-        return () => {
-            if (sound) sound.unloadAsync(); // Cleanup on unmount
-            cancelScheduledNotification();
-        };
-    }, []);
-
-    // ─── 2. Timer Logic (Resilient to Backgrounding) ──────────────
     useEffect(() => {
         if (isActive) {
-            // Calculate exactly when this timer should end in the real world
             const remaining = targetSeconds - secondsElapsed;
             targetEndTimeRef.current = Date.now() + remaining * 1000;
 
@@ -174,22 +135,19 @@ export function HabitTimerScreen({ habit, onClose }: HabitTimerProps) {
             intervalRef.current = setInterval(() => {
                 if (!targetEndTimeRef.current) return;
 
-                // Compare current time to target time to find true remaining seconds
                 const now = Date.now();
                 const trueRemaining = Math.max(0, Math.round((targetEndTimeRef.current - now) / 1000));
                 const trueElapsed = targetSeconds - trueRemaining;
 
                 setSecondsElapsed(trueElapsed);
 
-                // Auto-complete when time's up
                 if (trueRemaining <= 0) {
                     handleTimerFinish();
                 }
-            }, 500); // Check every half second for better accuracy
+            }, 500);
         } else {
-            // Paused
             targetEndTimeRef.current = null;
-            cancelScheduledNotification();
+            cancelTimerNotification();
             if (intervalRef.current) clearInterval(intervalRef.current);
         }
 
@@ -199,16 +157,11 @@ export function HabitTimerScreen({ habit, onClose }: HabitTimerProps) {
     }, [isActive]);
 
 
-    // ─── 3. Actions ───────────────────────────────────────────────
     const handleTimerFinish = async () => {
         setIsActive(false);
         if (intervalRef.current) clearInterval(intervalRef.current);
 
-        // Vibrate and Play Sound!
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        if (sound) {
-            await sound.playAsync();
-        }
 
         await handleSave('Completed');
     };
@@ -220,7 +173,7 @@ export function HabitTimerScreen({ habit, onClose }: HabitTimerProps) {
 
     const handleCancel = () => {
         setIsActive(false);
-        cancelScheduledNotification();
+        cancelTimerNotification();
         if (intervalRef.current) clearInterval(intervalRef.current);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
@@ -251,14 +204,31 @@ export function HabitTimerScreen({ habit, onClose }: HabitTimerProps) {
         await handleSave('Completed');
     };
 
+    const queryClient = useQueryClient();
+    const mutation = useMutation({
+        mutationFn: trackHabit,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["habits"] });
+            queryClient.invalidateQueries({ queryKey: ["habit_entries", habit.id] });
+            queryClient.invalidateQueries({ queryKey: ["habit-dates", habit.id] });
+        },
+        onError: (error: any) => {
+            Alert.alert("Error logging habit:", error.message);
+        },
+    });
+
     const handleSave = async (status: string) => {
         const actualMinutes = Math.max(1, Math.round(secondsElapsed / 60));
         try {
-            await trackHabit({
+            const totalMinutesToday = (habit.today_tracked_minutes || 0) + actualMinutes;
+            const newNotificationIds = await refreshHabitNotifications(habit, totalMinutesToday);
+
+            await mutation.mutateAsync({
                 habit_id: habit.id,
                 entry_date: new Date().toISOString(),
                 status,
                 actual_time_minutes: actualMinutes,
+                notification_ids: JSON.stringify(newNotificationIds),
             });
             if (status === 'Completed') {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -269,26 +239,15 @@ export function HabitTimerScreen({ habit, onClose }: HabitTimerProps) {
         onClose();
     };
 
-    // ─── 4. Notification Helpers ──────────────────────────────────
     const scheduleNotification = async (seconds: number) => {
-        await cancelScheduledNotification(); // Clear any existing ones first
-
-        const id = await Notifications.scheduleNotificationAsync({
-            content: {
-                title: "Timer Complete! 🎉",
-                body: `Great job focusing on ${habit.name}.`,
-                sound: true, // Uses default device notification sound in background
-            },
-            trigger: { seconds: seconds },
-        });
-        notificationIdRef.current = id;
+        await cancelTimerNotification();
+        const newId = await scheduleTimerNotification(habit.name, seconds);
+        notificationIdRef.current = newId;
     };
 
-    const cancelScheduledNotification = async () => {
-        if (notificationIdRef.current) {
-            await Notifications.cancelScheduledNotificationAsync(notificationIdRef.current);
-            notificationIdRef.current = null;
-        }
+    const cancelTimerNotification = async () => {
+        await cancelScheduledNotification(notificationIdRef.current);
+        notificationIdRef.current = null;
     };
 
     const remainingSeconds = Math.max(targetSeconds - secondsElapsed, 0);

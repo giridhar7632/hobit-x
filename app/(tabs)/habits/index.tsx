@@ -5,11 +5,13 @@ import { ThemedView } from "@/components/themed-view";
 import { Colors } from "@/constants/theme";
 import { useAppTheme } from "@/context/theme-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { getHabits, trackHabit } from "@/utils/actions";
+import { getHabits, trackHabit, updateHabitNotificationIds } from "@/utils/actions";
+import { refreshHabitNotifications } from "@/utils/notifications";
+import { Habit } from "@/utils/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Modal, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -32,6 +34,7 @@ export default function HabitsScreen() {
 
   const [timerHabit, setTimerHabit] = useState<any>(null);
   const [isTimerVisible, setIsTimerVisible] = useState(false);
+  const hasSyncedNotifications = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -49,6 +52,31 @@ export default function HabitsScreen() {
     queryFn: getHabits,
   });
 
+  useEffect(() => {
+    if (habits && !hasSyncedNotifications.current) {
+      hasSyncedNotifications.current = true;
+
+      const silentlyRefreshNotifications = async () => {
+        try {
+          const habitsToNotify = habits.filter((h: any) => h.notify === 1);
+
+          for (const habit of habitsToNotify) {
+            const newIds = await refreshHabitNotifications(habit, 0);
+
+            await updateHabitNotificationIds({
+              id: (habit as Habit).id,
+              notification_ids: JSON.stringify(newIds)
+            });
+          }
+        } catch (error) {
+          console.error("Failed to background sync notifications:", error);
+        }
+      };
+
+      silentlyRefreshNotifications();
+    }
+  }, [habits]);
+
   const queryClient = useQueryClient();
   const quickTrackMutation = useMutation({
     mutationFn: trackHabit,
@@ -59,14 +87,17 @@ export default function HabitsScreen() {
     }
   });
 
-  const handleQuickTrack = (habit: any) => {
+  const handleQuickTrack = async (habit: any) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const totalMinutesToday = habit.today_tracked_minutes;
+    const newNotificationIds = await refreshHabitNotifications(habit, totalMinutesToday);
 
-    quickTrackMutation.mutate({
+    await quickTrackMutation.mutateAsync({
       habit_id: habit.id,
       actual_time_minutes: habit.planned_time_minutes,
       status: 'Completed',
       entry_date: new Date().toISOString(),
+      notification_ids: JSON.stringify(newNotificationIds),
       note: "",
     });
   };

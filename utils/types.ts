@@ -25,6 +25,7 @@ export interface Habit {
   current_streak: number;
   longest_streak: number;
   last_completed_date: string | null;
+  notification_ids: string | null;
 }
 
 export interface HabitEntry {
