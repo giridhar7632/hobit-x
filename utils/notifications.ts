@@ -16,28 +16,28 @@ export async function refreshHabitNotifications(
     habit: any,
     trackedMinutesToday: number = 0
 ) {
-    try {
-        if (habit.notification_ids) {
-            let oldIds = [];
-
-            if (typeof habit.notification_ids === 'string') {
-                try {
-                    oldIds = JSON.parse(habit.notification_ids);
-                } catch (err) {
-                    oldIds = [];
-                }
-            } else if (Array.isArray(habit.notification_ids)) {
-                oldIds = habit.notification_ids;
+    let oldIds = [];
+    if (habit.notification_ids) {
+        if (typeof habit.notification_ids === 'string') {
+            try {
+                oldIds = JSON.parse(habit.notification_ids);
+            } catch (err) {
+                oldIds = [];
             }
+        } else if (Array.isArray(habit.notification_ids)) {
+            oldIds = habit.notification_ids;
+        }
 
-            for (const id of oldIds) {
-                if (typeof id === 'string') {
+        for (const id of oldIds) {
+            if (typeof id === 'string') {
+                try {
                     await Notifications.cancelScheduledNotificationAsync(id);
+                } catch (cancelError) {
+                    // Ignore individual cancellation failures on Android
+                    console.warn(`Failed to cancel notification ${id}`, cancelError);
                 }
             }
         }
-    } catch (e) {
-        console.warn("Failed to cancel old notifications", e);
     }
 
     if (!habit.notify || !habit.notify_time) return [];
@@ -83,6 +83,7 @@ export async function refreshHabitNotifications(
         }
 
         const id = await Notifications.scheduleNotificationAsync({
+            identifier: `habit-${habit.id || 'new'}-day-${i}`,
             content: { title, body, sound: true },
             trigger: {
                 type: Notifications.SchedulableTriggerInputTypes.DATE,
