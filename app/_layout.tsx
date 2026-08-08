@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import '../global.css';
 
 import { ThemeProvider } from '@/context/theme-context';
+import { CustomAlertProvider } from '@/components/custom-alert-provider';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { initDatabase } from '@/utils/database';
 import { requestNotificationPermissions } from '@/utils/notifications';
@@ -12,6 +13,7 @@ import * as Notifications from 'expo-notifications';
 import * as SplashScreen from "expo-splash-screen";
 
 import { useEffect, useState } from 'react';
+import { Platform } from "react-native";
 
 export const unstable_settings = {
   initialRouteName: '(tabs)',
@@ -42,8 +44,20 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    // Ask for permission when the app starts
-    requestNotificationPermissions();
+    async function setupNotifications() {
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'Hobit Reminders',
+          importance: Notifications.AndroidImportance.HIGH,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#FF231F7C',
+          lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+          bypassDnd: true,
+        });
+      }
+      await requestNotificationPermissions();
+    }
+    setupNotifications();
   }, []);
 
   useEffect(() => {
@@ -72,11 +86,13 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <Stack>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" options={{ headerShown: false }} />
-        </Stack>
+        <CustomAlertProvider>
+          <Stack>
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="+not-found" options={{ headerShown: false }} />
+          </Stack>
+        </CustomAlertProvider>
         <StatusBar style={colorScheme === "light" ? "dark" : "light"} />
       </ThemeProvider>
     </QueryClientProvider>

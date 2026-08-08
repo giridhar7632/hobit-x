@@ -1,5 +1,5 @@
 import * as Haptics from 'expo-haptics';
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import Animated, {
     Easing,
@@ -7,7 +7,11 @@ import Animated, {
     LinearTransition,
     useAnimatedStyle,
     useSharedValue,
-    withTiming,
+    SharedValue,
+    withDelay,
+    withSequence,
+    withSpring,
+    withTiming
 } from 'react-native-reanimated';
 
 import { HABIT_COLORS } from '@/constants/habit-colors';
@@ -22,6 +26,15 @@ interface HabitCardProps {
     completedToday?: boolean;
 }
 
+const COMPLETION_MESSAGES = [
+    'Nice!',
+    'Great job!',
+    'Keep it up!',
+    'Crushing it!',
+    'Well done!',
+    'Yes!',
+];
+
 export function HabitCard({ habit, onPress, onTrack, onTimerPress, completedToday = false }: HabitCardProps) {
     const colorScheme = useColorScheme();
     const currentTheme = colorScheme === "dark" ? "dark" : "light";
@@ -30,9 +43,56 @@ export function HabitCard({ habit, onPress, onTrack, onTimerPress, completedToda
     const strikeProgress = useSharedValue(completedToday ? 1 : 0);
     const cardOpacity = useSharedValue(completedToday ? 0.6 : 1);
 
+    // Button tap-pop feedback
+    const timerScale = useSharedValue(1);
+    const completeScale = useSharedValue(1);
+
+    // Checkmark burst + pulsing ring
+    const tickScale = useSharedValue(completedToday ? 1 : 0);
+    const ringScale = useSharedValue(0);
+    const ringOpacity = useSharedValue(0);
+
+    // Encouraging micro-copy
+    const microCopyOpacity = useSharedValue(0);
+    const [microCopyText, setMicroCopyText] = useState('');
+
+    const isFirstRender = useRef(true);
+
     useEffect(() => {
         strikeProgress.value = withTiming(completedToday ? 1 : 0, { duration: 400 });
         cardOpacity.value = withTiming(completedToday ? 0.6 : 1, { duration: 400 });
+
+        // Skip the celebration burst on initial mount (e.g. app reopened with
+        // a habit already completed) — only play it on a fresh completion.
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
+
+        if (completedToday) {
+            setMicroCopyText(COMPLETION_MESSAGES[Math.floor(Math.random() * COMPLETION_MESSAGES.length)]);
+
+            tickScale.value = 0;
+            tickScale.value = withSequence(
+                withTiming(1.25, { duration: 220, easing: Easing.out(Easing.ease) }),
+                withTiming(1, { duration: 150, easing: Easing.inOut(Easing.ease) })
+            );
+
+            ringScale.value = 0.6;
+            ringOpacity.value = 0.5;
+            ringScale.value = withTiming(1.9, { duration: 550, easing: Easing.out(Easing.ease) });
+            ringOpacity.value = withTiming(0, { duration: 550, easing: Easing.out(Easing.ease) });
+
+            microCopyOpacity.value = withSequence(
+                withTiming(1, { duration: 200 }),
+                withDelay(900, withTiming(0, { duration: 300 }))
+            );
+        } else {
+            tickScale.value = 0;
+            ringScale.value = 0;
+            ringOpacity.value = 0;
+            microCopyOpacity.value = 0;
+        }
     }, [completedToday]);
 
     const strikeStyle = useAnimatedStyle(() => ({
@@ -43,9 +103,39 @@ export function HabitCard({ habit, onPress, onTrack, onTimerPress, completedToda
         opacity: cardOpacity.value,
     }));
 
+    const timerAnimatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: timerScale.value }],
+    }));
+
+    const completeAnimatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: completeScale.value }],
+    }));
+
+    const tickAnimatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: tickScale.value }],
+    }));
+
+    const ringAnimatedStyle = useAnimatedStyle(() => ({
+        opacity: ringOpacity.value,
+        transform: [{ scale: ringScale.value }],
+    }));
+
+    const microCopyAnimatedStyle = useAnimatedStyle(() => ({
+        opacity: microCopyOpacity.value,
+        transform: [{ translateY: (1 - microCopyOpacity.value) * 6 }],
+    }));
+
     const handleComplete = () => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         onTrack();
+    };
+
+    const handlePressIn = (scale: SharedValue<number>) => {
+        scale.value = withTiming(0.85, { duration: 100, easing: Easing.out(Easing.ease) });
+    };
+
+    const handlePressOut = (scale: SharedValue<number>) => {
+        scale.value = withSpring(1, { damping: 10, stiffness: 300 });
     };
 
     const completedTime = habit.last_completed_date
@@ -130,35 +220,84 @@ export function HabitCard({ habit, onPress, onTrack, onTimerPress, completedToda
                     </View>
 
                     {completedToday ? (
-                        <Animated.View
-                            entering={FadeIn.duration(300)}
-                            style={{ backgroundColor: `${theme.accent}20` }}
-                            className="w-10 h-10 rounded-full items-center justify-center ml-3"
-                        >
-                            <TickIcon size={20} color={theme.accent} />
-                        </Animated.View>
+                        <View className="relative items-center justify-center ml-3">
+                            {/* Pulsing ring that bursts outward from the checkmark */}
+                            <Animated.View
+                                pointerEvents="none"
+                                style={[
+                                    {
+                                        position: 'absolute',
+                                        backgroundColor: theme.accent,
+                                    },
+                                    ringAnimatedStyle,
+                                ]}
+                                className="w-10 h-10 rounded-full"
+                            />
+
+                            {/* Checkmark with overshoot "pop" entrance */}
+                            <Animated.View
+                                entering={FadeIn.duration(150)}
+                                style={[{ backgroundColor: `${theme.accent}20` }, tickAnimatedStyle]}
+                                className="w-10 h-10 rounded-full items-center justify-center"
+                            >
+                                <TickIcon size={20} color={theme.accent} />
+                            </Animated.View>
+
+                            {/* Encouraging micro-copy toast */}
+                            {microCopyText ? (
+                                <Animated.View
+                                    pointerEvents="none"
+                                    style={[
+                                        { position: 'absolute', bottom: 48, right: -4, width: 150, alignItems: 'flex-end' },
+                                        microCopyAnimatedStyle,
+                                    ]}
+                                >
+                                    <View
+                                        style={{ backgroundColor: theme.accent }}
+                                        className="px-3 py-1 rounded-full"
+                                    >
+                                        <Text className="text-xs font-pbold text-white">
+                                            {microCopyText}
+                                        </Text>
+                                    </View>
+                                </Animated.View>
+                            ) : null}
+                        </View>
                     ) : (
                         <View className="flex-row items-center gap-2">
                             <TouchableOpacity
+                                activeOpacity={1}
+                                onPressIn={() => handlePressIn(timerScale)}
+                                onPressOut={() => handlePressOut(timerScale)}
                                 onPress={(e) => {
                                     e.stopPropagation();
                                     onTimerPress();
                                 }}
-                                style={{ backgroundColor: `${theme.accent}20` }}
-                                className="w-10 h-10 rounded-full items-center justify-center ml-2"
+                                className="ml-2"
                             >
-                                <TimerIcon size={20} color={theme.accent} />
+                                <Animated.View
+                                    style={[{ backgroundColor: `${theme.accent}20` }, timerAnimatedStyle]}
+                                    className="w-10 h-10 rounded-full items-center justify-center"
+                                >
+                                    <TimerIcon size={20} color={theme.accent} />
+                                </Animated.View>
                             </TouchableOpacity>
 
                             <TouchableOpacity
+                                activeOpacity={1}
+                                onPressIn={() => handlePressIn(completeScale)}
+                                onPressOut={() => handlePressOut(completeScale)}
                                 onPress={(e) => {
                                     e.stopPropagation();
                                     handleComplete();
                                 }}
-                                style={{ backgroundColor: theme.accent }}
-                                className="w-10 h-10 rounded-full items-center justify-center"
                             >
-                                <PlusIcon size={20} color="#FFFFFF" />
+                                <Animated.View
+                                    style={[{ backgroundColor: theme.accent }, completeAnimatedStyle]}
+                                    className="w-10 h-10 rounded-full items-center justify-center"
+                                >
+                                    <PlusIcon size={20} color="#FFFFFF" />
+                                </Animated.View>
                             </TouchableOpacity>
                         </View>
                     )}

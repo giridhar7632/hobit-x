@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
+import { CustomAlert as Alert } from "@/utils/custom-alert";
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   Text,
   TextInput,

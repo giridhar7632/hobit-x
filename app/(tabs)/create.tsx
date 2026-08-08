@@ -2,8 +2,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { CustomAlert as Alert } from "@/utils/custom-alert";
 import {
-  Alert,
   ScrollView,
   Text,
   TouchableOpacity,

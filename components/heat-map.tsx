@@ -1,6 +1,8 @@
 import { useAppTheme } from '@/context/theme-context';
 import React, { useMemo } from 'react';
-import { Alert, Dimensions, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
+import { Dimensions, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
+import { CustomAlert as Alert } from '@/utils/custom-alert';
+import { ThemedText } from './themed-text';
 
 const { width } = Dimensions.get('window');
 const WEEKS_TO_SHOW = 14;

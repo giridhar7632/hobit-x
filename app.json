@@ -21,7 +21,11 @@
     },
     "android": {
       "package": "app.giridhar.hobit",
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "SCHEDULE_EXACT_ALARM",
+        "USE_EXACT_ALARM"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -46,7 +50,8 @@
       "@react-native-community/datetimepicker",
       "expo-font",
       "expo-status-bar",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true,

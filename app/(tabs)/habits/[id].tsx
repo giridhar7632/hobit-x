@@ -2,9 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatRelative } from "date-fns";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback } from "react";
+import { CustomAlert as Alert } from "@/utils/custom-alert";
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   Text,
   TouchableOpacity,

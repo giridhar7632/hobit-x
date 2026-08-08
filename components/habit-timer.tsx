@@ -1,6 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Dimensions, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Text, TouchableOpacity, View } from 'react-native';
+import { CustomAlert as Alert } from '@/utils/custom-alert';
 import Svg, { Line } from 'react-native-svg';
 
 import { HABIT_COLORS } from '@/constants/habit-colors';

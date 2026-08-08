@@ -6,13 +6,15 @@ import { Colors } from "@/constants/theme";
 import { useAppTheme } from "@/context/theme-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { getHabits, trackHabit, updateHabitNotificationIds } from "@/utils/actions";
+import { CustomAlert as Alert } from "@/utils/custom-alert";
 import { refreshHabitNotifications } from "@/utils/notifications";
 import { Habit } from "@/utils/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Haptics from 'expo-haptics';
-import { router, useFocusEffect } from "expo-router";
+import * as Notifications from 'expo-notifications';
+import { Href, router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Modal, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Modal, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 function getTodayISO() {
@@ -114,6 +116,11 @@ export default function HabitsScreen() {
     }, 400);
   };
 
+  const handleWipeGhosts = async () => {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    Alert.alert("Success", "All ghost notifications wiped! Your device queue is clean.");
+  };
+
   const todayISO = getTodayISO();
   const isCompletedToday = (habit: any) => habit.last_completed_date?.startsWith(todayISO);
   const completedCount = habits?.filter(isCompletedToday).length || 0;
@@ -128,13 +135,20 @@ export default function HabitsScreen() {
         <ThemedView className="flex-1 px-5" style={{ backgroundColor: 'transparent' }}>
 
           {/* Header */}
-          <View className="mb-6">
-            <ThemedText type="title" className="font-pbold">
-              Today
-            </ThemedText>
-            <Text className="text-sm font-pregular opacity-50 mt-1" style={{ color: Colors[currentTheme].text }}>
-              {formatDate()}
-            </Text>
+          <View className="mb-6 flex-row justify-between items-start">
+            <View>
+              <ThemedText type="title" className="font-pbold">Today</ThemedText>
+              <Text className="text-sm font-pregular opacity-50 mt-1" style={{ color: Colors[currentTheme].text }}>
+                {formatDate()}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => router.push('/notifications' as Href)}
+              className="bg-blue-500/20 px-4 py-2 rounded-xl border border-blue-500"
+            >
+              <Text className="text-blue-500 font-pbold text-xs">Debug Notifs</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Progress summary */}

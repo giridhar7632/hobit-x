@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 
 import { TabBarIcon } from '@/components/ui/tab-icon';
-import { HomeIcon, PlusIcon } from '@/constants/icons';
+import { BellIcon, HomeIcon, PlusIcon } from '@/constants/icons';
 import { Colors } from '@/constants/theme';
 import { useAppTheme } from '@/context/theme-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -50,6 +50,21 @@ export default function TabLayout() {
 							icon={PlusIcon}
 							color={color as string}
 							name='Create'
+							focused={focused}
+						/>
+					),
+				}}
+			/>
+			<Tabs.Screen
+				name='notifications'
+				options={{
+					title: 'Notifications',
+					headerShown: false,
+					tabBarIcon: ({ color, focused }) => (
+						<TabBarIcon
+							icon={BellIcon}
+							color={color as string}
+							name='Notifications'
 							focused={focused}
 						/>
 					),

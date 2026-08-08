@@ -1,12 +1,12 @@
-import { Alert } from "react-native";
 import { getDb } from './database';
 import { Habit, HabitEntry } from "./types";
+import { CustomAlert as Alert } from "@/utils/custom-alert";
 
 export async function getHabits() {
   const db = await getDb();
   try {
     const result = await db.getAllAsync(
-      `SELECT id, name, color, frequency, current_streak, longest_streak, description, planned_time_minutes, notify, notify_time, total_points, last_completed_date FROM habits`
+      `SELECT id, name, color, frequency, current_streak, longest_streak, description, planned_time_minutes, notify, notify_time, total_points, last_completed_date, notification_ids FROM habits`
     );
     return result;
   } catch (error: any) {
