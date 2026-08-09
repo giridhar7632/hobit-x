@@ -1,7 +1,7 @@
+import { CustomAlert as Alert } from '@/utils/custom-alert';
 import * as Haptics from 'expo-haptics';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, Text, TouchableOpacity, View } from 'react-native';
-import { CustomAlert as Alert } from '@/utils/custom-alert';
 import Svg, { Line } from 'react-native-svg';
 
 import { HABIT_COLORS } from '@/constants/habit-colors';
@@ -27,8 +27,12 @@ function formatDurationLabel(totalSeconds: number) {
 
     const secondsLabel = s > 0 ? ` ${s} s` : '';
 
-    if (h > 0) return `${h} h ${m} m${secondsLabel}`;
-    return `${m} m${secondsLabel}`;
+    if (h > 0) {
+        if (m === 0) return `${h} h${secondsLabel}`;
+        return `${h} h ${m} m${secondsLabel}`;
+    }
+    if (m > 0) return `${m} m${secondsLabel}`;
+    return `${s} s`;
 }
 
 function formatCountdown(remainingSeconds: number) {
@@ -279,12 +283,28 @@ export function HabitTimerScreen({ habit, onClose }: HabitTimerProps) {
                         {originalDurationLabel}
                     </Text>
 
-                    <Text
-                        className="text-black dark:text-white font-pbold tracking-widest"
-                        style={{ fontSize: remainingSeconds >= 3600 ? 56 : 64 }}
-                    >
-                        {countdownLabel}
-                    </Text>
+                    <View className="flex-row items-center justify-center">
+                        {countdownLabel.split('').map((char, index) => {
+                            const isColon = char === ':';
+                            const fSize = remainingSeconds >= 3600 ? 56 : 64;
+                            const charWidth = isColon
+                                ? (fSize === 56 ? 16 : 20)
+                                : (fSize === 56 ? 34 : 40);
+                            return (
+                                <Text
+                                    key={index}
+                                    className="text-black dark:text-white font-pbold"
+                                    style={{
+                                        fontSize: fSize,
+                                        width: charWidth,
+                                        textAlign: 'center',
+                                    }}
+                                >
+                                    {char}
+                                </Text>
+                            );
+                        })}
+                    </View>
 
                     <View className="flex-row items-center mt-3 gap-1.5 opacity-80">
                         <BellIcon size={14} color={isDark ? "#d1d5db" : "#6b7280"} />

@@ -11,7 +11,9 @@ let globalShowAlert: ShowAlertFn = (title, message, buttons) => {
 };
 
 export const setGlobalAlert = (fn: ShowAlertFn) => {
+  const previous = globalShowAlert;
   globalShowAlert = fn;
+  return previous;
 };
 
 export const CustomAlert = {

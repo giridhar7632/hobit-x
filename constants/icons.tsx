@@ -79,11 +79,22 @@ export const HomeIcon = ({ color = '#000000', size = 24, style }: IconProps) => 
 	</Svg>
 );
 
-export const PlusIcon = ({ color = '#000000', size = 24, style }: IconProps) => (
+export const PlusFilledIcon = ({ color = '#000000', size = 24, style }: IconProps) => (
 	<Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
 		<Path fillRule="evenodd" clipRule="evenodd" d="M11.44 2H12.56C17.7736 2 22 6.22643 22 11.44V12.56C22 17.7736 17.7736 22 12.56 22H11.44C6.22643 22 2 17.7736 2 12.56V11.44C2 6.22643 6.22643 2 11.44 2ZM12.75 12.75H16C16.4142 12.75 16.75 12.4142 16.75 12C16.75 11.5858 16.4142 11.25 16 11.25H12.75V8C12.75 7.58579 12.4142 7.25 12 7.25C11.5858 7.25 11.25 7.58579 11.25 8V11.25H8C7.58579 11.25 7.25 11.5858 7.25 12C7.25 12.4142 7.58579 12.75 8 12.75H11.25V16C11.25 16.4142 11.5858 16.75 12 16.75C12.4142 16.75 12.75 16.4142 12.75 16V12.75Z" fill={color} />
 	</Svg>
 );
+
+export function PlusIcon({ size = 24, color = "black", ...props }: IconProps) {
+	return (
+		<Svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...props}>
+			<Path
+				d="M20.5 11H15C14.4477 11 14 10.5523 14 10V4.5C14 3.67157 13.3284 3 12.5 3C11.6716 3 11 3.67157 11 4.5V10C11 10.5523 10.5523 11 10 11H4.5C3.67157 11 3 11.6716 3 12.5C3 13.3284 3.67157 14 4.5 14H10C10.5523 14 11 14.4477 11 15V20.5C11 21.3284 11.6716 22 12.5 22C13.3284 22 14 21.3284 14 20.5V15C14 14.4477 14.4477 14 15 14H20.5C21.3284 14 22 13.3284 22 12.5C22 11.6716 21.3284 11 20.5 11Z"
+				fill={color}
+			/>
+		</Svg>
+	);
+}
 
 export const TickIcon = ({ color = '#000000', size = 24, style }: IconProps) => (
 	<Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>

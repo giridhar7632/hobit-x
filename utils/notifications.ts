@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 
 export async function requestNotificationPermissions() {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -16,6 +17,9 @@ export async function refreshHabitNotifications(
     habit: any,
     trackedMinutesToday: number = 0
 ) {
+
+    if (Platform.OS === 'web') return [];
+
     let oldIds = [];
     if (habit.notification_ids) {
         if (typeof habit.notification_ids === 'string') {

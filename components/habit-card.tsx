@@ -5,9 +5,9 @@ import Animated, {
     Easing,
     FadeIn,
     LinearTransition,
+    SharedValue,
     useAnimatedStyle,
     useSharedValue,
-    SharedValue,
     withDelay,
     withSequence,
     withSpring,
@@ -28,11 +28,28 @@ interface HabitCardProps {
 
 const COMPLETION_MESSAGES = [
     'Nice!',
-    'Great job!',
-    'Keep it up!',
-    'Crushing it!',
-    'Well done!',
-    'Yes!',
+    'Done!',
+    'Boom!',
+    'Nailed it!',
+    'Streak +1!',
+    'XP Earned!',
+    'Level Up!',
+    'Win!',
+    'Great choice!',
+    'Keep going!',
+    'Momentum!',
+    "You're on fire!",
+    'Another win!',
+    'Locked in!',
+    'Consistency wins!',
+    "Awesome!",
+    "You did it!",
+    "Yes!",
+    'Great work!',
+    'Boom! Done!',
+    'Legendary!',
+    'Fantastic!',
+    'Way to go!',
 ];
 
 export function HabitCard({ habit, onPress, onTrack, onTimerPress, completedToday = false }: HabitCardProps) {
@@ -43,16 +60,13 @@ export function HabitCard({ habit, onPress, onTrack, onTimerPress, completedToda
     const strikeProgress = useSharedValue(completedToday ? 1 : 0);
     const cardOpacity = useSharedValue(completedToday ? 0.6 : 1);
 
-    // Button tap-pop feedback
     const timerScale = useSharedValue(1);
     const completeScale = useSharedValue(1);
 
-    // Checkmark burst + pulsing ring
     const tickScale = useSharedValue(completedToday ? 1 : 0);
     const ringScale = useSharedValue(0);
     const ringOpacity = useSharedValue(0);
 
-    // Encouraging micro-copy
     const microCopyOpacity = useSharedValue(0);
     const [microCopyText, setMicroCopyText] = useState('');
 
@@ -62,8 +76,6 @@ export function HabitCard({ habit, onPress, onTrack, onTimerPress, completedToda
         strikeProgress.value = withTiming(completedToday ? 1 : 0, { duration: 400 });
         cardOpacity.value = withTiming(completedToday ? 0.6 : 1, { duration: 400 });
 
-        // Skip the celebration burst on initial mount (e.g. app reopened with
-        // a habit already completed) — only play it on a fresh completion.
         if (isFirstRender.current) {
             isFirstRender.current = false;
             return;
@@ -234,7 +246,6 @@ export function HabitCard({ habit, onPress, onTrack, onTimerPress, completedToda
                                 className="w-10 h-10 rounded-full"
                             />
 
-                            {/* Checkmark with overshoot "pop" entrance */}
                             <Animated.View
                                 entering={FadeIn.duration(150)}
                                 style={[{ backgroundColor: `${theme.accent}20` }, tickAnimatedStyle]}
@@ -243,7 +254,6 @@ export function HabitCard({ habit, onPress, onTrack, onTimerPress, completedToda
                                 <TickIcon size={20} color={theme.accent} />
                             </Animated.View>
 
-                            {/* Encouraging micro-copy toast */}
                             {microCopyText ? (
                                 <Animated.View
                                     pointerEvents="none"
