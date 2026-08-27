@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMeridianMutation, useQuery, useQueryClient } from "meridian-lite";
 import { formatRelative } from "date-fns";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback } from "react";
@@ -22,11 +22,11 @@ import { BellDisabledIcon, BellIcon, BinIcon, CancelIcon, ChevronIcon, EditIcon,
 import { Colors } from "@/constants/theme";
 import { useAppTheme } from "@/context/theme-context";
 import { deleteEntry, deleteHabit, getHabitActivity, getHabitById, getHabitCompletedDates } from "@/utils/actions";
-import { cancelScheduledNotification } from "@/utils/notifications";
 import { Habit, HabitEntry } from "@/utils/types";
 
 export default function HabitScreen() {
   const { id } = useLocalSearchParams();
+  const habitId = id?.toString() ?? "";
   const colorScheme = useColorScheme();
   const currentTheme = colorScheme === "dark" ? "dark" : "light";
   const { setActiveColor } = useAppTheme();
@@ -36,70 +36,58 @@ export default function HabitScreen() {
     isLoading: isLoadingHabit,
     isError: isErrorHabit,
     error: errorHabit,
-  } = useQuery<Habit, Error>({
-    queryKey: ["habit", id],
+  } = useQuery<Habit | null>({
+    queryKey: ["habit", habitId],
     queryFn: async () => {
-      const habit = await getHabitById(id?.toString() ?? "");
+      const habit = await getHabitById(habitId);
       if (!habit) throw new Error("Habit not found");
       return habit;
     },
   });
 
   const {
-    data: activity,
+    data: activity = [],
     isLoading: isLoadingActivity,
     isError,
     error,
-  } = useQuery<HabitEntry[], Error>({
-    queryKey: ["habit_entries", id],
-    queryFn: () => getHabitActivity(id?.toString() ?? ""),
+  } = useQuery<HabitEntry[]>({
+    queryKey: ["habit_entries", habitId],
+    queryFn: () => getHabitActivity(habitId),
   });
 
-  const { data: completedDates = [], isLoading: isLoadingDates } = useQuery({
-    queryKey: ["habit-dates", id],
-    queryFn: () => getHabitCompletedDates(Number(id)),
+  const { data: completedDates = [], isLoading: isLoadingDates } = useQuery<{ date: string; status: string }[]>({
+    queryKey: ["habit-dates", habitId],
+    queryFn: () => getHabitCompletedDates(habitId),
   });
 
   const queryClient = useQueryClient();
 
-  const deleteMutation = useMutation({
-    mutationFn: ({ entry_id, habit_id }: { entry_id: number; habit_id: string }) => deleteEntry(entry_id, habit_id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["habit_entries", id] });
-      queryClient.invalidateQueries({ queryKey: ["habit_summary", id] });
-      queryClient.invalidateQueries({ queryKey: ["habit-dates", id] });
+  const { mutate: mutateOutbox } = useMeridianMutation({
+    invalidateKeys: [["habits"], ["habit_entries", habitId], ["habit-dates", habitId]],
+  });
+
+  const onDeleteEntry = async (entry_id: string) => {
+    if (!habitId) return;
+
+    try {
+      // 1. Delete locally from SQLite
+      const result = await deleteEntry(entry_id, habitId);
+
+      // 2. Invalidate queries
+      queryClient.invalidateQueries({ queryKey: ["habit_entries", habitId] });
+      queryClient.invalidateQueries({ queryKey: ["habit", habitId] });
+      queryClient.invalidateQueries({ queryKey: ["habit-dates", habitId] });
       queryClient.invalidateQueries({ queryKey: ["habits"] });
-    },
-    onError: (error) => {
+
+      // 3. Enqueue to Meridian Lite outbox
+      await mutateOutbox("delete_entry", result);
+    } catch (error: any) {
       console.error("Error deleting entry:", error);
       Alert.alert("Error", error.message);
-    },
-  });
-
-  const onDeleteEntry = (entry_id: number) => {
-    if (!id) return;
-
-    deleteMutation.mutate({
-      entry_id: entry_id,
-      habit_id: id.toString()
-    });
+    }
   };
 
-  const deleteHabitMutation = useMutation({
-    mutationFn: deleteHabit,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["habit_entries", id] });
-      queryClient.invalidateQueries({ queryKey: ["habit_summary", id] });
-      queryClient.invalidateQueries({ queryKey: ["habits"] });
-      router.push("/habits");
-    },
-    onError: (error) => {
-      console.error("Error deleting habit:", error);
-      Alert.alert("Error", error.message);
-    },
-  });
-
-  const onDeleteHabit = (habit_id: number) => {
+  const onDeleteHabit = (hId: string) => {
     Alert.alert(
       "Delete Habit",
       "Are you sure? This will delete all activity data for this habit.",
@@ -108,28 +96,30 @@ export default function HabitScreen() {
         {
           text: "Delete",
           style: "destructive",
-          onPress: () => deleteHabitWithNotifications(habit_id, habit?.notification_ids || "")
+          onPress: async () => {
+            try {
+              // 1. Delete locally from SQLite
+              await deleteHabit(hId);
+
+              // 2. Invalidate queries
+              queryClient.invalidateQueries({ queryKey: ["habits"] });
+              queryClient.invalidateQueries({ queryKey: ["habit_entries", hId] });
+              queryClient.invalidateQueries({ queryKey: ["habit-dates", hId] });
+
+              // 3. Enqueue to Meridian Lite outbox
+              await mutateOutbox("delete_habit", { id: hId });
+
+              // 4. Navigate back to habits
+              router.replace("/(tabs)/habits");
+            } catch (error: any) {
+              console.error("Error deleting habit:", error);
+              Alert.alert("Error", error.message);
+            }
+          }
         },
       ]
     );
   };
-
-  const deleteHabitWithNotifications = async (habitId: number, notificationIdsJson: string) => {
-    if (notificationIdsJson) {
-      try {
-        const ids = JSON.parse(notificationIdsJson);
-
-        for (const id of ids) {
-          if (typeof id === 'string') {
-            await cancelScheduledNotification(id);
-          }
-        }
-      } catch (e) {
-        console.error("Error deleting notifications:", e);
-      }
-    }
-    await deleteHabitMutation.mutate(habitId);
-  }
 
   useFocusEffect(
     useCallback(() => {
@@ -216,6 +206,13 @@ export default function HabitScreen() {
               ) : <BellDisabledIcon color={'#c7c7c7'} size={20} />}
             </View>
 
+            <TouchableOpacity
+              className="absolute top-5 right-5"
+              onPress={() => router.push(`/habits/edit?id=${id}`)}
+            >
+              <EditIcon color={theme.accent} size={20} style={{ opacity: 0.7 }} />
+            </TouchableOpacity>
+
             <Text className={`text-3xl font-pbold mb-2 text-center`} style={{ color: theme.accent }}>
               {habit.name}
             </Text>
@@ -299,7 +296,7 @@ export default function HabitScreen() {
                 Activity
               </ThemedText>
 
-              {!isLoadingDates && completedDates?.length != 0 && (
+              {!isLoadingDates && completedDates?.length !== 0 && (
                 <Heatmap completedDates={completedDates} />
               )}
             </View>
@@ -315,7 +312,7 @@ export default function HabitScreen() {
               </View>
             ) : isError ? (
               <ThemedText className="text-base text-center opacity-30 font-pbold mt-6">
-                {error.message}
+                {error?.message}
               </ThemedText>
             ) : activity?.length === 0 ? (
               <View className="mt-6 items-center py-8">
@@ -376,7 +373,7 @@ export default function HabitScreen() {
 
           {/* Delete habit — bottom of page */}
           <TouchableOpacity
-            onPress={() => onDeleteHabit(Number(id))}
+            onPress={() => onDeleteHabit(habitId)}
             className="mx-4 mt-10 mb-4 py-3 items-center"
           >
             <Text className="text-red-400 text-sm font-pmedium opacity-70">

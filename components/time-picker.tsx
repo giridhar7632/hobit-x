@@ -1,4 +1,4 @@
-import { useColorScheme } from '@/hooks/use-color-scheme.web'; // Adjust import as needed
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import React, { useEffect, useState } from 'react';
 import { Keyboard, Modal, Text, TextInput, TouchableOpacity, View } from 'react-native';
 

@@ -4,7 +4,7 @@ import { Modal, Pressable, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { TickIcon } from '@/constants/icons';
-import { useColorScheme } from '@/hooks/use-color-scheme.web';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 const ChevronDownIcon = ({ color = '#a3a3a3', size = 20 }) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">

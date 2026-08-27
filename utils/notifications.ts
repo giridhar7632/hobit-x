@@ -15,7 +15,8 @@ export async function requestNotificationPermissions() {
 
 export async function refreshHabitNotifications(
     habit: any,
-    trackedMinutesToday: number = 0
+    trackedMinutesToday: number = 0,
+    isCompletedToday: boolean = false
 ) {
 
     if (Platform.OS === 'web') return [];
@@ -59,6 +60,11 @@ export async function refreshHabitNotifications(
 
     const newIds = [];
     const progress = trackedMinutesToday / (habit.planned_time_minutes || 1);
+    const todayISO = new Date().toISOString().split('T')[0];
+
+    const isDoneToday = isCompletedToday || 
+                        progress >= 1 || 
+                        habit.last_completed_date?.startsWith(todayISO);
 
     const WINDOW_DAYS = 7;
 
@@ -74,14 +80,15 @@ export async function refreshHabitNotifications(
 
         if (!isTargetDay) continue;
 
-        let title = "Time for your habit! 🌱";
+        let title = "Time for your habit!";
         let body = `It's time to: ${habit.name}`;
 
         if (i === 0) {
-            if (progress >= 1) {
+            if (isDoneToday) {
+                // Today's habit is completed/skipped — do NOT schedule a notification for today
                 continue;
             } else if (progress >= 0.5) {
-                title = "You're halfway there! 🚀";
+                title = "You're halfway there!";
                 body = `You've done 50% of ${habit.name}. Finish strong!`;
             }
         }
@@ -103,7 +110,7 @@ export async function refreshHabitNotifications(
 export async function scheduleTimerNotification(habitName: string, seconds: number) {
     const id = await Notifications.scheduleNotificationAsync({
         content: {
-            title: "Timer Complete! 🎉",
+            title: "Timer Complete!",
             body: `Great job focusing on ${habitName}.`,
             sound: true,
         },

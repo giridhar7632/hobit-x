@@ -9,7 +9,7 @@ import Animated, {
     withSpring,
 } from 'react-native-reanimated';
 
-import { useColorScheme } from '@/hooks/use-color-scheme.web'; // Adjust import as needed
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 interface CustomSwitchProps {
     value: boolean;

@@ -1,7 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { CustomAlert as Alert } from "@/utils/custom-alert";
+import { useMeridianMutation, useQuery, useQueryClient } from "meridian-lite";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { CustomAlert as Alert } from "@/utils/custom-alert";
 import {
   ActivityIndicator,
   ScrollView,
@@ -24,6 +24,7 @@ import { Habit } from "@/utils/types";
 
 export default function TrackScreen() {
   const { id } = useLocalSearchParams();
+  const habitId = id?.toString() ?? "";
   const colorScheme = useColorScheme();
   const currentTheme = colorScheme === "dark" ? "dark" : "light";
   const { activeColor } = useAppTheme();
@@ -31,11 +32,12 @@ export default function TrackScreen() {
   const [actualTime, setActualTime] = useState<number>(0);
   const [status, setStatus] = useState<'Completed' | 'Skipped'>('Completed');
   const [note, setNote] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
-  const { data: habit, isLoading } = useQuery<Habit, Error>({
-    queryKey: ["habit", id],
+  const { data: habit, isLoading } = useQuery<Habit | null>({
+    queryKey: ["habit", habitId],
     queryFn: async () => {
-      const habit = await getHabitById(id?.toString() ?? "");
+      const habit = await getHabitById(habitId);
       if (!habit) throw new Error("Habit not found");
       return habit;
     },
@@ -48,31 +50,43 @@ export default function TrackScreen() {
   }, [habit]);
 
   const queryClient = useQueryClient();
-  const mutation = useMutation({
-    mutationFn: trackHabit,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["habits"] });
-      queryClient.invalidateQueries({ queryKey: ["habit_entries", id] });
-      queryClient.invalidateQueries({ queryKey: ["habit-dates", id] });
-      router.back(); // Go back to the details screen
-    },
-    onError: (error: any) => {
-      Alert.alert("Error logging habit:", error.message);
-    },
+
+  const { mutate: mutateOutbox } = useMeridianMutation({
+    invalidateKeys: [["habits"], ["habit_entries", habitId], ["habit-dates", habitId]],
   });
 
   const handleSave = async () => {
-    const totalMinutesToday = actualTime;
-    const newNotificationIds = await refreshHabitNotifications(habit as Habit, totalMinutesToday);
+    if (!habitId) return;
+    setIsSaving(true);
+    try {
+      const totalMinutesToday = actualTime;
+      const isDone = status === 'Completed' || status === 'Skipped';
+      const newNotificationIds = await refreshHabitNotifications(habit as Habit, totalMinutesToday, isDone);
 
-    await mutation.mutateAsync({
-      habit_id: Number(id),
-      actual_time_minutes: actualTime,
-      status: status,
-      entry_date: new Date().toISOString(),
-      notification_ids: JSON.stringify(newNotificationIds),
-      note: note.trim(),
-    });
+      // 1. Optimistic write to local SQLite database
+      const trackedResult = await trackHabit({
+        habit_id: habitId,
+        actual_time_minutes: actualTime,
+        status: status,
+        entry_date: new Date().toISOString(),
+        notification_ids: JSON.stringify(newNotificationIds),
+        note: note.trim(),
+      });
+
+      // 2. Invalidate local queries immediately
+      queryClient.invalidateQueries({ queryKey: ["habits"] });
+      queryClient.invalidateQueries({ queryKey: ["habit_entries", habitId] });
+      queryClient.invalidateQueries({ queryKey: ["habit-dates", habitId] });
+
+      // 3. Enqueue to Meridian Lite outbox for sync
+      await mutateOutbox("track_habit", trackedResult);
+
+      router.back();
+    } catch (error: any) {
+      Alert.alert("Error logging habit:", error.message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (isLoading || !habit) {
@@ -121,7 +135,7 @@ export default function TrackScreen() {
             <Text className={`font-pbold ${status === 'Completed' ? 'text-white' : ''}`}
               style={status !== 'Completed' ? { color: Colors[currentTheme].text } : undefined}
             >
-              ✓ Completed
+              Completed
             </Text>
           </TouchableOpacity>
 
@@ -131,7 +145,7 @@ export default function TrackScreen() {
               }`}
           >
             <Text className="font-pbold" style={{ color: Colors[currentTheme].text }}>
-              ✗ Skipped
+              Skipped
             </Text>
           </TouchableOpacity>
         </View>
@@ -195,9 +209,9 @@ export default function TrackScreen() {
         />
 
         <Button
-          title={mutation.isPending ? "Saving..." : "Save Log"}
+          title={isSaving ? "Saving..." : "Save Log"}
           handlePress={handleSave}
-          loading={mutation.isPending}
+          loading={isSaving}
           style={{ backgroundColor: theme.accent }}
         />
 

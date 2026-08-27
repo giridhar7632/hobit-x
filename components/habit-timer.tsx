@@ -9,7 +9,7 @@ import { BellIcon } from '@/constants/icons';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { trackHabit } from '@/utils/actions';
 import { cancelScheduledNotification, refreshHabitNotifications, scheduleTimerNotification } from '@/utils/notifications';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMeridianMutation, useQueryClient } from 'meridian-lite';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const RING_SIZE = SCREEN_WIDTH * 0.85;
@@ -210,36 +210,40 @@ export function HabitTimerScreen({ habit, onClose }: HabitTimerProps) {
     };
 
     const queryClient = useQueryClient();
-    const mutation = useMutation({
-        mutationFn: trackHabit,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["habits"] });
-            queryClient.invalidateQueries({ queryKey: ["habit_entries", habit.id] });
-            queryClient.invalidateQueries({ queryKey: ["habit-dates", habit.id] });
-        },
-        onError: (error: any) => {
-            Alert.alert("Error logging habit:", error.message);
-        },
+    const { mutate: mutateOutbox } = useMeridianMutation({
+        invalidateKeys: [["habits"], ["habit_entries", habit.id], ["habit-dates", habit.id]],
     });
 
-    const handleSave = async (status: string) => {
+    const handleSave = async (status: 'Completed' | 'Missed' | 'Skipped' | 'Partial') => {
         const actualMinutes = Math.max(1, Math.round(secondsElapsed / 60));
         try {
             const totalMinutesToday = (habit.today_tracked_minutes || 0) + actualMinutes;
-            const newNotificationIds = await refreshHabitNotifications(habit, totalMinutesToday);
+            const isDone = status === 'Completed';
+            const newNotificationIds = await refreshHabitNotifications(habit, totalMinutesToday, isDone);
 
-            await mutation.mutateAsync({
+            // 1. Optimistic write to local SQLite database
+            const trackedResult = await trackHabit({
                 habit_id: habit.id,
                 entry_date: new Date().toISOString(),
                 status,
                 actual_time_minutes: actualMinutes,
                 notification_ids: JSON.stringify(newNotificationIds),
             });
+
+            // 2. Invalidate local query cache
+            queryClient.invalidateQueries({ queryKey: ["habits"] });
+            queryClient.invalidateQueries({ queryKey: ["habit_entries", habit.id] });
+            queryClient.invalidateQueries({ queryKey: ["habit-dates", habit.id] });
+
+            // 3. Enqueue to Meridian Lite outbox for sync
+            await mutateOutbox("track_habit", trackedResult);
+
             if (status === 'Completed') {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             }
-        } catch (e) {
+        } catch (e: any) {
             console.error('Track error:', e);
+            Alert.alert("Error logging habit:", e.message);
         }
         onClose();
     };

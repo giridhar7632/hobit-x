@@ -10,9 +10,9 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { getHabits, trackHabit, updateHabitNotificationIds } from "@/utils/actions";
 import { refreshHabitNotifications } from "@/utils/notifications";
 import { Habit } from "@/utils/types";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect } from "expo-router";
+import { useMeridianMutation, useQuery, useQueryClient } from "meridian-lite";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Modal, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -61,9 +61,11 @@ export default function HabitsScreen() {
       const silentlyRefreshNotifications = async () => {
         try {
           const habitsToNotify = habits.filter((h: any) => h.notify === 1);
+          const todayISO = new Date().toISOString().split('T')[0];
 
           for (const habit of habitsToNotify) {
-            const newIds = await refreshHabitNotifications(habit, 0);
+            const isDone = (habit as Habit).last_completed_date?.startsWith(todayISO) ?? false;
+            const newIds = await refreshHabitNotifications(habit, (habit as any).today_tracked_minutes || 0, isDone);
 
             await updateHabitNotificationIds({
               id: (habit as Habit).id,
@@ -80,21 +82,18 @@ export default function HabitsScreen() {
   }, [habits]);
 
   const queryClient = useQueryClient();
-  const quickTrackMutation = useMutation({
-    mutationFn: trackHabit,
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["habits"] });
-      queryClient.invalidateQueries({ queryKey: ["habit_entries", variables.habit_id] });
-      queryClient.invalidateQueries({ queryKey: ["habit-dates", variables.habit_id] });
-    }
+
+  const { mutate: mutateQuickTrack } = useMeridianMutation({
+    invalidateKeys: [["habits"]],
   });
 
   const handleQuickTrack = async (habit: any) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const totalMinutesToday = habit.today_tracked_minutes;
-    const newNotificationIds = await refreshHabitNotifications(habit, totalMinutesToday);
+    const totalMinutesToday = (habit.today_tracked_minutes || 0) + (habit.planned_time_minutes || 0);
+    const newNotificationIds = await refreshHabitNotifications(habit, totalMinutesToday, true);
 
-    await quickTrackMutation.mutateAsync({
+    // 1. Optimistic write to local SQLite database
+    const trackedResult = await trackHabit({
       habit_id: habit.id,
       actual_time_minutes: habit.planned_time_minutes,
       status: 'Completed',
@@ -102,6 +101,14 @@ export default function HabitsScreen() {
       notification_ids: JSON.stringify(newNotificationIds),
       note: "",
     });
+
+    // 2. Invalidate local queries immediately for instant UI update
+    queryClient.invalidateQueries({ queryKey: ["habits"] });
+    queryClient.invalidateQueries({ queryKey: ["habit_entries", habit.id] });
+    queryClient.invalidateQueries({ queryKey: ["habit-dates", habit.id] });
+
+    // 3. Enqueue to Meridian Lite outbox for cloud sync
+    await mutateQuickTrack("track_habit", trackedResult);
   };
 
   const handleOpenTimer = (habit: any) => {
@@ -123,14 +130,15 @@ export default function HabitsScreen() {
 
   return (
     <SafeAreaView
+      edges={['top', 'left', 'right']}
       style={{ backgroundColor: Colors[currentTheme].background }}
       className="flex-1"
     >
-      <ScrollView contentContainerStyle={{ paddingBottom: 40, paddingTop: 20 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 110, paddingTop: 16 }}>
         <ThemedView className="flex-1 px-5" style={{ backgroundColor: 'transparent' }}>
 
           {/* Header */}
-          <View className="mb-6 flex-row justify-between items-start">
+          <View className="mb-6 pt-2 flex-row justify-between items-start">
             <View>
               <ThemedText type="title" className="font-pbold">Today</ThemedText>
               <Text className="text-sm font-pregular opacity-50 mt-1" style={{ color: Colors[currentTheme].text }}>
@@ -177,7 +185,7 @@ export default function HabitsScreen() {
               </View>
             ) : isError ? (
               <ThemedText type="default" className="text-center opacity-50 font-pmedium mt-10">
-                {error.message}
+                {error?.message}
               </ThemedText>
             ) : habits?.length === 0 ? (
               <View className="mt-16 items-center px-8">

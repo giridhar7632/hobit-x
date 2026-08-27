@@ -1,8 +1,7 @@
 import { useAppTheme } from '@/context/theme-context';
+import { CustomAlert as Alert } from '@/utils/custom-alert';
 import React, { useMemo } from 'react';
 import { Dimensions, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
-import { CustomAlert as Alert } from '@/utils/custom-alert';
-import { ThemedText } from './themed-text';
 
 const { width } = Dimensions.get('window');
 const WEEKS_TO_SHOW = 14;
@@ -16,14 +15,28 @@ const formatDate = (date: Date) => {
     return date.toISOString().split('T')[0];
 };
 
+interface HeatmapDateEntry {
+    date: string;
+    status: string;
+}
+
 interface HeatmapProps {
-    completedDates: string[];
+    completedDates: HeatmapDateEntry[];
 }
 
 export default function Heatmap({ completedDates = [] }: HeatmapProps) {
     const { activeColor } = useAppTheme();
     const colorScheme = useColorScheme();
     const isDark = colorScheme === 'dark';
+
+    // Build a lookup map for quick access
+    const dateStatusMap = useMemo(() => {
+        const map = new Map<string, string>();
+        for (const entry of completedDates) {
+            map.set(entry.date, entry.status);
+        }
+        return map;
+    }, [completedDates]);
 
     const columns = useMemo(() => {
         const today = new Date();
@@ -34,10 +47,12 @@ export default function Heatmap({ completedDates = [] }: HeatmapProps) {
             d.setDate(today.getDate() - i);
             const dateString = formatDate(d);
 
+            const status = dateStatusMap.get(dateString);
+
             daysData.push({
                 dateString,
                 displayDate: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-                completed: completedDates.includes(dateString),
+                status: status || null,
             });
         }
 
@@ -47,11 +62,16 @@ export default function Heatmap({ completedDates = [] }: HeatmapProps) {
         }
 
         return weeks;
-    }, [completedDates]);
+    }, [dateStatusMap]);
 
     const handleSquarePress = (day: any) => {
-        const status = day.completed ? 'Completed 🎉' : 'Missed';
-        Alert.alert(day.displayDate, status);
+        if (day.status === 'Completed') {
+            Alert.alert(day.displayDate, 'Completed');
+        } else if (day.status === 'Skipped') {
+            Alert.alert(day.displayDate, 'Skipped');
+        } else {
+            Alert.alert(day.displayDate, 'No activity');
+        }
     };
 
     return (
@@ -63,7 +83,27 @@ export default function Heatmap({ completedDates = [] }: HeatmapProps) {
                 {columns.map((week, weekIndex) => (
                     <View key={weekIndex} style={{ gap: GAP_SIZE }}>
                         {week.map((day) => {
-                            const isActive = day.completed;
+                            const isCompleted = day.status === 'Completed';
+                            const isSkipped = day.status === 'Skipped';
+                            const isActive = isCompleted || isSkipped;
+
+                            let bgColor: string;
+                            let borderColor: string;
+                            let opacity = 1;
+
+                            if (isCompleted) {
+                                bgColor = activeColor.accent;
+                                borderColor = 'transparent';
+                                opacity = 1;
+                            } else if (isSkipped) {
+                                bgColor = `${activeColor.accent}25`;
+                                borderColor = `${activeColor.accent}70`;
+                                opacity = 1;
+                            } else {
+                                bgColor = isDark ? '#262626' : '#e5e5e5';
+                                borderColor = 'transparent';
+                                opacity = 0.4;
+                            }
 
                             return (
                                 <TouchableOpacity
@@ -73,13 +113,12 @@ export default function Heatmap({ completedDates = [] }: HeatmapProps) {
                                         width: SQUARE_SIZE,
                                         height: SQUARE_SIZE,
                                         borderRadius: SQUARE_SIZE * 0.25,
-                                        backgroundColor: isActive
-                                            ? activeColor.accent
-                                            : (isDark ? '#262626' : '#e5e5e5'),
-                                        borderColor: isActive ? 'transparent' : activeColor.hex,
-                                        borderWidth: isActive ? 0 : 0.5,
+                                        backgroundColor: bgColor,
+                                        borderColor: borderColor,
+                                        borderWidth: isSkipped ? 1 : 0,
+                                        borderStyle: isSkipped ? 'dashed' : 'solid',
+                                        opacity,
                                     }}
-                                    className={`${isActive ? 'opacity-100' : 'opacity-40'}`}
                                 />
                             );
                         })}
@@ -89,11 +128,24 @@ export default function Heatmap({ completedDates = [] }: HeatmapProps) {
 
             {/* Legend */}
             <View className="flex-row justify-end items-center px-4 mt-3 gap-2">
-                <Text className="text-xs opacity-50 dark:text-neutral-400">Less</Text>
+                <Text className="text-xs opacity-50 dark:text-neutral-400">Missed</Text>
                 <View style={{ width: SQUARE_SIZE * 0.75, height: SQUARE_SIZE * 0.75 }} className="rounded-sm bg-neutral-200 dark:bg-neutral-800 opacity-40" />
-                <View style={{ width: SQUARE_SIZE * 0.75, height: SQUARE_SIZE * 0.75, backgroundColor: activeColor.accent }} className="rounded-sm opacity-50" />
+
+                <View
+                    style={{
+                        width: SQUARE_SIZE * 0.75,
+                        height: SQUARE_SIZE * 0.75,
+                        backgroundColor: `${activeColor.accent}25`,
+                        borderColor: `${activeColor.accent}70`,
+                        borderWidth: 1,
+                        borderStyle: 'dashed',
+                    }}
+                    className="rounded-sm"
+                />
+                <Text className="text-xs opacity-50 dark:text-neutral-400">Skipped</Text>
+
                 <View style={{ width: SQUARE_SIZE * 0.75, height: SQUARE_SIZE * 0.75, backgroundColor: activeColor.accent }} className="rounded-sm" />
-                <Text className="text-xs opacity-50 dark:text-neutral-400">More</Text>
+                <Text className="text-xs opacity-50 dark:text-neutral-400">Done</Text>
             </View>
         </View>
     );

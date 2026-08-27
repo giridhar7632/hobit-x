@@ -12,6 +12,13 @@ export default function HabitLayout() {
           presentation: "modal",
         }}
       />
+      <Stack.Screen
+        name="edit"
+        options={{
+          headerShown: false,
+          presentation: "modal",
+        }}
+      />
       <Stack.Screen name="[id]" options={{ headerShown: false }} />
     </Stack>
   );

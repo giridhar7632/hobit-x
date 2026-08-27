@@ -16,7 +16,7 @@ import Animated, {
 
 import { HABIT_COLORS } from '@/constants/habit-colors';
 import { BellIcon, ClockIcon, FlameIcon, PlusIcon, TickIcon, TimerIcon } from '@/constants/icons';
-import { useColorScheme } from '@/hooks/use-color-scheme.web';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 interface HabitCardProps {
     habit: any;

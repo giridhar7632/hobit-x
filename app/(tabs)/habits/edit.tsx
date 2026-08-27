@@ -1,9 +1,10 @@
-import { useMeridianMutation, useQueryClient } from "meridian-lite";
-import { router, useFocusEffect } from "expo-router";
+import { useMeridianMutation, useQuery, useQueryClient } from "meridian-lite";
+import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { CustomAlert as Alert } from "@/utils/custom-alert";
 import {
+  ActivityIndicator,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -23,9 +24,10 @@ import { CustomSwitch } from "@/components/ui/switch";
 import { HABIT_COLORS, PASTEL_PALETTE } from "@/constants/habit-colors";
 import { Colors } from "@/constants/theme";
 import { useAppTheme } from "@/context/theme-context";
-import { createHabit } from "@/utils/actions";
+import { getHabitById, updateHabit } from "@/utils/actions";
 import { refreshHabitNotifications } from "@/utils/notifications";
 import { getBasePoints } from "@/utils/points";
+import { Habit } from "@/utils/types";
 
 const WEEK_DAYS = [
   { label: 'M', value: 1 },
@@ -43,13 +45,17 @@ const FREQUENCY_OPTIONS = [
   { label: 'Monthly', value: 'monthly' },
 ];
 
-export default function CreateScreen() {
+export default function EditScreen() {
+  const { id } = useLocalSearchParams();
+  const habitId = id?.toString() ?? "";
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [notifyTime, setNotifyTime] = useState(new Date());
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const colorScheme = useColorScheme();
   const currentTheme = colorScheme === "dark" ? "dark" : "light";
-  const { setActiveColor, resetColor } = useAppTheme();
+  const { setActiveColor } = useAppTheme();
 
   const {
     control,
@@ -64,12 +70,51 @@ export default function CreateScreen() {
       description: "",
       planned_time_minutes: "",
       frequency: "weekly",
-      color: "lime", // Changed default to lime
-      target_days: [1, 2, 3, 4, 5],
+      color: "lime",
+      target_days: [1, 2, 3, 4, 5] as number[],
       interval: 1,
       notify: false,
     },
   });
+
+  const { data: habit, isLoading } = useQuery<Habit | null>({
+    queryKey: ["habit", habitId],
+    queryFn: async () => {
+      const h = await getHabitById(habitId);
+      if (!h) throw new Error("Habit not found");
+      return h;
+    },
+  });
+
+  // Pre-fill form when habit loads
+  useEffect(() => {
+    if (habit && !isInitialized) {
+      setValue("name", habit.name);
+      setValue("description", habit.description || "");
+      setValue("planned_time_minutes", String(habit.planned_time_minutes || ""));
+      setValue("frequency", habit.frequency);
+      setValue("color", habit.color || "lime");
+      setValue("interval", habit.interval || 1);
+      setValue("notify", habit.notify === 1);
+
+      if (habit.target_days) {
+        try {
+          const days = typeof habit.target_days === 'string'
+            ? JSON.parse(habit.target_days)
+            : habit.target_days;
+          setValue("target_days", days);
+        } catch (e) {
+          // keep defaults
+        }
+      }
+
+      if (habit.notify_time) {
+        setNotifyTime(new Date(habit.notify_time));
+      }
+
+      setIsInitialized(true);
+    }
+  }, [habit, isInitialized, setValue]);
 
   const frequencyWatch = watch("frequency");
   const selectedColorId = watch("color");
@@ -79,40 +124,40 @@ export default function CreateScreen() {
     setActiveColor(selectedColorId);
   }, [selectedColorId, setActiveColor]);
 
-  useFocusEffect(
-    useCallback(() => {
-      return () => resetColor();
-    }, [resetColor])
-  );
-
-  const [isCreating, setIsCreating] = useState(false);
   const queryClient = useQueryClient();
 
-  const { mutate: mutateCreateHabit } = useMeridianMutation({
-    invalidateKeys: [["habits"]],
+  const { mutate: mutateOutbox } = useMeridianMutation({
+    invalidateKeys: [["habits"], ["habit", habitId], ["habit_entries", habitId], ["habit-dates", habitId]],
   });
 
-  const onCreateTodo = async (formData: any) => {
-    setIsCreating(true);
+  const onSave = async (formData: any) => {
+    setIsSaving(true);
     try {
       let points = 15;
       try {
         points = await getBasePoints(formData.name, Number(formData.planned_time_minutes));
       } catch (error) {
-        console.log("Error getting AI points, falling back to 15.");
+        console.log("Error getting points, falling back to 15.");
       }
+
+      // Cancel old notifications and schedule new ones
+      const todayISO = new Date().toISOString().split('T')[0];
+      const isDone = habit?.last_completed_date?.startsWith(todayISO) ?? false;
 
       const notificationIds = await refreshHabitNotifications(
         {
+          ...habit,
           ...formData,
-          notification_ids: "[]",
+          id: habitId,
+          notify: formData.notify ? 1 : 0,
           notify_time: formData.notify ? notifyTime.toISOString() : null,
         },
-        0
+        (habit as any)?.today_tracked_minutes || 0,
+        isDone
       );
 
-      // 1. Optimistic write to local SQLite database
-      const newHabit = await createHabit({
+      const updatedHabitData = {
+        id: habitId,
         name: formData.name,
         description: formData.description,
         color: formData.color,
@@ -122,38 +167,53 @@ export default function CreateScreen() {
         target_days: JSON.stringify(formData.target_days),
         notify: formData.notify ? 1 : 0,
         notify_time: formData.notify ? notifyTime.toISOString() : null,
-        start_date: new Date().toISOString(),
         base_points: points,
-        notification_ids: JSON.stringify(notificationIds)
-      });
+        notification_ids: JSON.stringify(notificationIds),
+      };
 
-      // 2. Refresh local queries & reset form
-      reset();
+      // 1. Update SQLite locally
+      await updateHabit(updatedHabitData);
+
+      // 2. Invalidate queries
       queryClient.invalidateQueries({ queryKey: ["habits"] });
+      queryClient.invalidateQueries({ queryKey: ["habit", habitId] });
+      queryClient.invalidateQueries({ queryKey: ["habit_entries", habitId] });
+      queryClient.invalidateQueries({ queryKey: ["habit-dates", habitId] });
 
-      // 3. Enqueue to Meridian Lite outbox for cloud sync
-      await mutateCreateHabit("create_habit", newHabit);
+      // 3. Enqueue to Meridian Lite outbox
+      await mutateOutbox("update_habit", updatedHabitData);
 
-      // 4. Navigate to details
-      router.push(`/habits/${newHabit.id}`);
+      router.back();
     } catch (error: any) {
-      console.error("Error creating habit:", error);
-      Alert.alert("Error creating habit:", error.message);
+      console.error("Error updating habit:", error);
+      Alert.alert("Error updating habit:", error.message);
     } finally {
-      setIsCreating(false);
+      setIsSaving(false);
     }
   };
 
+  if (isLoading || !habit) {
+    return (
+      <SafeAreaView style={{ backgroundColor: Colors[currentTheme].background, flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={Colors[currentTheme].tint} />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView
-      edges={['top', 'left', 'right']}
       style={{ backgroundColor: Colors[currentTheme].background }}
       className="flex-1"
     >
-      <ScrollView contentContainerStyle={{ paddingBottom: 110, paddingTop: 16 }}>
-        <ThemedView className="flex-1 flex-col space-y-4 p-4" style={{ backgroundColor: 'transparent' }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 60 }}>
+        <ThemedView className="flex-1 flex-col space-y-4 p-4 mt-2" style={{ backgroundColor: 'transparent' }}>
 
-          <ThemedText className="text-3xl font-pbold mb-2">New Habit</ThemedText>
+          {/* Drag indicator */}
+          <View className="items-center pb-2">
+            <View className="w-10 h-1 rounded-full bg-neutral-300 dark:bg-neutral-600" />
+          </View>
+
+          <ThemedText className="text-3xl font-pbold mb-2">Edit Habit</ThemedText>
 
           {/* Name & Description */}
           <Controller
@@ -229,7 +289,7 @@ export default function CreateScreen() {
             />
           </View>
 
-          {/* Target Days (Week of Dots) */}
+          {/* Target Days */}
           {frequencyWatch !== "monthly" && (
             <View className="mx-4 mt-4">
               <ThemedText className="text-sm opacity-70 mb-3">Target Days</ThemedText>
@@ -382,9 +442,9 @@ export default function CreateScreen() {
 
           <View className="w-full px-4 mt-6">
             <Button
-              title={isCreating ? "Creating..." : "Create Habit"}
-              handlePress={handleSubmit(onCreateTodo)}
-              loading={isCreating}
+              title={isSaving ? "Saving..." : "Save Changes"}
+              handlePress={handleSubmit(onSave)}
+              loading={isSaving}
               style={{ backgroundColor: selectedTheme.accent }}
             />
           </View>

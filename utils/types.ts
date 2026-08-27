@@ -5,7 +5,8 @@ export interface User {
 }
 
 export interface Habit {
-  id: number;
+  id: string;
+  user_id?: string | null;
   name: string;
   description: string | null;
   color: string | null;
@@ -25,16 +26,18 @@ export interface Habit {
   current_streak: number;
   longest_streak: number;
   last_completed_date: string | null;
+  last_active_date: string | null;
   notification_ids: string | null;
 }
 
 export interface HabitEntry {
-  id: number;
-  habit_id: number;
+  id: string;
+  habit_id: string;
+  user_id?: string | null;
   note: string | null;
   actual_time_minutes: number | null;
   entry_date: string;
-  status: 'Completed' | 'Missed' | 'Skipped';
+  status: 'Completed' | 'Missed' | 'Skipped' | 'Partial';
   created_at: string;
   updated_at: string | null;
   points: number;
@@ -45,4 +48,4 @@ export interface HabitStreak {
   current_streak?: number;
   longest_streak?: number;
   last_completed_date?: string;
-};
+}
