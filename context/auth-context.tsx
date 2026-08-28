@@ -84,16 +84,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setIsGuest(false);
           await AsyncStorage.removeItem(GUEST_STORAGE_KEY).catch(() => {});
           
-          // Dynamically import sync utilities to push local guest habits to cloud
-          (async () => {
-            try {
-              const { pushAllToCloud, pullFromCloud } = require('@/lib/sync');
-              await pushAllToCloud(session.user.id);
-              await pullFromCloud(session.user.id);
-            } catch (syncError) {
-              console.error('[Auth] Background sync error:', syncError);
-            }
-          })();
+          // Only trigger data migration and sync on explicit SIGNED_IN events to prevent infinite loops
+          if (_event === 'SIGNED_IN') {
+            (async () => {
+              try {
+                const { syncLocalAndCloud } = require('@/lib/sync');
+                await syncLocalAndCloud(session.user.id);
+              } catch (syncError) {
+                console.error('[Auth] Background sync error:', syncError);
+              }
+            })();
+          }
         }
         setIsLoading(false);
       });

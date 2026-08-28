@@ -3,12 +3,24 @@ import { getDb } from '@/utils/database';
 import { Habit, HabitEntry } from '@/utils/types';
 import { Platform } from 'react-native';
 
+// Global lock to prevent overlapping sync/migration processes
+let isSyncInProgress = false;
+
 /**
  * Pulls all habits and habit entries for the authenticated user from Supabase
  * and merges them into the local SQLite database.
  */
-export async function pullFromCloud(userId: string): Promise<{ success: boolean; count?: number }> {
+export async function pullFromCloud(userId: string, isInternal = false): Promise<{ success: boolean; count?: number }> {
   if (!isSupabaseConfigured() || !userId) return { success: false };
+
+  if (isSyncInProgress && !isInternal) {
+    console.log('[Sync] Pull skipped: another sync/migration process is in progress.');
+    return { success: false };
+  }
+
+  if (!isInternal) {
+    isSyncInProgress = true;
+  }
 
   try {
     // 1. Fetch remote habits
@@ -111,6 +123,10 @@ export async function pullFromCloud(userId: string): Promise<{ success: boolean;
   } catch (error) {
     console.error('[Sync] Pull from cloud exception:', error);
     return { success: false };
+  } finally {
+    if (!isInternal) {
+      isSyncInProgress = false;
+    }
   }
 }
 
@@ -118,9 +134,18 @@ export async function pullFromCloud(userId: string): Promise<{ success: boolean;
  * Pushes any existing local habits and entries to Supabase for the signed-in user.
  * Useful on first sign-in when the user created habits in guest mode.
  */
-export async function pushAllToCloud(userId: string): Promise<{ success: boolean }> {
+export async function pushAllToCloud(userId: string, isInternal = false): Promise<{ success: boolean }> {
   if (!isSupabaseConfigured() || !userId || Platform.OS === 'web') {
     return { success: false };
+  }
+
+  if (isSyncInProgress && !isInternal) {
+    console.log('[Sync] Push skipped: another sync/migration process is in progress.');
+    return { success: false };
+  }
+
+  if (!isInternal) {
+    isSyncInProgress = true;
   }
 
   try {
@@ -198,5 +223,37 @@ export async function pushAllToCloud(userId: string): Promise<{ success: boolean
   } catch (error) {
     console.error('[Sync] Push to cloud exception:', error);
     return { success: false };
+  } finally {
+    if (!isInternal) {
+      isSyncInProgress = false;
+    }
   }
 }
+
+/**
+ * Unified helper to sync local and remote data in sequence with concurrency lock protection.
+ */
+export async function syncLocalAndCloud(userId: string): Promise<void> {
+  if (isSyncInProgress) {
+    console.log('[Sync] Synchronization already in progress. Skipping duplicate execution.');
+    return;
+  }
+  isSyncInProgress = true;
+
+  try {
+    console.log('[Sync] Starting local to cloud sync...');
+    const pushRes = await pushAllToCloud(userId, true);
+    if (pushRes.success) {
+      console.log('[Sync] Guest habits pushed to cloud.');
+    }
+    const pullRes = await pullFromCloud(userId, true);
+    if (pullRes.success) {
+      console.log('[Sync] Remote habits pulled to local.');
+    }
+  } catch (error) {
+    console.error('[Sync] Error during syncLocalAndCloud:', error);
+  } finally {
+    isSyncInProgress = false;
+  }
+}
+
