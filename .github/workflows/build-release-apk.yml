@@ -37,6 +37,10 @@ jobs:
       - name: Expo Prebuild
         run: npx expo prebuild --platform android
 
+      - name: Increase Gradle JVM Memory
+        run: |
+          echo "org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError" >> android/gradle.properties
+
       - name: Build Android Release APK
         run: |
           cd android
