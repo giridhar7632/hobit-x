@@ -40,7 +40,7 @@ jobs:
       - name: Expo Prebuild
         run: |
           rm -rf android
-          npx expo prebuild --platform android --no-interactive
+          npx expo prebuild --platform android
 
       - name: Increase Gradle JVM Memory
         run: |
