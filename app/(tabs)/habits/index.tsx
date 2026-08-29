@@ -7,13 +7,13 @@ import { HABIT_COLORS } from "@/constants/habit-colors";
 import { Colors } from "@/constants/theme";
 import { useAppTheme } from "@/context/theme-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { getHabits, trackHabit, updateHabitNotificationIds } from "@/utils/actions";
-import { refreshHabitNotifications } from "@/utils/notifications";
+import { getHabits, trackHabit, untrackHabitToday, updateHabitNotificationIds } from "@/utils/actions";
+import { getHabitTotalReminders, refreshHabitNotifications } from "@/utils/notifications";
 import { Habit } from "@/utils/types";
 import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect } from "expo-router";
 import { useMeridianMutation, useQuery, useQueryClient } from "meridian-lite";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Modal, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -44,13 +44,15 @@ export default function HabitsScreen() {
     }, [resetColor])
   );
 
+  const habitsQueryKey = useMemo(() => ["habits"], []);
+
   const {
     data: habits,
     isLoading,
     isError,
     error,
   } = useQuery({
-    queryKey: ["habits"],
+    queryKey: habitsQueryKey,
     queryFn: getHabits,
   });
 
@@ -90,7 +92,11 @@ export default function HabitsScreen() {
   const handleQuickTrack = async (habit: any) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const totalMinutesToday = (habit.today_tracked_minutes || 0) + (habit.planned_time_minutes || 0);
-    const newNotificationIds = await refreshHabitNotifications(habit, totalMinutesToday, true);
+    const currentCompletedCount = (habit.today_completed_count || 0) + 1;
+    const totalReminders = getHabitTotalReminders(habit);
+    const isFullyDone = currentCompletedCount >= totalReminders;
+
+    const newNotificationIds = await refreshHabitNotifications(habit, totalMinutesToday, isFullyDone);
 
     // 1. Optimistic write to local SQLite database
     const trackedResult = await trackHabit({
@@ -111,6 +117,28 @@ export default function HabitsScreen() {
     await mutateQuickTrack("track_habit", trackedResult);
   };
 
+  const handleUntrack = async (habit: any) => {
+    try {
+      const result = await untrackHabitToday(habit.id);
+      if (result) {
+        // Reschedule notifications since today is now uncompleted
+        const newNotificationIds = await refreshHabitNotifications(habit, 0, false);
+        await updateHabitNotificationIds({
+          id: habit.id,
+          notification_ids: JSON.stringify(newNotificationIds),
+        });
+
+        queryClient.invalidateQueries({ queryKey: ["habits"] });
+        queryClient.invalidateQueries({ queryKey: ["habit_entries", habit.id] });
+        queryClient.invalidateQueries({ queryKey: ["habit-dates", habit.id] });
+
+        await mutateQuickTrack("delete_entry", result);
+      }
+    } catch (error) {
+      console.error("Error untracking habit:", error);
+    }
+  };
+
   const handleOpenTimer = (habit: any) => {
     setTimerHabit(habit);
     setIsTimerVisible(true);
@@ -123,9 +151,13 @@ export default function HabitsScreen() {
     }, 400);
   };
 
-  const todayISO = getTodayISO();
-  const isCompletedToday = (habit: any) => habit.last_completed_date?.startsWith(todayISO);
-  const completedCount = habits?.filter(isCompletedToday).length || 0;
+  const isFullyCompletedToday = (habit: any) => {
+    const total = getHabitTotalReminders(habit);
+    const count = habit.today_completed_count ?? 0;
+    return count >= total;
+  };
+
+  const completedCount = habits?.filter(isFullyCompletedToday).length || 0;
   const totalCount = habits?.length || 0;
 
   return (
@@ -201,8 +233,8 @@ export default function HabitsScreen() {
               habits
                 ?.slice()
                 .sort((a: any, b: any) => {
-                  const aDone = isCompletedToday(a) ? 1 : 0;
-                  const bDone = isCompletedToday(b) ? 1 : 0;
+                  const aDone = isFullyCompletedToday(a) ? 1 : 0;
+                  const bDone = isFullyCompletedToday(b) ? 1 : 0;
                   if (aDone !== bDone) return aDone - bDone;
                   // Within the completed group, most recent first
                   const aDate = a.last_completed_date || '';
@@ -213,9 +245,10 @@ export default function HabitsScreen() {
                   <HabitCard
                     key={habit.id}
                     habit={habit}
-                    completedToday={isCompletedToday(habit)}
+                    completedToday={isFullyCompletedToday(habit)}
                     onPress={() => router.push(`/habits/${habit.id}`)}
                     onTrack={() => handleQuickTrack(habit)}
+                    onUntrack={() => handleUntrack(habit)}
                     onTimerPress={() => handleOpenTimer(habit)}
                   />
                 ))

@@ -45,7 +45,14 @@ const FREQUENCY_OPTIONS = [
 
 export default function CreateScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const [notifyTime, setNotifyTime] = useState(new Date());
+  const [notifyTimes, setNotifyTimes] = useState<Date[]>([
+    (() => {
+      const d = new Date();
+      d.setHours(9, 0, 0, 0);
+      return d;
+    })(),
+  ]);
+  const [editingTimeIndex, setEditingTimeIndex] = useState<number | null>(null);
 
   const colorScheme = useColorScheme();
   const currentTheme = colorScheme === "dark" ? "dark" : "light";
@@ -92,6 +99,26 @@ export default function CreateScreen() {
     invalidateKeys: [["habits"]],
   });
 
+  const handleAddTime = () => {
+    if (notifyTimes.length >= 5) {
+      Alert.alert("Limit Reached", "You can set up to 5 reminders per habit.");
+      return;
+    }
+    setEditingTimeIndex(null);
+    setShowTimePicker(true);
+  };
+
+  const handleRemoveTime = (indexToRemove: number) => {
+    if (notifyTimes.length <= 1) {
+      const d = new Date();
+      d.setHours(9, 0, 0, 0);
+      setNotifyTimes([d]);
+      setValue("notify", false);
+    } else {
+      setNotifyTimes(notifyTimes.filter((_, idx) => idx !== indexToRemove));
+    }
+  };
+
   const onCreateTodo = async (formData: any) => {
     setIsCreating(true);
     try {
@@ -102,11 +129,15 @@ export default function CreateScreen() {
         console.log("Error getting AI points, falling back to 15.");
       }
 
+      const formattedNotifyTime = formData.notify
+        ? JSON.stringify(notifyTimes.map(d => d.toISOString()))
+        : null;
+
       const notificationIds = await refreshHabitNotifications(
         {
           ...formData,
           notification_ids: "[]",
-          notify_time: formData.notify ? notifyTime.toISOString() : null,
+          notify_time: formattedNotifyTime,
         },
         0
       );
@@ -121,7 +152,7 @@ export default function CreateScreen() {
         interval: Number(formData.interval),
         target_days: JSON.stringify(formData.target_days),
         notify: formData.notify ? 1 : 0,
-        notify_time: formData.notify ? notifyTime.toISOString() : null,
+        notify_time: formattedNotifyTime,
         start_date: new Date().toISOString(),
         base_points: points,
         notification_ids: JSON.stringify(notificationIds)
@@ -153,7 +184,14 @@ export default function CreateScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: 110, paddingTop: 16 }}>
         <ThemedView className="flex-1 flex-col space-y-4 p-4" style={{ backgroundColor: 'transparent' }}>
 
-          <ThemedText className="text-3xl font-pbold mb-2">New Habit</ThemedText>
+          <View className="flex-row justify-between items-center mb-4">
+            <ThemedText className="text-3xl font-pbold">New Habit</ThemedText>
+            <TouchableOpacity onPress={() => router.replace('/(tabs)/habits')}>
+              <Text className="text-base font-pmedium opacity-60" style={{ color: selectedTheme.accent }}>
+                Cancel
+              </Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Name & Description */}
           <Controller
@@ -188,28 +226,6 @@ export default function CreateScreen() {
               />
             )}
           />
-
-          {/* Theme Color Picker */}
-          <View className="mx-4 mt-2">
-            <ThemedText className="text-sm opacity-70 mb-3">Color Theme</ThemedText>
-            <View className="flex-row justify-between items-center px-2">
-              {PASTEL_PALETTE.map((item) => {
-                const isSelected = selectedColorId === item.id;
-                return (
-                  <TouchableOpacity
-                    key={item.id}
-                    onPress={() => setValue("color", item.id)}
-                    style={{
-                      backgroundColor: currentTheme === 'dark' ? `${item.accent}70` : item.hex,
-                      borderColor: isSelected ? `${item.accent}` : 'transparent',
-                      borderWidth: 3
-                    }}
-                    className={`w-10 h-10 rounded-full items-center justify-center ${isSelected ? "scale-110" : ""}`}
-                  />
-                );
-              })}
-            </View>
-          </View>
 
           {/* Frequency Type */}
           <View className="mx-4 mt-4">
@@ -347,37 +363,119 @@ export default function CreateScreen() {
             </View>
 
             {watch("notify") && (
-              <View className="mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-800 flex-row items-center justify-between">
-                <View>
-                  <ThemedText className="text-sm font-pmedium dark:text-gray-300">Notification Time</ThemedText>
-                  <ThemedText className="text-xs opacity-50 mt-1">When should we remind you?</ThemedText>
+              <View className="mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-800">
+                <View className="flex-row items-center justify-between mb-3">
+                  <View>
+                    <ThemedText className="text-sm font-pmedium dark:text-gray-300">Reminders</ThemedText>
+                    <ThemedText className="text-xs opacity-50 mt-0.5">Alerts fire 5 min before planned time</ThemedText>
+                  </View>
+                  {notifyTimes.length < 5 ? (
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={handleAddTime}
+                      className="px-3 py-1.5 rounded-xl border flex-row items-center gap-1.5"
+                      style={{
+                        backgroundColor: `${selectedTheme.accent}15`,
+                        borderColor: `${selectedTheme.accent}30`,
+                        borderWidth: 1
+                      }}
+                    >
+                      <Text style={{ color: selectedTheme.accent }} className="font-pbold text-xs">
+                        + Add Time
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View className="px-2.5 py-1 bg-neutral-200 dark:bg-neutral-800 rounded-lg">
+                      <Text className="text-[10px] font-pbold opacity-60">Max 5</Text>
+                    </View>
+                  )}
                 </View>
 
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => setShowTimePicker(true)}
-                  className="px-4 py-2.5 rounded-xl border"
-                  style={{
-                    backgroundColor: `${selectedTheme.accent}15`,
-                    borderColor: `${selectedTheme.accent}30`,
-                    borderWidth: 1
-                  }}
-                >
-                  <ThemedText style={{ color: selectedTheme.accent }} className="font-psemibold text-base">
-                    {notifyTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </ThemedText>
-                </TouchableOpacity>
+                {/* List of reminder chips */}
+                <View className="flex-row flex-wrap gap-2 pt-1">
+                  {notifyTimes.map((time, idx) => (
+                    <View
+                      key={idx}
+                      className="flex-row items-center rounded-xl border pl-3 pr-2 py-1.5 gap-2"
+                      style={{
+                        backgroundColor: `${selectedTheme.accent}10`,
+                        borderColor: `${selectedTheme.accent}35`,
+                        borderWidth: 1
+                      }}
+                    >
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          setEditingTimeIndex(idx);
+                          setShowTimePicker(true);
+                        }}
+                      >
+                        <ThemedText style={{ color: selectedTheme.accent }} className="font-psemibold text-sm">
+                          {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </ThemedText>
+                      </TouchableOpacity>
+
+                      {notifyTimes.length > 1 && (
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          onPress={() => handleRemoveTime(idx)}
+                          className="w-5 h-5 rounded-full items-center justify-center bg-neutral-200 dark:bg-neutral-800 ml-1"
+                        >
+                          <Text className="text-neutral-600 dark:text-neutral-400 font-bold text-[10px]">✕</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  ))}
+                </View>
               </View>
             )}
 
             <CustomTimePicker
               visible={showTimePicker}
-              onClose={() => setShowTimePicker(false)}
-              initialTime={notifyTime}
-              onSave={(newTime) => setNotifyTime(newTime)}
+              onClose={() => {
+                setShowTimePicker(false);
+                setEditingTimeIndex(null);
+              }}
+              initialTime={editingTimeIndex !== null && notifyTimes[editingTimeIndex] ? notifyTimes[editingTimeIndex] : new Date()}
+              onSave={(newTime) => {
+                if (editingTimeIndex !== null) {
+                  const updated = [...notifyTimes];
+                  updated[editingTimeIndex] = newTime;
+                  updated.sort((a, b) => a.getHours() * 60 + a.getMinutes() - (b.getHours() * 60 + b.getMinutes()));
+                  setNotifyTimes(updated);
+                } else {
+                  const updated = [...notifyTimes, newTime];
+                  updated.sort((a, b) => a.getHours() * 60 + a.getMinutes() - (b.getHours() * 60 + b.getMinutes()));
+                  setNotifyTimes(updated);
+                }
+                setEditingTimeIndex(null);
+                setShowTimePicker(false);
+              }}
               accentColor={selectedTheme.accent}
             />
 
+          </View>
+
+          {/* Theme Color Picker */}
+          <View className="mx-4 mt-4">
+            <ThemedText className="text-sm opacity-70 mb-3 ml-1">Color Theme</ThemedText>
+            <View className="flex-row justify-between items-center px-2">
+              {PASTEL_PALETTE.map((item) => {
+                const isSelected = selectedColorId === item.id;
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    onPress={() => setValue("color", item.id)}
+                    style={{
+                      backgroundColor: currentTheme === 'dark' ? `${item.accent}70` : item.hex,
+                      borderColor: isSelected ? `${item.accent}` : 'transparent',
+                      borderWidth: 3
+                    }}
+                    className={`w-10 h-10 rounded-full items-center justify-center ${isSelected ? "scale-110" : ""}`}
+                  />
+                );
+              })}
+            </View>
           </View>
 
           <View className="w-full px-4 mt-6">

@@ -1,7 +1,7 @@
 import { CustomAlert as Alert } from '@/utils/custom-alert';
 import * as Haptics from 'expo-haptics';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Dimensions, Text, TouchableOpacity, View } from 'react-native';
+import { AppState, AppStateStatus, Dimensions, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Line } from 'react-native-svg';
 
 import { HABIT_COLORS } from '@/constants/habit-colors';
@@ -124,34 +124,73 @@ export function HabitTimerScreen({ habit, onClose }: HabitTimerProps) {
 
     const [secondsElapsed, setSecondsElapsed] = useState(0);
     const [isActive, setIsActive] = useState(false);
+    const [overtimePromptShown, setOvertimePromptShown] = useState(false);
 
-    const targetEndTimeRef = useRef<number | null>(null);
+    const startTimeRef = useRef<number | null>(null);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-    const notificationIdRef = useRef<string | null>(null);
+    const plannedNotificationIdRef = useRef<string | null>(null);
+    const overtimeNotificationIdRef = useRef<string | null>(null);
+    const doubleNotificationIdRef = useRef<string | null>(null);
+
     const isPaused = !isActive && secondsElapsed > 0;
 
     useEffect(() => {
         if (isActive) {
-            const remaining = targetSeconds - secondsElapsed;
-            targetEndTimeRef.current = Date.now() + remaining * 1000;
-
-            scheduleNotification(remaining);
+            startTimeRef.current = Date.now() - secondsElapsed * 1000;
+            scheduleNotification(secondsElapsed);
 
             intervalRef.current = setInterval(() => {
-                if (!targetEndTimeRef.current) return;
+                if (startTimeRef.current === null) return;
 
                 const now = Date.now();
-                const trueRemaining = Math.max(0, Math.round((targetEndTimeRef.current - now) / 1000));
-                const trueElapsed = targetSeconds - trueRemaining;
+                const currentElapsed = Math.round((now - startTimeRef.current) / 1000);
 
-                setSecondsElapsed(trueElapsed);
-
-                if (trueRemaining <= 0) {
-                    handleTimerFinish();
+                if (currentElapsed >= targetSeconds * 2.0) {
+                    setIsActive(false);
+                    if (intervalRef.current) clearInterval(intervalRef.current);
+                    handleSaveAtTime(
+                        Math.round(targetSeconds * 2.0),
+                        'Completed',
+                        'Timer Limit Reached',
+                        `Your ${habit.name} session reached its limit and has been saved.`
+                    );
+                    return;
                 }
+
+                if (currentElapsed >= targetSeconds * 1.30 && !overtimePromptShown) {
+                    setIsActive(false);
+                    setOvertimePromptShown(true);
+                    setSecondsElapsed(Math.round(targetSeconds * 1.30));
+                    if (intervalRef.current) clearInterval(intervalRef.current);
+
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+
+                    Alert.alert(
+                        'Overtime',
+                        'Are you still tracking this habit?',
+                        [
+                            {
+                                text: 'Yes, keep going',
+                                onPress: () => {
+                                    setIsActive(true);
+                                }
+                            },
+                            {
+                                text: 'No, save now',
+                                style: 'destructive',
+                                onPress: () => {
+                                    handleSaveAtTime(Math.round(targetSeconds * 1.30), 'Completed');
+                                }
+                            }
+                        ]
+                    );
+                    return;
+                }
+
+                setSecondsElapsed(currentElapsed);
             }, 500);
         } else {
-            targetEndTimeRef.current = null;
+            startTimeRef.current = null;
             cancelTimerNotification();
             if (intervalRef.current) clearInterval(intervalRef.current);
         }
@@ -159,17 +198,36 @@ export function HabitTimerScreen({ habit, onClose }: HabitTimerProps) {
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
-    }, [isActive]);
+    }, [isActive, overtimePromptShown]);
 
+    useEffect(() => {
+        const handleAppStateChange = (nextAppState: AppStateStatus) => {
+            if (nextAppState === 'active' && isActive && startTimeRef.current !== null) {
+                const now = Date.now();
+                const currentElapsed = Math.round((now - startTimeRef.current) / 1000);
 
-    const handleTimerFinish = async () => {
-        setIsActive(false);
-        if (intervalRef.current) clearInterval(intervalRef.current);
+                if (currentElapsed >= targetSeconds * 2.0) {
+                    setIsActive(false);
+                    handleSaveAtTime(
+                        Math.round(targetSeconds * 2.0),
+                        'Completed',
+                        'Timer Limit Reached',
+                        `Your ${habit.name} session reached its limit and has been saved.`
+                    );
+                } else if (currentElapsed >= targetSeconds * 1.30) {
+                    setIsActive(false);
+                    handleSaveAtTime(Math.round(targetSeconds * 1.30), 'Completed');
+                } else {
+                    setSecondsElapsed(currentElapsed);
+                }
+            }
+        };
 
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-        await handleSave('Completed');
-    };
+        const subscription = AppState.addEventListener('change', handleAppStateChange);
+        return () => {
+            subscription.remove();
+        };
+    }, [isActive, targetSeconds, habit.name]);
 
     const toggleTimer = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -214,8 +272,13 @@ export function HabitTimerScreen({ habit, onClose }: HabitTimerProps) {
         invalidateKeys: [["habits"], ["habit_entries", habit.id], ["habit-dates", habit.id]],
     });
 
-    const handleSave = async (status: 'Completed' | 'Missed' | 'Skipped' | 'Partial') => {
-        const actualMinutes = Math.max(1, Math.round(secondsElapsed / 60));
+    const handleSaveAtTime = async (
+        seconds: number, 
+        status: 'Completed' | 'Missed' | 'Skipped' | 'Partial',
+        alertTitle?: string,
+        alertMessage?: string
+    ) => {
+        const actualMinutes = Math.max(1, Math.round(seconds / 60));
         try {
             const totalMinutesToday = (habit.today_tracked_minutes || 0) + actualMinutes;
             const isDone = status === 'Completed';
@@ -241,6 +304,10 @@ export function HabitTimerScreen({ habit, onClose }: HabitTimerProps) {
             if (status === 'Completed') {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             }
+
+            if (alertTitle && alertMessage) {
+                Alert.alert(alertTitle, alertMessage);
+            }
         } catch (e: any) {
             console.error('Track error:', e);
             Alert.alert("Error logging habit:", e.message);
@@ -248,23 +315,73 @@ export function HabitTimerScreen({ habit, onClose }: HabitTimerProps) {
         onClose();
     };
 
-    const scheduleNotification = async (seconds: number) => {
+    const handleSave = async (status: 'Completed' | 'Missed' | 'Skipped' | 'Partial') => {
+        await handleSaveAtTime(secondsElapsed, status);
+    };
+
+    const scheduleNotification = async (elapsed: number) => {
         await cancelTimerNotification();
-        const newId = await scheduleTimerNotification(habit.name, seconds);
-        notificationIdRef.current = newId;
+
+        // 1. Notification for planned time complete
+        if (elapsed < targetSeconds) {
+            const timeToPlanned = targetSeconds - elapsed;
+            plannedNotificationIdRef.current = await scheduleTimerNotification(
+                habit.name,
+                timeToPlanned,
+                "Timer Complete!",
+                `Great job focusing on ${habit.name}.`
+            );
+        }
+
+        // 2. Notification for 30% overtime
+        const overtimeSeconds = Math.round(targetSeconds * 1.30);
+        if (elapsed < overtimeSeconds) {
+            const timeToOvertime = overtimeSeconds - elapsed;
+            overtimeNotificationIdRef.current = await scheduleTimerNotification(
+                habit.name,
+                timeToOvertime,
+                "Are you still tracking?",
+                `Open the app to continue tracking ${habit.name}, otherwise progress will be saved at the 30% overtime mark.`
+            );
+        }
+
+        // 3. Notification for twice the planned time
+        const doubleSeconds = Math.round(targetSeconds * 2.0);
+        if (elapsed < doubleSeconds) {
+            const timeToDouble = doubleSeconds - elapsed;
+            doubleNotificationIdRef.current = await scheduleTimerNotification(
+                habit.name,
+                timeToDouble,
+                "Timer Limit Reached",
+                `Your ${habit.name} session reached its limit and has been saved.`
+            );
+        }
     };
 
     const cancelTimerNotification = async () => {
-        await cancelScheduledNotification(notificationIdRef.current);
-        notificationIdRef.current = null;
+        if (plannedNotificationIdRef.current) {
+            await cancelScheduledNotification(plannedNotificationIdRef.current);
+            plannedNotificationIdRef.current = null;
+        }
+        if (overtimeNotificationIdRef.current) {
+            await cancelScheduledNotification(overtimeNotificationIdRef.current);
+            overtimeNotificationIdRef.current = null;
+        }
+        if (doubleNotificationIdRef.current) {
+            await cancelScheduledNotification(doubleNotificationIdRef.current);
+            doubleNotificationIdRef.current = null;
+        }
     };
 
+    const isOvertime = secondsElapsed > targetSeconds;
     const remainingSeconds = Math.max(targetSeconds - secondsElapsed, 0);
-    const progress = remainingSeconds / targetSeconds;
+    const progress = isOvertime ? 1.0 : remainingSeconds / targetSeconds;
 
     const originalDurationLabel = formatDurationLabel(targetSeconds);
-    const countdownLabel = formatCountdown(remainingSeconds);
-    const endTimeLabel = formatEndTime(remainingSeconds);
+    const countdownLabel = isOvertime
+        ? `+${formatCountdown(secondsElapsed - targetSeconds)}`
+        : formatCountdown(remainingSeconds);
+    const endTimeLabel = isOvertime ? "Overtime" : formatEndTime(remainingSeconds);
 
     return (
         <View className={`flex-1 items-center justify-center bg-white dark:bg-black`}>

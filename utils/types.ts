@@ -28,6 +28,8 @@ export interface Habit {
   last_completed_date: string | null;
   last_active_date: string | null;
   notification_ids: string | null;
+  today_completed_count?: number;
+  today_tracked_minutes?: number;
 }
 
 export interface HabitEntry {

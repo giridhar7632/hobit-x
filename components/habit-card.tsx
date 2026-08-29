@@ -17,11 +17,13 @@ import Animated, {
 import { HABIT_COLORS } from '@/constants/habit-colors';
 import { BellIcon, ClockIcon, FlameIcon, PlusIcon, TickIcon, TimerIcon } from '@/constants/icons';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { getHabitTotalReminders, parseNotifyTimes } from '@/utils/notifications';
 
 interface HabitCardProps {
     habit: any;
     onPress: () => void;
     onTrack: () => void;
+    onUntrack?: () => void;
     onTimerPress: () => void;
     completedToday?: boolean;
 }
@@ -52,10 +54,13 @@ const COMPLETION_MESSAGES = [
     'Way to go!',
 ];
 
-export function HabitCard({ habit, onPress, onTrack, onTimerPress, completedToday = false }: HabitCardProps) {
+export function HabitCard({ habit, onPress, onTrack, onUntrack, onTimerPress, completedToday = false }: HabitCardProps) {
     const colorScheme = useColorScheme();
     const currentTheme = colorScheme === "dark" ? "dark" : "light";
     const theme = HABIT_COLORS[habit.color] || HABIT_COLORS.lime;
+
+    const totalReminders = getHabitTotalReminders(habit);
+    const todayCompleted = habit.today_completed_count || 0;
 
     const strikeProgress = useSharedValue(completedToday ? 1 : 0);
     const cardOpacity = useSharedValue(completedToday ? 0.6 : 1);
@@ -181,16 +186,36 @@ export function HabitCard({ habit, onPress, onTrack, onTimerPress, completedToda
                     />
 
                     <View className="flex-1">
-                        <View className="self-start relative">
-                            <Text className={`text-base font-pbold ${theme.text || 'text-black dark:text-white'}`} numberOfLines={1}>
-                                {habit.name}
-                            </Text>
-                            <Animated.View
-                                style={[
-                                    { backgroundColor: theme.accent, height: 2, position: 'absolute', top: '50%' },
-                                    strikeStyle
-                                ]}
-                            />
+                        <View className="flex-row items-center gap-2">
+                            <View className="self-start relative">
+                                <Text className={`text-base font-pbold ${theme.text || 'text-black dark:text-white'}`} numberOfLines={1}>
+                                    {habit.name}
+                                </Text>
+                                <Animated.View
+                                    style={[
+                                        { backgroundColor: theme.accent, height: 2, position: 'absolute', top: '50%' },
+                                        strikeStyle
+                                    ]}
+                                />
+                            </View>
+
+                            {totalReminders > 1 && (
+                                <View
+                                    style={{
+                                        backgroundColor: completedToday ? `${theme.accent}25` : `${theme.accent}15`,
+                                        borderColor: `${theme.accent}35`,
+                                        borderWidth: 1
+                                    }}
+                                    className="px-2 py-0.5 rounded-full items-center justify-center"
+                                >
+                                    <Text
+                                        style={{ color: theme.accent }}
+                                        className="text-[11px] font-pbold"
+                                    >
+                                        {todayCompleted}/{totalReminders}
+                                    </Text>
+                                </View>
+                            )}
                         </View>
 
                         <View className="flex-row items-center mt-1 gap-4">
@@ -209,14 +234,23 @@ export function HabitCard({ habit, onPress, onTrack, onTimerPress, completedToda
                                         </View>
                                     ) : null}
 
-                                    {habit.notify === 1 && habit.notify_time ? (
-                                        <View className="flex-row items-center gap-1 opacity-60">
-                                            <BellIcon size={12} color={theme.accent} />
-                                            <Text className={`text-xs font-pregular ${theme.text || 'text-black dark:text-white'}`}>
-                                                {new Date(habit.notify_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            </Text>
-                                        </View>
-                                    ) : null}
+                                    {habit.notify === 1 && habit.notify_time ? (() => {
+                                        const times = parseNotifyTimes(habit.notify_time);
+                                        if (times.length === 0) return null;
+                                        const firstDate = new Date(times[0]);
+                                        if (isNaN(firstDate.getTime())) return null;
+                                        const firstFormatted = firstDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                        const extraCount = times.length > 1 ? ` (+${times.length - 1})` : '';
+
+                                        return (
+                                            <View className="flex-row items-center gap-1 opacity-60">
+                                                <BellIcon size={12} color={theme.accent} />
+                                                <Text className={`text-xs font-pregular ${theme.text || 'text-black dark:text-white'}`}>
+                                                    {firstFormatted}{extraCount}
+                                                </Text>
+                                            </View>
+                                        );
+                                    })() : null}
 
                                     {habit.current_streak > 0 ? (
                                         <View className="flex-row items-center gap-1 opacity-70">
@@ -232,7 +266,17 @@ export function HabitCard({ habit, onPress, onTrack, onTimerPress, completedToda
                     </View>
 
                     {completedToday ? (
-                        <View className="relative items-center justify-center ml-3">
+                        <TouchableOpacity
+                            activeOpacity={0.7}
+                            onPress={(e) => {
+                                e.stopPropagation();
+                                if (onUntrack) {
+                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                    onUntrack();
+                                }
+                            }}
+                            className="relative items-center justify-center ml-3"
+                        >
                             {/* Pulsing ring that bursts outward from the checkmark */}
                             <Animated.View
                                 pointerEvents="none"
@@ -272,7 +316,7 @@ export function HabitCard({ habit, onPress, onTrack, onTimerPress, completedToda
                                     </View>
                                 </Animated.View>
                             ) : null}
-                        </View>
+                        </TouchableOpacity>
                     ) : (
                         <View className="flex-row items-center gap-2">
                             <TouchableOpacity

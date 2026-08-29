@@ -1,7 +1,7 @@
 import { useMeridianMutation, useQuery, useQueryClient } from "meridian-lite";
 import { formatRelative } from "date-fns";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { CustomAlert as Alert } from "@/utils/custom-alert";
 import {
   ActivityIndicator,
@@ -31,13 +31,17 @@ export default function HabitScreen() {
   const currentTheme = colorScheme === "dark" ? "dark" : "light";
   const { setActiveColor } = useAppTheme();
 
+  const habitKey = useMemo(() => ["habit", habitId], [habitId]);
+  const entriesKey = useMemo(() => ["habit_entries", habitId], [habitId]);
+  const datesKey = useMemo(() => ["habit-dates", habitId], [habitId]);
+
   const {
     data: habit,
     isLoading: isLoadingHabit,
     isError: isErrorHabit,
     error: errorHabit,
   } = useQuery<Habit | null>({
-    queryKey: ["habit", habitId],
+    queryKey: habitKey,
     queryFn: async () => {
       const habit = await getHabitById(habitId);
       if (!habit) throw new Error("Habit not found");
@@ -51,12 +55,19 @@ export default function HabitScreen() {
     isError,
     error,
   } = useQuery<HabitEntry[]>({
-    queryKey: ["habit_entries", habitId],
+    queryKey: entriesKey,
     queryFn: () => getHabitActivity(habitId),
   });
 
+  const totalMinutesTracked = useMemo(() => {
+    return activity.reduce(
+      (sum: number, entry: HabitEntry) => sum + (entry.actual_time_minutes ?? 0),
+      0
+    );
+  }, [activity]);
+
   const { data: completedDates = [], isLoading: isLoadingDates } = useQuery<{ date: string; status: string }[]>({
-    queryKey: ["habit-dates", habitId],
+    queryKey: datesKey,
     queryFn: () => getHabitCompletedDates(habitId),
   });
 
@@ -255,10 +266,10 @@ export default function HabitScreen() {
               style={{ backgroundColor: currentTheme === 'dark' ? '#1c1c1e' : '#f5f5f4' }}
             >
               <Text className="text-2xl font-pbold" style={{ color: theme.accent }}>
-                {habit.total_points || 0}
+                {totalMinutesTracked}
               </Text>
               <Text className="text-xs font-pregular opacity-50 mt-1" style={{ color: Colors[currentTheme].text }}>
-                total pts
+                min tracked
               </Text>
             </View>
 

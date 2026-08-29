@@ -1,6 +1,6 @@
 import { useMeridianMutation, useQuery, useQueryClient } from "meridian-lite";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { CustomAlert as Alert } from "@/utils/custom-alert";
 import {
@@ -25,7 +25,7 @@ import { HABIT_COLORS, PASTEL_PALETTE } from "@/constants/habit-colors";
 import { Colors } from "@/constants/theme";
 import { useAppTheme } from "@/context/theme-context";
 import { getHabitById, updateHabit } from "@/utils/actions";
-import { refreshHabitNotifications } from "@/utils/notifications";
+import { parseNotifyTimes, refreshHabitNotifications } from "@/utils/notifications";
 import { getBasePoints } from "@/utils/points";
 import { Habit } from "@/utils/types";
 
@@ -49,7 +49,14 @@ export default function EditScreen() {
   const { id } = useLocalSearchParams();
   const habitId = id?.toString() ?? "";
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const [notifyTime, setNotifyTime] = useState(new Date());
+  const [notifyTimes, setNotifyTimes] = useState<Date[]>([
+    (() => {
+      const d = new Date();
+      d.setHours(9, 0, 0, 0);
+      return d;
+    })(),
+  ]);
+  const [editingTimeIndex, setEditingTimeIndex] = useState<number | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -77,8 +84,10 @@ export default function EditScreen() {
     },
   });
 
+  const habitKey = useMemo(() => ["habit", habitId], [habitId]);
+
   const { data: habit, isLoading } = useQuery<Habit | null>({
-    queryKey: ["habit", habitId],
+    queryKey: habitKey,
     queryFn: async () => {
       const h = await getHabitById(habitId);
       if (!h) throw new Error("Habit not found");
@@ -109,7 +118,13 @@ export default function EditScreen() {
       }
 
       if (habit.notify_time) {
-        setNotifyTime(new Date(habit.notify_time));
+        const parsed = parseNotifyTimes(habit.notify_time);
+        if (parsed.length > 0) {
+          const dates = parsed.map(t => new Date(t)).filter(d => !isNaN(d.getTime()));
+          if (dates.length > 0) {
+            setNotifyTimes(dates);
+          }
+        }
       }
 
       setIsInitialized(true);
@@ -130,6 +145,26 @@ export default function EditScreen() {
     invalidateKeys: [["habits"], ["habit", habitId], ["habit_entries", habitId], ["habit-dates", habitId]],
   });
 
+  const handleAddTime = () => {
+    if (notifyTimes.length >= 5) {
+      Alert.alert("Limit Reached", "You can set up to 5 reminders per habit.");
+      return;
+    }
+    setEditingTimeIndex(null);
+    setShowTimePicker(true);
+  };
+
+  const handleRemoveTime = (indexToRemove: number) => {
+    if (notifyTimes.length <= 1) {
+      const d = new Date();
+      d.setHours(9, 0, 0, 0);
+      setNotifyTimes([d]);
+      setValue("notify", false);
+    } else {
+      setNotifyTimes(notifyTimes.filter((_, idx) => idx !== indexToRemove));
+    }
+  };
+
   const onSave = async (formData: any) => {
     setIsSaving(true);
     try {
@@ -144,13 +179,17 @@ export default function EditScreen() {
       const todayISO = new Date().toISOString().split('T')[0];
       const isDone = habit?.last_completed_date?.startsWith(todayISO) ?? false;
 
+      const formattedNotifyTime = formData.notify
+        ? JSON.stringify(notifyTimes.map(d => d.toISOString()))
+        : null;
+
       const notificationIds = await refreshHabitNotifications(
         {
           ...habit,
           ...formData,
           id: habitId,
           notify: formData.notify ? 1 : 0,
-          notify_time: formData.notify ? notifyTime.toISOString() : null,
+          notify_time: formattedNotifyTime,
         },
         (habit as any)?.today_tracked_minutes || 0,
         isDone
@@ -166,7 +205,7 @@ export default function EditScreen() {
         interval: Number(formData.interval),
         target_days: JSON.stringify(formData.target_days),
         notify: formData.notify ? 1 : 0,
-        notify_time: formData.notify ? notifyTime.toISOString() : null,
+        notify_time: formattedNotifyTime,
         base_points: points,
         notification_ids: JSON.stringify(notificationIds),
       };
@@ -407,34 +446,94 @@ export default function EditScreen() {
             </View>
 
             {watch("notify") && (
-              <View className="mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-800 flex-row items-center justify-between">
-                <View>
-                  <ThemedText className="text-sm font-pmedium dark:text-gray-300">Notification Time</ThemedText>
-                  <ThemedText className="text-xs opacity-50 mt-1">When should we remind you?</ThemedText>
+              <View className="mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-800">
+                <View className="flex-row items-center justify-between mb-3">
+                  <View>
+                    <ThemedText className="text-sm font-pmedium dark:text-gray-300">Reminders</ThemedText>
+                    <ThemedText className="text-xs opacity-50 mt-0.5">Alerts fire 5 min before planned time</ThemedText>
+                  </View>
+                  {notifyTimes.length < 5 ? (
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={handleAddTime}
+                      className="px-3 py-1.5 rounded-xl border flex-row items-center gap-1.5"
+                      style={{
+                        backgroundColor: `${selectedTheme.accent}15`,
+                        borderColor: `${selectedTheme.accent}30`,
+                        borderWidth: 1
+                      }}
+                    >
+                      <Text style={{ color: selectedTheme.accent }} className="font-pbold text-xs">
+                        + Add Time
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View className="px-2.5 py-1 bg-neutral-200 dark:bg-neutral-800 rounded-lg">
+                      <Text className="text-[10px] font-pbold opacity-60">Max 5</Text>
+                    </View>
+                  )}
                 </View>
 
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => setShowTimePicker(true)}
-                  className="px-4 py-2.5 rounded-xl border"
-                  style={{
-                    backgroundColor: `${selectedTheme.accent}15`,
-                    borderColor: `${selectedTheme.accent}30`,
-                    borderWidth: 1
-                  }}
-                >
-                  <ThemedText style={{ color: selectedTheme.accent }} className="font-psemibold text-base">
-                    {notifyTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </ThemedText>
-                </TouchableOpacity>
+                {/* List of reminder chips */}
+                <View className="flex-row flex-wrap gap-2 pt-1">
+                  {notifyTimes.map((time, idx) => (
+                    <View
+                      key={idx}
+                      className="flex-row items-center rounded-xl border pl-3 pr-2 py-1.5 gap-2"
+                      style={{
+                        backgroundColor: `${selectedTheme.accent}10`,
+                        borderColor: `${selectedTheme.accent}35`,
+                        borderWidth: 1
+                      }}
+                    >
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          setEditingTimeIndex(idx);
+                          setShowTimePicker(true);
+                        }}
+                      >
+                        <ThemedText style={{ color: selectedTheme.accent }} className="font-psemibold text-sm">
+                          {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </ThemedText>
+                      </TouchableOpacity>
+
+                      {notifyTimes.length > 1 && (
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          onPress={() => handleRemoveTime(idx)}
+                          className="w-5 h-5 rounded-full items-center justify-center bg-neutral-200 dark:bg-neutral-800 ml-1"
+                        >
+                          <Text className="text-neutral-600 dark:text-neutral-400 font-bold text-[10px]">✕</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  ))}
+                </View>
               </View>
             )}
 
             <CustomTimePicker
               visible={showTimePicker}
-              onClose={() => setShowTimePicker(false)}
-              initialTime={notifyTime}
-              onSave={(newTime) => setNotifyTime(newTime)}
+              onClose={() => {
+                setShowTimePicker(false);
+                setEditingTimeIndex(null);
+              }}
+              initialTime={editingTimeIndex !== null && notifyTimes[editingTimeIndex] ? notifyTimes[editingTimeIndex] : new Date()}
+              onSave={(newTime) => {
+                if (editingTimeIndex !== null) {
+                  const updated = [...notifyTimes];
+                  updated[editingTimeIndex] = newTime;
+                  updated.sort((a, b) => a.getHours() * 60 + a.getMinutes() - (b.getHours() * 60 + b.getMinutes()));
+                  setNotifyTimes(updated);
+                } else {
+                  const updated = [...notifyTimes, newTime];
+                  updated.sort((a, b) => a.getHours() * 60 + a.getMinutes() - (b.getHours() * 60 + b.getMinutes()));
+                  setNotifyTimes(updated);
+                }
+                setEditingTimeIndex(null);
+                setShowTimePicker(false);
+              }}
               accentColor={selectedTheme.accent}
             />
 

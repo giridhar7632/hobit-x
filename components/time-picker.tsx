@@ -64,30 +64,23 @@ export function CustomTimePicker({ visible, onClose, initialTime, onSave, accent
                     {/* ─── HUGE TIME DISPLAY ─────────────────────────────────── */}
                     <View className="flex-row justify-center items-center mb-8 gap-2">
 
-                        {/* Hour Input Box */}
-                        <View
-                            className="items-center justify-center rounded-2xl w-20 h-20 overflow-hidden"
+                        {/* Hour Display Box */}
+                        <TouchableOpacity
+                            activeOpacity={0.7}
+                            onPress={() => setActiveTab('hour')}
+                            className="items-center justify-center rounded-2xl w-20 h-20"
                             style={{ backgroundColor: activeTab === 'hour' ? `${accentColor}20` : (isDark ? '#262626' : '#f5f5f5') }}
                         >
-                            <TextInput
-                                value={hourStr}
-                                onChangeText={(text) => {
-                                    setHourStr(text);
-                                    const val = parseInt(text, 10);
-                                    if (!isNaN(val) && val >= 1 && val <= 12) setHour(val);
-                                }}
-                                onFocus={() => setActiveTab('hour')}
-                                onBlur={() => setHourStr(hour.toString())}
-                                keyboardType="number-pad"
-                                maxLength={2}
-                                selectTextOnFocus
-                                className="w-full h-full text-center font-pbold"
+                            <Text
+                                className="text-center font-pbold"
                                 style={{
                                     color: activeTab === 'hour' ? accentColor : (isDark ? 'white' : 'black'),
                                     fontSize: 32
                                 }}
-                            />
-                        </View>
+                            >
+                                {hourStr}
+                            </Text>
+                        </TouchableOpacity>
 
                         <Text
                             className={`font-pbold text-4xl ${mutedText}`}
@@ -96,30 +89,23 @@ export function CustomTimePicker({ visible, onClose, initialTime, onSave, accent
                             :
                         </Text>
 
-                        {/* Minute Input Box */}
-                        <View
-                            className="items-center justify-center rounded-2xl w-20 h-20 overflow-hidden"
+                        {/* Minute Display Box */}
+                        <TouchableOpacity
+                            activeOpacity={0.7}
+                            onPress={() => setActiveTab('minute')}
+                            className="items-center justify-center rounded-2xl w-20 h-20"
                             style={{ backgroundColor: activeTab === 'minute' ? `${accentColor}20` : (isDark ? '#262626' : '#f5f5f5') }}
                         >
-                            <TextInput
-                                value={minuteStr}
-                                onChangeText={(text) => {
-                                    setMinuteStr(text);
-                                    const val = parseInt(text, 10);
-                                    if (!isNaN(val) && val >= 0 && val <= 59) setMinute(val);
-                                }}
-                                onFocus={() => setActiveTab('minute')}
-                                onBlur={() => setMinuteStr(minute.toString().padStart(2, '0'))}
-                                keyboardType="number-pad"
-                                maxLength={2}
-                                selectTextOnFocus
-                                className="w-full h-full text-center font-pbold"
+                            <Text
+                                className="text-center font-pbold"
                                 style={{
                                     color: activeTab === 'minute' ? accentColor : (isDark ? 'white' : 'black'),
                                     fontSize: 32
                                 }}
-                            />
-                        </View>
+                            >
+                                {minuteStr}
+                            </Text>
+                        </TouchableOpacity>
 
                         {/* AM / PM Toggles */}
                         <View className="ml-2 gap-2">

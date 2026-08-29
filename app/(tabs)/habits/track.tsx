@@ -1,7 +1,7 @@
 import { CustomAlert as Alert } from "@/utils/custom-alert";
 import { useMeridianMutation, useQuery, useQueryClient } from "meridian-lite";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -34,8 +34,10 @@ export default function TrackScreen() {
   const [note, setNote] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
+  const habitKey = useMemo(() => ["habit", habitId], [habitId]);
+
   const { data: habit, isLoading } = useQuery<Habit | null>({
-    queryKey: ["habit", habitId],
+    queryKey: habitKey,
     queryFn: async () => {
       const habit = await getHabitById(habitId);
       if (!habit) throw new Error("Habit not found");

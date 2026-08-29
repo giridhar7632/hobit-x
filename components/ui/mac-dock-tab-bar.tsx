@@ -15,11 +15,29 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export type MacDockTabBarProps = Parameters<NonNullable<React.ComponentProps<typeof Tabs>['tabBar']>>[0];
 
+function getNestedRouteName(route: any): string | undefined {
+    let state = route.state;
+    while (state && state.index !== undefined) {
+        route = state.routes[state.index];
+        state = route.state;
+    }
+    return route.name;
+}
+
 export function MacDockTabBar({ state, descriptors, navigation }: MacDockTabBarProps) {
     const insets = useSafeAreaInsets();
     const colorScheme = useColorScheme();
     const isDark = colorScheme === 'dark';
     const { activeColor } = useAppTheme();
+
+    const focusedRoute = state.routes[state.index];
+    const nestedName = getNestedRouteName(focusedRoute);
+
+    // Hide the dock on sub-screens like habit details ([id]), edit activity, or track activity
+    const hideDock = nestedName === '[id]' || nestedName === 'track' || nestedName === 'edit';
+    if (hideDock) {
+        return null;
+    }
 
     return (
         <View

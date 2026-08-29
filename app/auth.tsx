@@ -20,8 +20,14 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 export default function AuthScreen() {
   const colorScheme = useColorScheme();
   const currentTheme = colorScheme === 'dark' ? 'dark' : 'light';
-  const { signInWithGoogle, signInAsGuest } = useAuth();
+  const { user, isGuest, signInWithGoogle, signInAsGuest } = useAuth();
   const [isSigningIn, setIsSigningIn] = useState(false);
+
+  React.useEffect(() => {
+    if (user || isGuest) {
+      router.replace('/(tabs)/habits');
+    }
+  }, [user, isGuest]);
 
   const pathImage =
     currentTheme === 'dark'

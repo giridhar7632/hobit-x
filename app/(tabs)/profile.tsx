@@ -3,14 +3,14 @@ import { CloudSyncIcon, GoogleIcon, UserIcon } from '@/constants/icons';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
 import { useAppTheme } from '@/context/theme-context';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useColorScheme, useThemeMode } from '@/hooks/use-color-scheme';
 import { APP_NAME } from '@/lib/meridian';
 import { pullFromCloud, pushAllToCloud } from '@/lib/sync';
 import { getHabits } from '@/utils/actions';
 import { CustomAlert as Alert } from '@/utils/custom-alert';
 import { router, useFocusEffect } from 'expo-router';
 import { getStorage, useMeridianContext, useQuery, useQueryClient } from 'meridian-lite';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -24,6 +24,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function ProfileScreen() {
   const colorScheme = useColorScheme();
   const currentTheme = colorScheme === 'dark' ? 'dark' : 'light';
+  const { themeMode, setThemeMode } = useThemeMode();
   const { activeColor } = useAppTheme();
   const { user, signInWithGoogle, signOut } = useAuth();
   const { isOnline, isSyncing, sync } = useMeridianContext();
@@ -34,9 +35,11 @@ export default function ProfileScreen() {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
+  const habitsQueryKey = useMemo(() => ['habits'], []);
+
   // Fetch local habits
   const { data: habits = [] } = useQuery({
-    queryKey: ['habits'],
+    queryKey: habitsQueryKey,
     queryFn: getHabits,
   });
 
@@ -175,6 +178,52 @@ export default function ProfileScreen() {
           </View>
 
           {/* Divider */}
+          <View
+            className="h-[1px] w-full mb-8"
+            style={{ backgroundColor: currentTheme === 'dark' ? '#27272a' : '#e4e4e7' }}
+          />
+
+          {/* Appearance Section */}
+          <View className="mb-8">
+            <ThemedText className="text-base font-pbold mb-4">Appearance</ThemedText>
+            <View className="flex-row items-center justify-between py-2">
+              <View className="flex-row gap-3 w-full justify-between">
+                {(['light', 'dark', 'system'] as const).map((mode) => {
+                  const isSelected = themeMode === mode;
+                  const label = mode.charAt(0).toUpperCase() + mode.slice(1);
+                  return (
+                    <TouchableOpacity
+                      key={mode}
+                      activeOpacity={0.7}
+                      onPress={() => setThemeMode(mode)}
+                      className="flex-1 py-3 rounded-xl border items-center justify-center"
+                      style={{
+                        backgroundColor: isSelected
+                          ? activeColor.accent
+                          : (currentTheme === 'dark' ? '#262626' : '#f5f5f5'),
+                        borderColor: isSelected
+                          ? activeColor.accent
+                          : (currentTheme === 'dark' ? '#404040' : '#e5e5e5'),
+                      }}
+                    >
+                      <Text
+                        className="font-psemibold text-sm"
+                        style={{
+                          color: isSelected
+                            ? '#ffffff'
+                            : (currentTheme === 'dark' ? '#d4d4d4' : '#525252'),
+                        }}
+                      >
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+
+          {/* Section Divider */}
           <View
             className="h-[1px] w-full mb-8"
             style={{ backgroundColor: currentTheme === 'dark' ? '#27272a' : '#e4e4e7' }}
