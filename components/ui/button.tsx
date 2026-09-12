@@ -1,13 +1,14 @@
 import * as Haptics from "expo-haptics";
-import React from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
-  Pressable,
+  Insets,
   StyleProp,
   Text,
   TextStyle,
+  TouchableOpacity,
   useColorScheme,
-  ViewStyle,
+  ViewStyle
 } from "react-native";
 
 import { getContrastTextColor } from "@/constants/habit-colors";
@@ -42,6 +43,7 @@ export interface ButtonProps {
   textStyle?: StyleProp<TextStyle>;
   children?: React.ReactNode;
   enableHaptics?: boolean;
+  hitSlop?: Insets | number;
 }
 
 export default function Button({
@@ -63,9 +65,12 @@ export default function Button({
   textStyle,
   children,
   enableHaptics = true,
+  hitSlop = { top: 10, bottom: 10, left: 10, right: 10 },
 }: ButtonProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+
+  const [isPressed, setIsPressed] = useState(false);
 
   const triggerPress = () => {
     if (disabled || loading) return;
@@ -194,15 +199,19 @@ export default function Button({
   const isDisabled = disabled || loading;
 
   return (
-    <Pressable
+    <TouchableOpacity
+      activeOpacity={0.82}
       onPress={triggerPress}
       disabled={isDisabled}
-      style={({ pressed }) => [
+      onPressIn={() => setIsPressed(true)}
+      onPressOut={() => setIsPressed(false)}
+      hitSlop={hitSlop}
+      style={[
         variantStyle.inlineStyle,
         style,
         {
-          opacity: isDisabled ? 0.5 : pressed ? 0.82 : 1,
-          transform: [{ scale: pressed && !isDisabled ? 0.985 : 1 }],
+          opacity: isDisabled ? 0.5 : 1,
+          transform: [{ scale: isPressed && !isDisabled ? 0.985 : 1 }],
         },
       ]}
       className={`flex-row items-center justify-center ${sizeStyle.container} ${variantStyle.container} ${className} ${containerStyles}`}
@@ -228,6 +237,6 @@ export default function Button({
           {rightIcon}
         </>
       )}
-    </Pressable>
+    </TouchableOpacity>
   );
 }

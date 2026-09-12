@@ -8,9 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -19,9 +17,11 @@ import { StepIdentity } from '@/components/create/step-identity';
 import { StepProgressHeader } from '@/components/create/step-progress-header';
 import { StepReminder } from '@/components/create/step-reminder';
 import { StepSchedule } from '@/components/create/step-schedule';
+import { StepSummary } from '@/components/create/step-summary';
 import { OnboardingChoose } from '@/components/onboarding/onboarding-choose';
 import { OnboardingReady } from '@/components/onboarding/onboarding-ready';
 import { OnboardingWelcome } from '@/components/onboarding/onboarding-welcome';
+import Button from '@/components/ui/button';
 import { getContrastTextColor, HABIT_COLORS } from '@/constants/habit-colors';
 import { HabitTemplate } from '@/constants/habit-templates';
 import { ChevronIcon } from '@/constants/icons';
@@ -31,7 +31,11 @@ import { useAppTheme } from '@/context/theme-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { createHabit } from '@/utils/actions';
 import { CustomAlert as Alert } from '@/utils/custom-alert';
-import { parseTimesOfDay, refreshHabitNotifications } from '@/utils/notifications';
+import {
+  getDefaultReminderTimesForSessions,
+  parseTimesOfDay,
+  refreshHabitNotifications,
+} from '@/utils/notifications';
 import {
   completeOnboarding,
   DEFAULT_ONBOARDING_DRAFT,
@@ -60,6 +64,10 @@ const STEP_TITLES: Record<number, { title: string; subtitle: string }> = {
   4: {
     title: 'Stay on track',
     subtitle: 'Want a little nudge to keep your momentum?',
+  },
+  5: {
+    title: 'Review your habit',
+    subtitle: 'Confirm your ritual before you begin.',
   },
 };
 
@@ -141,13 +149,13 @@ export default function OnboardingScreen() {
     }
   };
 
-  // Template chosen
   const handleSelectTemplate = (template: HabitTemplate) => {
     const timesOfDay = parseTimesOfDay(template.time_of_day);
+    const defaultDates = getDefaultReminderTimesForSessions(timesOfDay);
 
     updateDraft((d) => ({
       ...d,
-      icon: template.icon || 'SproutIcon',
+      icon: template.icon || 'SparklesIcon',
       name: template.name,
       description: template.description || '',
       color: template.color || 'purple',
@@ -159,6 +167,8 @@ export default function OnboardingScreen() {
       planned_time_minutes: template.planned_time_minutes || 0,
       target_value: template.target_value || 0,
       target_unit: template.target_unit || '',
+      notify: false,
+      notify_times: defaultDates.map((date) => date.toISOString()),
       reminder_message: template.reminder_message || '',
     }));
 
@@ -209,8 +219,7 @@ export default function OnboardingScreen() {
         description: draft.description.trim() || null,
         color: draft.color,
         frequency: draft.frequency,
-        planned_time_minutes:
-          draft.completion_type === 'time' ? Number(draft.planned_time_minutes) : 0,
+        planned_time_minutes: draft.completion_type === 'time' ? Number(draft.planned_time_minutes) : 0,
         interval: Number(draft.interval) || 1,
         target_days: JSON.stringify(draft.target_days),
         notify: draft.notify ? 1 : 0,
@@ -310,8 +319,20 @@ export default function OnboardingScreen() {
     );
   }
 
-  // SCREEN 3: 4-STEP WIZARD (step1, step2, step3, step4)
-  const numericStep = step === 'step1' ? 1 : step === 'step2' ? 2 : step === 'step3' ? 3 : 4;
+  // SCREEN 3: 4 or 5-STEP WIZARD (step1, step2, step3, step4, step5)
+  const numericStep =
+    step === 'step1'
+      ? 1
+      : step === 'step2'
+      ? 2
+      : step === 'step3'
+      ? 3
+      : step === 'step4'
+      ? 4
+      : step === 'step5'
+      ? 5
+      : 1;
+  const totalSteps = draft.notify ? 5 : 4;
   const currentTitle = STEP_TITLES[numericStep];
 
   const handleNext = () => {
@@ -321,13 +342,16 @@ export default function OnboardingScreen() {
     if (numericStep === 1) updateStep('step2');
     else if (numericStep === 2) updateStep('step3');
     else if (numericStep === 3) updateStep('step4');
-    else if (numericStep === 4) updateStep('ready');
+    else if (numericStep === 4 && draft.notify) updateStep('step5');
+    else if (numericStep === 4 && !draft.notify) updateStep('ready');
+    else if (numericStep === 5) updateStep('ready');
   };
 
   const handleBack = () => {
     Keyboard.dismiss();
     Haptics.selectionAsync();
-    if (numericStep === 4) updateStep('step3');
+    if (numericStep === 5) updateStep('step4');
+    else if (numericStep === 4) updateStep('step3');
     else if (numericStep === 3) updateStep('step2');
     else if (numericStep === 2) updateStep('step1');
     else if (numericStep === 1) updateStep('choose');
@@ -347,9 +371,17 @@ export default function OnboardingScreen() {
       >
         <StepProgressHeader
           currentStep={numericStep}
-          totalSteps={4}
-          title={currentTitle.title}
-          subtitle={currentTitle.subtitle}
+          totalSteps={totalSteps}
+          title={
+            numericStep === 4 && !draft.notify
+              ? 'Review your habit'
+              : currentTitle?.title || 'Create habit'
+          }
+          subtitle={
+            numericStep === 4 && !draft.notify
+              ? 'Review details or enable reminders.'
+              : currentTitle?.subtitle || ''
+          }
           accentColor={accentColor}
         />
 
@@ -382,9 +414,14 @@ export default function OnboardingScreen() {
           {numericStep === 2 && (
             <StepSchedule
               timesOfDay={draft.times_of_day}
-              onChangeTimesOfDay={(times_of_day) =>
-                updateDraft((d) => ({ ...d, times_of_day }))
-              }
+              onChangeTimesOfDay={(times_of_day) => {
+                const defaultDates = getDefaultReminderTimesForSessions(times_of_day);
+                updateDraft((d) => ({
+                  ...d,
+                  times_of_day,
+                  notify_times: defaultDates.map((date) => date.toISOString()),
+                }));
+              }}
               frequency={draft.frequency}
               onChangeFrequency={(frequency) =>
                 updateDraft((d) => ({ ...d, frequency }))
@@ -424,7 +461,7 @@ export default function OnboardingScreen() {
             />
           )}
 
-          {/* STEP 4: REMINDER */}
+          {/* STEP 4: REMINDER (Shows inline summary when notify is false) */}
           {numericStep === 4 && (
             <StepReminder
               notify={draft.notify}
@@ -442,64 +479,89 @@ export default function OnboardingScreen() {
               }
               name={draft.name}
               accentColor={accentColor}
+              icon={draft.icon}
+              description={draft.description}
+              color={draft.color}
+              timesOfDay={draft.times_of_day}
+              frequency={draft.frequency}
+              targetDays={draft.target_days}
+              interval={draft.interval}
+              completionType={draft.completion_type}
+              plannedMinutes={draft.planned_time_minutes}
+              targetValue={draft.target_value}
+              targetUnit={draft.target_unit}
+              onJumpToStep={(s) => updateStep(`step${s}` as OnboardingStep)}
+            />
+          )}
+
+          {/* STEP 5: DEDICATED REVIEW SCREEN (Only when reminders are enabled) */}
+          {numericStep === 5 && (
+            <StepSummary
+              icon={draft.icon}
+              name={draft.name}
+              description={draft.description}
+              color={draft.color}
+              timesOfDay={draft.times_of_day}
+              frequency={draft.frequency}
+              targetDays={draft.target_days}
+              interval={draft.interval}
+              completionType={draft.completion_type}
+              plannedMinutes={draft.planned_time_minutes}
+              targetValue={draft.target_value}
+              targetUnit={draft.target_unit}
+              notify={draft.notify}
+              notifyTimes={draft.notify_times.map((t) => new Date(t))}
+              reminderMessage={draft.reminder_message}
+              accentColor={accentColor}
+              onJumpToStep={(s) => updateStep(`step${s}` as OnboardingStep)}
             />
           )}
         </ScrollView>
 
         {/* Bottom Navigation Bar */}
-        <View className="flex-row items-center justify-between px-5 py-3.5 border-t border-black/[0.05] dark:border-white/[0.06] bg-white dark:bg-[#191A1D]">
-          <TouchableOpacity
-            activeOpacity={0.7}
+        <View className="flex-row items-center justify-between px-5 pt-4 pb-12 border-t border-black/[0.05] dark:border-white/[0.06] bg-white dark:bg-[#191A1D]">
+          <Button
+            variant="ghost"
+            size="md"
+            title={numericStep === 1 ? 'Cancel' : 'Back'}
             onPress={handleBack}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            className="py-3 px-3 flex-row items-center justify-center gap-1.5 rounded-xl"
-          >
-            {numericStep > 1 && (
-              <ChevronIcon
-                direction="left"
-                size={16}
-                color={isDark ? '#9CA3AF' : '#6B7280'}
-              />
-            )}
-            <Text className="text-sm font-psemibold text-neutral-500 dark:text-neutral-400">
-              {numericStep === 1 ? 'Cancel' : 'Back'}
-            </Text>
-          </TouchableOpacity>
+            className="px-3"
+            textClassName="font-psemibold text-neutral-500 dark:text-neutral-400"
+            leftIcon={
+              numericStep > 1 ? (
+                <ChevronIcon
+                  direction="left"
+                  size={16}
+                  color={isDark ? '#9CA3AF' : '#6B7280'}
+                />
+              ) : undefined
+            }
+          />
 
-          <TouchableOpacity
-            activeOpacity={0.8}
+          <Button
+            variant="accent"
+            size="md"
+            accentColor={accentColor}
+            title={
+              numericStep < totalSteps
+                ? numericStep === 4 && draft.notify
+                  ? 'Review'
+                  : 'Next'
+                : 'Finish Setup'
+            }
             onPress={handleNext}
             disabled={isNextDisabled}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            style={{
-              backgroundColor: isNextDisabled
-                ? isDark
-                  ? 'rgba(255,255,255,0.08)'
-                  : 'rgba(0,0,0,0.06)'
-                : accentColor,
-            }}
-            className="px-6 h-12 rounded-2xl min-w-[120px] flex-row items-center justify-center gap-1.5"
-          >
-            <Text
-              style={{
-                color: isNextDisabled
-                  ? isDark
-                    ? 'rgba(255,255,255,0.4)'
-                    : 'rgba(0,0,0,0.35)'
-                  : getContrastTextColor(accentColor),
-              }}
-              className="text-sm font-pbold"
-            >
-              {numericStep < 4 ? 'Next' : 'Finish Setup'}
-            </Text>
-            {!isNextDisabled && (
-              <ChevronIcon
-                direction="right"
-                size={16}
-                color={getContrastTextColor(accentColor)}
-              />
-            )}
-          </TouchableOpacity>
+            className="min-w-[120px] px-6"
+            rightIcon={
+              !isNextDisabled ? (
+                <ChevronIcon
+                  direction="right"
+                  size={16}
+                  color={getContrastTextColor(accentColor)}
+                />
+              ) : undefined
+            }
+          />
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>

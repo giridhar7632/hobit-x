@@ -230,7 +230,7 @@ export function StepGoal({
       {/* DYNAMIC CONFIGURATION: Check */}
       {completionType === 'check' && (
         <View className="flex-row items-center p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] gap-2.5 bg-black/[0.02] dark:bg-white/[0.03]">
-          <Text style={{ color: accentColor }} className="font-pbold text-lg">✓</Text>
+          <TickIcon color={accentColor} size={18}></TickIcon>
           <Text className="font-pmedium text-sm flex-1 text-neutral-500 dark:text-neutral-400">
             Great! Simply check it off when you're done.
           </Text>

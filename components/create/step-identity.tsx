@@ -2,9 +2,8 @@ import * as Haptics from 'expo-haptics';
 import React, { useState } from 'react';
 import {
   Text,
-  TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 
 import { IconPickerModal } from '@/components/create/icon-picker-modal';
@@ -94,7 +93,7 @@ export function StepIdentity({
         onChangeText={onChangeDescription}
         placeholder="Add a short description"
         accentColor={selectedTheme.accent}
-        multiline
+        multiline={true}
         numberOfLines={2}
         maxLength={140}
         helperText="Optional"
@@ -122,7 +121,7 @@ export function StepIdentity({
                   borderWidth: isSelected ? 3 : 0,
                   transform: [{ scale: isSelected ? 1.15 : 1 }],
                 }}
-                className="w-9 h-9 rounded-full"
+                className="w-9 h-9 rounded-full border-[3px]"
               />
             );
           })}

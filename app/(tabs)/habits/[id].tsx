@@ -5,9 +5,9 @@ import { useMeridianMutation, useQuery, useQueryClient } from 'meridian-lite';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Platform,
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   useColorScheme,
@@ -16,21 +16,21 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Heatmap from '@/components/heat-map';
-import { CompletionIndicator } from '@/components/home/completion-indicator';
 import { ThemedText } from '@/components/themed-text';
 import Button from '@/components/ui/button';
-import { CustomSwitch } from '@/components/ui/switch';
-import { FONTS } from '@/constants/fonts';
 import { getHabitColor } from '@/constants/habit-colors';
 import {
+  BellDisabledIcon,
+  BellIcon,
   BinIcon,
+  CalendarIcon,
   CancelIcon,
   ChevronIcon,
+  ClockIcon,
   EditIcon,
   FlameIcon,
   renderHabitIcon,
   SkipIcon,
-  SunIcon,
   TickIcon
 } from '@/constants/icons';
 import { STREAK_MESSAGES } from '@/constants/messages';
@@ -44,45 +44,38 @@ import {
   getHabitCompletedDates,
   trackHabit,
   untrackHabitToday,
-  updateHabit,
 } from '@/utils/actions';
 import { CustomAlert as Alert } from '@/utils/custom-alert';
-import { getHabitTotalReminders, parseNotifyTimes, parseTimesOfDay, refreshHabitNotifications } from '@/utils/notifications';
+import { formatTimesOfDay, getHabitTotalReminders, parseNotifyTimes, refreshHabitNotifications } from '@/utils/notifications';
 import { Habit, HabitEntry } from '@/utils/types';
-
-const WEEK_DAYS = [
-  { label: 'Mon', dayNumber: 1 },
-  { label: 'Tue', dayNumber: 2 },
-  { label: 'Wed', dayNumber: 3 },
-  { label: 'Thu', dayNumber: 4 },
-  { label: 'Fri', dayNumber: 5 },
-  { label: 'Sat', dayNumber: 6 },
-  { label: 'Sun', dayNumber: 0 },
-];
-
-const DAILY_SCHEDULE_OPTIONS = [
-  { key: 'morning', label: 'Morning Circle' },
-  { key: 'noon', label: 'Noon Circle' },
-  { key: 'evening', label: 'Evening Circle' },
-  { key: 'anytime', label: 'Always Active' },
-];
 
 function formatCreatedDate(dateStr?: string | null): string {
   if (!dateStr) return 'Recently';
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return 'Recently';
-    return d.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   } catch {
     return 'Recently';
   }
 }
 
+function formatBackdateLabel(dateStr: string): string {
+  const d = new Date(dateStr);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(d);
+  target.setHours(0, 0, 0, 0);
+  const diff = Math.round((today.getTime() - target.getTime()) / (1000 * 60 * 60 * 24));
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Yesterday';
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+}
 
+function isToday(dateStr: string): boolean {
+  const today = new Date().toISOString().split('T')[0];
+  return dateStr === today;
+}
 
 export default function HabitScreen() {
   const { id } = useLocalSearchParams();
@@ -93,8 +86,9 @@ export default function HabitScreen() {
   const isDark = currentTheme === 'dark';
   const { setActiveColor } = useAppTheme();
 
-  // Mocked state for interactive daily schedule partition
-  const [selectedDailySchedule, setSelectedDailySchedule] = useState<string>('morning');
+  // Backdate modal state
+  const [backdateModalVisible, setBackdateModalVisible] = useState(false);
+  const [pendingBackdate, setPendingBackdate] = useState<{ dateStr: string; displayDate: string } | null>(null);
 
   const habitKey = useMemo(() => ['habit', habitId], [habitId]);
   const entriesKey = useMemo(() => ['habit_entries', habitId], [habitId]);
@@ -117,8 +111,6 @@ export default function HabitScreen() {
   const {
     data: activity = [],
     isLoading: isLoadingActivity,
-    isError: isErrorActivity,
-    error: errorActivity,
   } = useQuery<HabitEntry[]>({
     queryKey: entriesKey,
     queryFn: () => getHabitActivity(habitId),
@@ -137,14 +129,18 @@ export default function HabitScreen() {
     invalidateKeys: [['habits'], ['habit_entries', habitId], ['habit-dates', habitId]],
   });
 
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ['habit', habitId] });
+    queryClient.invalidateQueries({ queryKey: ['habits'] });
+    queryClient.invalidateQueries({ queryKey: ['habit_entries', habitId] });
+    queryClient.invalidateQueries({ queryKey: ['habit-dates', habitId] });
+  };
+
   const onDeleteEntry = async (entry_id: string) => {
     if (!habitId) return;
     try {
       const result = await deleteEntry(entry_id, habitId);
-      queryClient.invalidateQueries({ queryKey: ['habit_entries', habitId] });
-      queryClient.invalidateQueries({ queryKey: ['habit', habitId] });
-      queryClient.invalidateQueries({ queryKey: ['habit-dates', habitId] });
-      queryClient.invalidateQueries({ queryKey: ['habits'] });
+      invalidateAll();
       await mutateOutbox('delete_entry', result);
     } catch (error: any) {
       console.error('Error deleting entry:', error);
@@ -171,51 +167,12 @@ export default function HabitScreen() {
               await mutateOutbox('delete_habit', { id: hId });
               router.replace('/(tabs)/habits');
             } catch (error: any) {
-              console.error('Error deleting habit:', error);
               Alert.alert('Error', error.message);
             }
           },
         },
       ]
     );
-  };
-
-  // Toggle notification logic
-  const onToggleNotification = async (newVal: boolean) => {
-    if (!habit) return;
-    try {
-      Haptics.selectionAsync();
-      const notifyVal = newVal ? 1 : 0;
-      let notificationIds: string[] = [];
-
-      if (newVal) {
-        notificationIds = await refreshHabitNotifications(
-          { ...habit, notify: 1 },
-          habit.today_tracked_minutes || 0,
-          false
-        );
-      } else {
-        await refreshHabitNotifications(
-          { ...habit, notify: 0 },
-          0,
-          true
-        );
-      }
-
-      const updatedData = {
-        ...habit,
-        notify: notifyVal,
-        notification_ids: JSON.stringify(notificationIds),
-      };
-
-      await updateHabit(updatedData);
-      queryClient.invalidateQueries({ queryKey: ['habit', habitId] });
-      queryClient.invalidateQueries({ queryKey: ['habits'] });
-      await mutateOutbox('update_habit', updatedData);
-    } catch (error: any) {
-      console.error('Error toggling notification:', error);
-      Alert.alert('Notification Error', error.message);
-    }
   };
 
   useFocusEffect(
@@ -226,22 +183,18 @@ export default function HabitScreen() {
     }, [habit?.color, setActiveColor])
   );
 
-  const habitTimesOfDay = useMemo(() => parseTimesOfDay(habit?.time_of_day), [habit?.time_of_day]);
   const parsedNotifyTimes = useMemo(() => parseNotifyTimes(habit?.notify_time), [habit?.notify_time]);
   const totalDailyTarget = useMemo(() => getHabitTotalReminders(habit), [habit]);
 
-  const handleQuickTrackCurrentHabit = async () => {
+  // Track today
+  const handleTrackToday = async () => {
     if (!habit) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const totalMinutesToday = (habit.today_tracked_minutes || 0) + (habit.planned_time_minutes || 0);
     const currentCompletedCount = (habit.today_completed_count || 0) + 1;
     const isFullyDone = currentCompletedCount >= totalDailyTarget;
 
-    const newNotificationIds = await refreshHabitNotifications(
-      habit,
-      totalMinutesToday,
-      isFullyDone
-    );
+    const newNotificationIds = await refreshHabitNotifications(habit, totalMinutesToday, isFullyDone);
 
     const trackedResult = await trackHabit({
       habit_id: habit.id,
@@ -252,58 +205,86 @@ export default function HabitScreen() {
       note: '',
     });
 
-    queryClient.invalidateQueries({ queryKey: ['habit', habitId] });
-    queryClient.invalidateQueries({ queryKey: ['habits'] });
-    queryClient.invalidateQueries({ queryKey: ['habit_entries', habitId] });
-    queryClient.invalidateQueries({ queryKey: ['habit-dates', habitId] });
+    invalidateAll();
     await mutateOutbox('track_habit', trackedResult);
   };
 
-  const handleQuickUntrackCurrentHabit = async () => {
+  // Untrack today
+  const handleUntrackToday = async () => {
     if (!habit) return;
     try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       const result = await untrackHabitToday(habit.id);
       if (result) {
         const newNotificationIds = await refreshHabitNotifications(habit, 0, false);
-        queryClient.invalidateQueries({ queryKey: ['habit', habitId] });
-        queryClient.invalidateQueries({ queryKey: ['habits'] });
-        queryClient.invalidateQueries({ queryKey: ['habit_entries', habitId] });
-        queryClient.invalidateQueries({ queryKey: ['habit-dates', habitId] });
+        invalidateAll();
         await mutateOutbox('delete_entry', result);
       }
-    } catch (e) {
-      console.error('Error untracking in detail screen:', e);
+    } catch (e: any) {
+      console.error('Error untracking:', e);
+      Alert.alert('Error', e?.message || 'Failed to untrack');
     }
   };
 
-  // Parse target days
-  const parsedTargetDays: number[] = useMemo(() => {
-    if (!habit?.target_days) return [1, 2, 3, 4, 5];
-    try {
-      const days =
-        typeof habit.target_days === 'string'
-          ? JSON.parse(habit.target_days)
-          : habit.target_days;
-      return Array.isArray(days) ? days : [];
-    } catch {
-      return [];
-    }
-  }, [habit?.target_days]);
+  // Heatmap square pressed
+  const handleHeatmapDatePress = (dateStr: string, status: string | null, displayDate: string) => {
+    const today = new Date().toISOString().split('T')[0];
+    if (dateStr > today) return;
 
-  // Formatted reminder time
-  const formattedNotifyTime = useMemo(() => {
-    if (!habit?.notify_time) return '07:30';
-    const times = parseNotifyTimes(habit.notify_time);
-    if (times.length === 0) return '07:30';
-    const first = new Date(times[0]);
-    if (isNaN(first.getTime())) return '07:30';
-    const timeStr = first.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    return times.length > 1 ? `${timeStr} (+${times.length - 1})` : timeStr;
-  }, [habit?.notify_time]);
+    if (isToday(dateStr)) return;
+
+    if (status === 'Completed') {
+      Alert.alert(displayDate, '✅ You completed this habit on this day.');
+      return;
+    }
+
+    if (status === 'Skipped') {
+      Alert.alert(displayDate, '⏭ You skipped this habit on this day.');
+      return;
+    }
+
+    setPendingBackdate({ dateStr, displayDate });
+    setBackdateModalVisible(true);
+  };
+
+  const handleConfirmBackdate = async () => {
+    if (!habit || !pendingBackdate) return;
+    setBackdateModalVisible(false);
+
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const trackedResult = await trackHabit({
+        habit_id: habit.id,
+        actual_time_minutes: habit.planned_time_minutes ?? undefined,
+        status: 'Completed',
+        entry_date: new Date(`${pendingBackdate.dateStr}T12:00:00.000Z`).toISOString(),
+        note: 'Logged retroactively',
+      });
+
+      invalidateAll();
+      await mutateOutbox('track_habit', trackedResult);
+    } catch (e: any) {
+      console.error('Backdate error:', e);
+      Alert.alert('Error', e.message);
+    }
+
+    setPendingBackdate(null);
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'Completed': return <TickIcon color={accentColor} size={16} />;
+      case 'Skipped': return <SkipIcon color={Colors[currentTheme].icon} size={16} />;
+      default: return <CancelIcon color={Colors[currentTheme].icon} size={16} />;
+    }
+  };
 
   if (isLoadingHabit) {
     return (
-      <View style={[styles.centerContainer, { backgroundColor: Colors[currentTheme].background }]}>
+      <View
+        className="flex-1 justify-center items-center p-6"
+        style={{ backgroundColor: Colors[currentTheme].background }}
+      >
         <ActivityIndicator size="large" color={Colors[currentTheme].tint} />
       </View>
     );
@@ -311,102 +292,116 @@ export default function HabitScreen() {
 
   if (isErrorHabit || !habit) {
     return (
-      <View style={[styles.centerContainer, { backgroundColor: Colors[currentTheme].background }]}>
-        <ThemedText className="text-xl font-pbold mb-2 text-center">
-          {errorHabit?.message || 'Habit not found.'}
+      <View
+        className="flex-1 justify-center items-center p-6"
+        style={{ backgroundColor: Colors[currentTheme].background }}
+      >
+        <ThemedText className="text-xl font-pbold mb-4 text-center">
+          {(errorHabit as any)?.message || 'Habit not found.'}
         </ThemedText>
-        <Button title="Go Back" handlePress={() => router.replace('/habits')} />
+        <TouchableOpacity
+          onPress={() => router.replace('/habits')}
+          className="p-3 rounded-[14px]"
+          style={{ backgroundColor: Colors[currentTheme].tint }}
+        >
+          <Text className="font-pbold text-white">Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
   const colorDef = getHabitColor(habit.color);
   const accentColor = colorDef.accent;
-
-  // Colors for presentation
   const heroBg = isDark ? colorDef.pastelBgDark : colorDef.pastelBg;
   const contentBg = isDark ? '#18191B' : '#FFFFFF';
   const textColor = isDark ? '#ECEDEE' : '#11181C';
   const mutedColor = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)';
-  const pillInactiveBg = isDark ? 'rgba(255,255,255,0.06)' : '#F2F4F7';
   const borderColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+  const cardBg = isDark ? '#232428' : '#F6F8FA';
 
-  // Slider calculation
-  const plannedMinutes = habit.planned_time_minutes || 0;
-  const sliderPercent = Math.min(100, Math.max(8, (plannedMinutes / 120) * 100));
+  const isFullyDoneToday = (habit.today_completed_count || 0) >= totalDailyTarget;
 
-  const getStatusEmoji = (status: string) => {
-    switch (status) {
-      case 'Completed':
-        return <TickIcon color={accentColor} size={18} />;
-      case 'Skipped':
-        return <SkipIcon color={Colors[currentTheme].icon} size={18} />;
-      case 'Missed':
-        return <CancelIcon color={Colors[currentTheme].icon} size={18} />;
-      default:
-        return <Text style={{ color: accentColor, fontFamily: FONTS.bold }}>•</Text>;
-    }
-  };
+  const timesOfDayLabel = formatTimesOfDay(habit.time_of_day);
+  const frequencyLabel =
+    habit.frequency === 'daily'
+      ? 'Every day'
+      : habit.frequency === 'weekly'
+        ? `${habit.target_days?.length ?? 5} days/week`
+        : `Every ${habit.interval} days`;
+
+  const goalLabel =
+    habit.completion_type === 'time'
+      ? `${habit.planned_time_minutes || 20} min`
+      : habit.completion_type === 'quantity'
+        ? `${habit.target_value || 10} ${habit.target_unit || 'units'}`
+        : 'Check-off';
+
+  const reminderLabel =
+    habit.notify === 1 && parsedNotifyTimes.length > 0
+      ? parsedNotifyTimes.length === 1
+        ? new Date(parsedNotifyTimes[0]).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+        : `${parsedNotifyTimes.length} daily reminders`
+      : 'Off';
+
+  const bottomPad = insets.bottom > 0 ? insets.bottom + 12 : 20;
 
   return (
-    <View style={[styles.screen, { backgroundColor: heroBg }]}>
-      {/* 1. TOP 35% HERO SECTION */}
-      <View style={[styles.heroArea, { paddingTop: insets.top }]}>
-        {/* Circular Back Button Top Left */}
+    <View className="flex-1" style={{ backgroundColor: heroBg }}>
+      {/* ── HERO SECTION ── */}
+      <View
+        className="h-[30%] min-h-[200px] justify-center items-center relative"
+        style={{ paddingTop: insets.top }}
+      >
+        {/* Back */}
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={() => {
             Haptics.selectionAsync();
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              router.replace('/(tabs)/habits');
-            }
+            if (router.canGoBack()) router.back();
+            else router.replace('/(tabs)/habits');
           }}
-          style={[
-            styles.floatingNavBtn,
-            styles.backBtnPosition,
-            {
-              top: insets.top + (Platform.OS === 'ios' ? 8 : 16),
-              backgroundColor: isDark ? 'rgba(30,30,35,0.85)' : '#FFFFFF',
-            },
-          ]}
+          className="absolute w-11 h-11 rounded-full items-center justify-center shadow-sm z-10"
+          style={{
+            left: 20,
+            top: insets.top + (Platform.OS === 'ios' ? 8 : 16),
+            backgroundColor: isDark ? 'rgba(30,30,35,0.85)' : '#FFFFFF',
+            elevation: 3,
+            shadowColor: '#000000', shadowOpacity: 0.08, shadowOffset: { width: 0, height: 3 }, shadowRadius: 8
+          }}
         >
           <ChevronIcon direction="left" size={20} color={textColor} />
         </TouchableOpacity>
 
-        {/* Circular Delete Button Top Right */}
+        {/* Delete */}
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={() => onDeleteHabit(habitId)}
-          style={[
-            styles.floatingNavBtn,
-            styles.deleteBtnPosition,
-            {
-              top: insets.top + (Platform.OS === 'ios' ? 8 : 16),
-              backgroundColor: isDark ? 'rgba(30,30,35,0.85)' : '#FFFFFF',
-            },
-          ]}
+          className="absolute w-11 h-11 rounded-full items-center justify-center shadow-sm z-10"
+          style={{
+            right: 20,
+            top: insets.top + (Platform.OS === 'ios' ? 8 : 16),
+            backgroundColor: isDark ? 'rgba(30,30,35,0.85)' : '#FFFFFF',
+            elevation: 3,
+            shadowColor: '#000000', shadowOpacity: 0.08, shadowOffset: { width: 0, height: 3 }, shadowRadius: 8
+          }}
         >
           <BinIcon size={18} color="#EF4444" />
         </TouchableOpacity>
 
-        {/* Hero Illustration / Icon Graphic */}
-        <View style={styles.heroGraphicWrapper}>
+        {/* Concentric icon rings */}
+        <View className="items-center justify-center">
           <View
-            style={[
-              styles.concentricOuterRing,
-              { borderColor: `${accentColor}30` },
-            ]}
+            className="w-[132px] h-[132px] rounded-full border-2 items-center justify-center"
+            style={{ borderColor: `${accentColor}30` }}
           >
             <View
-              style={[
-                styles.concentricInnerCircle,
-                {
-                  backgroundColor: isDark ? '#232428' : '#FFFFFF',
-                  borderColor: `${accentColor}50`,
-                },
-              ]}
+              className="w-24 h-24 rounded-full border-[1.5px] items-center justify-center"
+              style={{
+                backgroundColor: isDark ? '#232428' : '#FFFFFF',
+                borderColor: `${accentColor}50`,
+                elevation: 3,
+                shadowColor: '#000000', shadowOpacity: 0.06, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10
+              }}
             >
               {renderHabitIcon(habit.icon, accentColor, 46)}
             </View>
@@ -414,92 +409,95 @@ export default function HabitScreen() {
         </View>
       </View>
 
-      {/* 2. BOTTOM 65% CONTENT CARD */}
-      <View style={[styles.bottomSheetContainer, { backgroundColor: contentBg }]}>
+      {/* ── CONTENT CARD ── */}
+      <View
+        className="flex-1 rounded-t-[32px] -mt-7 overflow-hidden"
+        style={{
+          backgroundColor: contentBg,
+          elevation: 6,
+          shadowColor: '#000000', shadowOpacity: 0.08, shadowOffset: { width: 0, height: -4 }, shadowRadius: 16
+        }}
+      >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerClassName="px-5 pt-6 gap-5"
+          contentContainerStyle={{ paddingBottom: bottomPad + 88 }}
           showsVerticalScrollIndicator={false}
         >
-          {/* HEADER & INFO SECTION */}
-          <View style={styles.headerSection}>
-            <View style={styles.titleRow}>
+          {/* ── HEADER ── */}
+          <View className="flex-row items-start gap-3">
+            <View className="flex-1 gap-1">
               <Text
                 numberOfLines={2}
-                style={[styles.habitName, { color: textColor }]}
+                className="font-pbold text-[26px] tracking-[-0.5px]"
+                style={{ color: textColor }}
               >
                 {habit.name}
               </Text>
-
-              {/* Circular Edit Button */}
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  router.push(`/habits/edit?id=${id}`);
-                }}
-                style={[
-                  styles.editButton,
-                  {
-                    backgroundColor: isDark
-                      ? 'rgba(255,255,255,0.08)'
-                      : '#F2F4F7',
-                  },
-                ]}
-              >
-                <EditIcon size={18} color={accentColor} />
-              </TouchableOpacity>
+              {habit.description ? (
+                <Text className="font-pregular text-[13px] leading-[19px]" style={{ color: mutedColor }}>
+                  {habit.description}
+                </Text>
+              ) : (
+                <Text className="font-pregular text-[13px] leading-[19px]" style={{ color: mutedColor }}>
+                  Since {formatCreatedDate(habit.created_at)}
+                </Text>
+              )}
             </View>
 
-            <Text style={[styles.createdDateText, { color: mutedColor }]}>
-              Created On: {formatCreatedDate(habit.created_at)}
-            </Text>
-
-            {habit.description ? (
-              <Text style={[styles.descriptionText, { color: mutedColor }]}>
-                {habit.description}
-              </Text>
-            ) : null}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => {
+                Haptics.selectionAsync();
+                router.push(`/habits/edit?id=${id}`);
+              }}
+              className="w-[38px] h-[38px] rounded-full items-center justify-center mt-1"
+              style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F2F4F7' }}
+            >
+              <EditIcon size={17} color={accentColor} />
+            </TouchableOpacity>
           </View>
 
-          {/* 3. STREAK TILE */}
+          {/* ── STREAK TILE ── */}
           <View
-            style={[
-              styles.streakTile,
-              {
-                backgroundColor: isDark ? '#232428' : '#F6F8FA',
-                borderColor: borderColor,
-              },
-            ]}
+            className="flex-row items-center p-4 rounded-[22px] border gap-4 shadow-sm"
+            style={{
+              backgroundColor: isDark ? '#232428' : '#F6F8FA',
+              borderColor: borderColor,
+              elevation: 1,
+            }}
           >
-            {/* Left: Flame Icon with Overlapping Circular Badge */}
-            <View style={styles.streakBadgeWrapper}>
+            <View className="relative w-[52px] h-[52px]">
               <View
-                style={[
-                  styles.streakIconBox,
-                  { backgroundColor: `${accentColor}20` },
-                ]}
+                className="w-[52px] h-[52px] rounded-[18px] items-center justify-center"
+                style={{ backgroundColor: `${accentColor}20` }}
               >
                 <FlameIcon size={26} color={accentColor} />
               </View>
 
               <View
-                style={[
-                  styles.streakCountBadge,
-                  { backgroundColor: accentColor },
-                ]}
+                className="absolute -bottom-1 -right-1 min-w-[22px] h-[22px] rounded-full px-[5px] items-center justify-center border-2"
+                style={{
+                  backgroundColor: accentColor,
+                  borderColor: isDark ? '#232428' : '#F6F8FA',
+                }}
               >
-                <Text style={styles.streakCountText}>
+                <Text className="font-pbold text-white text-[11px]">
                   {habit.current_streak || 0}
                 </Text>
               </View>
             </View>
 
-            {/* Right: Text block */}
-            <View style={styles.streakTextWrap}>
-              <Text style={[styles.streakTitle, { color: textColor }]}>
+            <View className="flex-1 gap-0.5">
+              <Text
+                className="font-pbold text-base tracking-[-0.2px]"
+                style={{ color: textColor }}
+              >
                 Streak
               </Text>
-              <Text style={[styles.streakSubtitle, { color: mutedColor }]}>
+              <Text
+                className="font-pregular text-[13px] leading-[18px]"
+                style={{ color: mutedColor }}
+              >
                 {habit.current_streak > 0
                   ? `${habit.current_streak} days in a row. ${STREAK_MESSAGES[habit.current_streak % STREAK_MESSAGES.length]}`
                   : "0 days in a row. Start your streak today!"}
@@ -507,350 +505,127 @@ export default function HabitScreen() {
             </View>
           </View>
 
-          {/* 4. WEEKLY SCHEDULE (TARGET DAYS) */}
-          <View style={styles.sectionBlock}>
-            <Text style={[styles.sectionHeading, { color: textColor }]}>
-              Weekly Schedule
-            </Text>
-
-            <View style={styles.daysRow}>
-              {WEEK_DAYS.map((d) => {
-                const isActive = parsedTargetDays.includes(d.dayNumber);
-
-                return (
-                  <View
-                    key={d.label}
-                    style={[
-                      styles.dayPill,
-                      {
-                        backgroundColor: isActive
-                          ? isDark
-                            ? `${accentColor}25`
-                            : `${accentColor}18`
-                          : pillInactiveBg,
-                        borderColor: isActive ? accentColor : borderColor,
-                        borderWidth: isActive ? 1.5 : 1,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.dayPillText,
-                        {
-                          color: isActive
-                            ? isDark
-                              ? '#FFFFFF'
-                              : '#11181C'
-                            : mutedColor,
-                          fontFamily: isActive ? FONTS.bold : FONTS.medium,
-                        },
-                      ]}
-                    >
-                      {d.label}
-                    </Text>
-                  </View>
-                );
-              })}
+          {/* ── ACTIVITY HEATMAP ── */}
+          <View className="gap-3">
+            <View className="flex-row items-center justify-between">
+              <Text className="font-pbold text-base tracking-[-0.3px]" style={{ color: textColor }}>Activity</Text>
+              <Text className="font-pmedium text-xs" style={{ color: mutedColor }}>Tap a past day to log</Text>
             </View>
-          </View>
 
-          {/* 5. DAILY SCHEDULE (TIME PARTITION) */}
-          <View style={styles.sectionBlock}>
-            <Text style={[styles.sectionHeading, { color: textColor }]}>
-              Daily Schedule
-            </Text>
-
-            <View style={styles.dailyScheduleGrid}>
-              {DAILY_SCHEDULE_OPTIONS.map((item) => {
-                const isSelected = item.key === 'noon'
-                  ? habitTimesOfDay.includes('afternoon')
-                  : habitTimesOfDay.includes(item.key as any);
-
-                return (
-                  <View
-                    key={item.key}
-                    style={[
-                      styles.dailyPillButton,
-                      {
-                        backgroundColor: isSelected
-                          ? isDark
-                            ? `${accentColor}25`
-                            : `${accentColor}15`
-                          : pillInactiveBg,
-                        borderColor: isSelected ? accentColor : borderColor,
-                        borderWidth: isSelected ? 1.5 : 1,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.dailyPillText,
-                        {
-                          color: isSelected
-                            ? isDark
-                              ? '#FFFFFF'
-                              : '#11181C'
-                            : mutedColor,
-                          fontFamily: isSelected ? FONTS.bold : FONTS.medium,
-                        },
-                      ]}
-                    >
-                      {item.label}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* 6. PROGRESS/GOAL SLIDER */}
-          <View style={styles.sectionBlock}>
-            <Text style={[styles.sectionHeading, { color: textColor }]}>
-              Planned Time (Minutes)
-            </Text>
-
-            <View style={styles.sliderContainer}>
-              {/* Slider Track */}
-              <View
-                style={[
-                  styles.sliderTrackBg,
-                  {
-                    backgroundColor: isDark
-                      ? 'rgba(255,255,255,0.08)'
-                      : '#EAECF0',
-                  },
-                ]}
-              >
-                {/* Active Fill */}
-                <View
-                  style={[
-                    styles.sliderTrackFill,
-                    {
-                      width: `${sliderPercent}%`,
-                      backgroundColor: accentColor,
-                    },
-                  ]}
-                />
-
-                {/* Slider Thumb */}
-                <View
-                  style={[
-                    styles.sliderThumb,
-                    {
-                      left: `${Math.max(0, Math.min(sliderPercent - 3, 93))}%`,
-                      borderColor: accentColor,
-                      backgroundColor: isDark ? '#232428' : '#FFFFFF',
-                    },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.sliderThumbDot,
-                      { backgroundColor: accentColor },
-                    ]}
-                  />
-                </View>
-              </View>
-
-              {/* Slider Value Label Below Thumb */}
-              <View style={styles.sliderLabelsRow}>
-                <Text style={[styles.sliderNumericValue, { color: accentColor }]}>
-                  {plannedMinutes} min
-                </Text>
-                <Text style={[styles.sliderCapText, { color: mutedColor }]}>
-                  Session target
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* 7. REMINDER SECTION */}
-          <View style={styles.sectionBlock}>
-            <Text style={[styles.sectionHeading, { color: textColor }]}>
-              Reminders {parsedNotifyTimes.length > 1 ? `(${parsedNotifyTimes.length} daily)` : ''}
-            </Text>
-
-            <View
-              style={[
-                styles.reminderRow,
-                {
-                  backgroundColor: isDark ? '#232428' : '#F6F8FA',
-                  borderColor: borderColor,
-                },
-              ]}
-            >
-              {/* Left: Time Pills */}
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, flex: 1, marginRight: 12 }}>
-                {parsedNotifyTimes.length > 0 ? (
-                  parsedNotifyTimes.map((timeStr, idx) => {
-                    const d = new Date(timeStr);
-                    const formatted = !isNaN(d.getTime())
-                      ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                      : timeStr;
-                    return (
-                      <View
-                        key={idx}
-                        style={[
-                          styles.reminderTimePill,
-                          {
-                            backgroundColor: isDark
-                              ? 'rgba(255,255,255,0.08)'
-                              : '#EAECEF',
-                          },
-                        ]}
-                      >
-                        <SunIcon size={14} color={accentColor} />
-                        <Text style={[styles.reminderTimeText, { color: textColor }]}>
-                          {formatted}
-                        </Text>
-                      </View>
-                    );
-                  })
-                ) : (
-                  <View
-                    style={[
-                      styles.reminderTimePill,
-                      {
-                        backgroundColor: isDark
-                          ? 'rgba(255,255,255,0.08)'
-                          : '#EAECEF',
-                      },
-                    ]}
-                  >
-                    <SunIcon size={16} color={accentColor} />
-                    <Text style={[styles.reminderTimeText, { color: textColor }]}>
-                      {formattedNotifyTime}
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Right: Native Switch */}
-              <CustomSwitch
-                value={habit.notify === 1}
-                onValueChange={onToggleNotification}
-                activeColor={accentColor}
+            {!isLoadingDates ? (
+              <Heatmap
+                completedDates={completedDates}
+                onDayPress={handleHeatmapDatePress}
               />
-            </View>
-          </View>
-
-          {/* TODAY'S COMPLETION STATUS */}
-          <View
-            style={[
-              styles.todayStatusCard,
-              {
-                backgroundColor: isDark ? '#232428' : '#F6F8FA',
-                borderColor: borderColor,
-              },
-            ]}
-          >
-            <View style={styles.todayStatusLeft}>
-              <Text style={[styles.todayStatusLabel, { color: mutedColor }]}>
-                TODAY'S PROGRESS
-              </Text>
-              <Text style={[styles.todayStatusValue, { color: textColor }]}>
-                {(habit.today_completed_count || 0) >= totalDailyTarget
-                  ? `Completed for today! (${habit.today_completed_count}/${totalDailyTarget})`
-                  : `${habit.today_completed_count || 0}/${totalDailyTarget} sessions completed`}
-              </Text>
-            </View>
-
-            <CompletionIndicator
-              isCompleted={(habit.today_completed_count || 0) >= totalDailyTarget}
-              completedCount={habit.today_completed_count || 0}
-              totalCount={totalDailyTarget}
-              accentColor={accentColor}
-              size={42}
-              onTrack={handleQuickTrackCurrentHabit}
-              onUntrack={handleQuickUntrackCurrentHabit}
-            />
-          </View>
-
-          {/* 8. TRACK ACTIVITY ACTION BUTTON */}
-          <View style={styles.trackActionSection}>
-            <Button
-              title="Track Activity"
-              handlePress={() =>
-                router.push(
-                  `/habits/track?id=${id}&name=${encodeURIComponent(
-                    habit.name
-                  )}&frequency=${habit.frequency}&planned_time=${habit.planned_time_minutes
-                  }&to=${id}`
-                )
-              }
-              style={{ backgroundColor: accentColor, borderRadius: 18 }}
-              textStyle={{ color: '#FFFFFF', fontFamily: FONTS.bold }}
-            />
-          </View>
-
-          {/* 9. ACTIVITY HEATMAP */}
-          <View style={styles.sectionBlock}>
-            <Text style={[styles.sectionHeading, { color: textColor }]}>
-              Activity
-            </Text>
-
-            {!isLoadingDates && completedDates?.length !== 0 ? (
-              <Heatmap completedDates={completedDates} />
             ) : (
-              <Text style={[styles.noActivityText, { color: mutedColor }]}>
-                No completion history yet.
-              </Text>
+              <ActivityIndicator color={accentColor} size="small" />
             )}
           </View>
 
-          {/* 10. RECENT ENTRIES LIST */}
-          <View style={styles.sectionBlock}>
-            <Text style={[styles.sectionHeading, { color: textColor }]}>
-              History Logs
-            </Text>
+          {/* ── COMPACT SETTINGS CARD ── */}
+          <TouchableOpacity
+            activeOpacity={0.75}
+            onPress={() => {
+              Haptics.selectionAsync();
+              router.push(`/habits/edit?id=${id}`);
+            }}
+            className="rounded-[20px] border overflow-hidden py-1"
+            style={{ backgroundColor: cardBg, borderColor }}
+          >
+            <View className="flex-row items-center px-3.5 py-3 gap-3">
+              <View
+                className="w-[30px] h-[30px] rounded-[10px] items-center justify-center"
+                style={{ backgroundColor: `${accentColor}15` }}
+              >
+                <CalendarIcon size={15} color={accentColor} />
+              </View>
+              <View className="flex-1">
+                <Text className="font-pbold text-[10px] tracking-[0.7px] mb-0.5" style={{ color: mutedColor }}>SCHEDULE</Text>
+                <Text className="font-psemibold text-[13px]" style={{ color: textColor }}>
+                  {timesOfDayLabel} · {frequencyLabel}
+                </Text>
+              </View>
+            </View>
+
+            <View className="h-[1px] mx-3.5" style={{ backgroundColor: borderColor }} />
+
+            <View className="flex-row items-center px-3.5 py-3 gap-3">
+              <View
+                className="w-[30px] h-[30px] rounded-[10px] items-center justify-center"
+                style={{ backgroundColor: `${accentColor}15` }}
+              >
+                <ClockIcon size={15} color={accentColor} />
+              </View>
+              <View className="flex-1">
+                <Text className="font-pbold text-[10px] tracking-[0.7px] mb-0.5" style={{ color: mutedColor }}>TARGET</Text>
+                <Text className="font-psemibold text-[13px]" style={{ color: textColor }}>{goalLabel}</Text>
+              </View>
+            </View>
+
+            <View className="h-[1px] mx-3.5" style={{ backgroundColor: borderColor }} />
+
+            <View className="flex-row items-center px-3.5 py-3 gap-3">
+              <View
+                className="w-[30px] h-[30px] rounded-[10px] items-center justify-center"
+                style={{
+                  backgroundColor: habit.notify === 1
+                    ? `${accentColor}15`
+                    : isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'
+                }}
+              >
+                {habit.notify === 1
+                  ? <BellIcon size={15} color={accentColor} />
+                  : <BellDisabledIcon size={15} color={mutedColor} />
+                }
+              </View>
+              <View className="flex-1">
+                <Text className="font-pbold text-[10px] tracking-[0.7px] mb-0.5" style={{ color: mutedColor }}>REMINDER</Text>
+                <Text className="font-psemibold text-[13px]" style={{ color: textColor }}>{reminderLabel}</Text>
+              </View>
+              <ChevronIcon direction="right" size={14} color={mutedColor} />
+            </View>
+          </TouchableOpacity>
+
+          {/* ── HISTORY LOGS ── */}
+          <View className="gap-3">
+            <Text className="font-pbold text-base tracking-[-0.3px]" style={{ color: textColor }}>History</Text>
 
             {isLoadingActivity ? (
               <ActivityIndicator color={accentColor} size="small" />
-            ) : activity?.length === 0 ? (
-              <View style={styles.emptyActivityBox}>
-                <Text style={[styles.noActivityText, { color: mutedColor }]}>
-                  No activity logged yet. Tap "Track Activity" to begin.
-                </Text>
-              </View>
+            ) : activity.length === 0 ? (
+              <Text className="font-pregular text-[13px] leading-[18px]" style={{ color: mutedColor }}>
+                No entries yet. Track your first session!
+              </Text>
             ) : (
-              activity.map((entry: any) => (
+              activity.slice(0, 12).map((entry: any) => (
                 <View
                   key={entry.id || entry.entry_date}
-                  style={[
-                    styles.historyItemRow,
-                    {
-                      backgroundColor: isDark ? '#232428' : '#F6F8FA',
-                      borderColor: borderColor,
-                    },
-                  ]}
+                  className="flex-row items-center p-3 rounded-2xl border gap-2.5 mb-1.5"
+                  style={{ backgroundColor: cardBg, borderColor }}
                 >
                   <View
-                    style={[
-                      styles.statusCircle,
-                      {
-                        backgroundColor:
-                          entry.status === 'Completed'
-                            ? `${accentColor}20`
-                            : 'rgba(150,150,150,0.15)',
-                      },
-                    ]}
+                    className="w-8 h-8 rounded-[10px] items-center justify-center"
+                    style={{
+                      backgroundColor: entry.status === 'Completed'
+                        ? `${accentColor}18`
+                        : isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                    }}
                   >
-                    {getStatusEmoji(entry.status || 'Missed')}
+                    {getStatusIcon(entry.status || 'Missed')}
                   </View>
 
-                  <View style={styles.entryTextWrap}>
-                    <Text style={[styles.entryStatusText, { color: textColor }]}>
-                      {entry.status}
-                    </Text>
-                    <Text style={[styles.entryDateText, { color: mutedColor }]}>
+                  <View className="flex-1">
+                    <Text className="font-pbold text-[13px]" style={{ color: textColor }}>{entry.status}</Text>
+                    <Text className="font-pregular text-[11px] mt-[1px]" style={{ color: mutedColor }}>
                       {entry?.entry_date
                         ? formatRelative(new Date(entry.entry_date), new Date())
                         : ''}
+                      {entry.note === 'Logged retroactively' ? ' · retroactive' : ''}
                     </Text>
                   </View>
 
                   {entry.actual_time_minutes ? (
-                    <Text style={[styles.entryMinutesText, { color: accentColor }]}>
+                    <Text className="font-pbold text-xs mr-1" style={{ color: accentColor }}>
                       {entry.actual_time_minutes}m
                     </Text>
                   ) : null}
@@ -858,392 +633,117 @@ export default function HabitScreen() {
                   <TouchableOpacity
                     activeOpacity={0.7}
                     onPress={() => onDeleteEntry(entry.id)}
-                    style={styles.trashEntryBtn}
+                    className="p-1.5"
                   >
-                    <BinIcon size={16} color="#EF4444" />
+                    <BinIcon size={14} color="#EF4444" />
                   </TouchableOpacity>
                 </View>
               ))
             )}
           </View>
         </ScrollView>
+
+        {/* ── FLOATING TRACK BUTTON ── */}
+        <View
+          className="absolute bottom-0 left-0 right-0 pt-3 px-5 border-t"
+          style={{
+            paddingBottom: bottomPad,
+            backgroundColor: contentBg,
+            borderTopColor: borderColor,
+          }}
+        >
+          <TouchableOpacity
+            activeOpacity={0.88}
+            onPress={isFullyDoneToday ? handleUntrackToday : handleTrackToday}
+            className="flex-row items-center justify-center gap-2.5 py-4 rounded-[18px]"
+            style={{
+              backgroundColor: isFullyDoneToday
+                ? (isDark ? 'rgba(255,255,255,0.08)' : '#F2F4F7')
+                : accentColor,
+            }}
+          >
+            {isFullyDoneToday ? (
+              <>
+                <TickIcon size={18} color={mutedColor} />
+                <Text className="font-pbold text-base tracking-[-0.2px]" style={{ color: mutedColor }}>
+                  Completed today · Undo
+                </Text>
+              </>
+            ) : (
+              <>
+                <TickIcon size={18} color="#FFFFFF" />
+                <Text className="font-pbold text-base tracking-[-0.2px]" style={{ color: '#FFFFFF' }}>
+                  {(habit.today_completed_count || 0) > 0
+                    ? `Track Again · ${habit.today_completed_count || 0}/${totalDailyTarget} done`
+                    : 'Mark as Done'}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* ── BACKDATE MODAL ── */}
+      <Modal
+        visible={backdateModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setBackdateModalVisible(false)}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setBackdateModalVisible(false)}
+          className="flex-1 bg-black/50 items-center justify-end pb-7 px-4"
+        >
+          <TouchableOpacity activeOpacity={1} onPress={() => { }}>
+            <View
+              className="w-full rounded-[28px] p-6 items-center gap-2.5"
+              style={{
+                backgroundColor: contentBg,
+                shadowColor: '#000', shadowOpacity: 0.18, shadowOffset: { width: 0, height: -4 }, shadowRadius: 20, elevation: 20
+              }}
+            >
+              {/* Icon */}
+              <View
+                className="w-[60px] h-[60px] rounded-[20px] items-center justify-center mb-1"
+                style={{ backgroundColor: `${accentColor}18` }}
+              >
+                <CalendarIcon size={28} color={accentColor} />
+              </View>
+
+              <Text className="font-pbold text-xl tracking-[-0.4px]" style={{ color: textColor }}>Log Past Day</Text>
+              <Text className="font-pbold text-[15px]" style={{ color: accentColor }}>
+                {pendingBackdate ? formatBackdateLabel(pendingBackdate.dateStr) : ''}
+              </Text>
+
+              <Text className="font-pregular text-sm leading-[21px] text-center mt-1 mb-2" style={{ color: mutedColor }}>
+                Did you complete this habit?
+                {'\n\n'}
+                <Text className="font-pbold" style={{ color: textColor }}>
+                  Note:{' '}
+                </Text>
+                Your current streak won't change.
+              </Text>
+
+              <Button
+                variant='accent'
+                accentColor={accentColor}
+                title='Yes, Log It'
+                onPress={handleConfirmBackdate}
+              />
+              <Button
+                variant='ghost'
+                title='Cancel'
+                onPress={() => {
+                  setBackdateModalVisible(false);
+                  setPendingBackdate(null);
+                }}
+              />
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  // HERO SECTION
-  heroArea: {
-    height: '35%',
-    minHeight: 220,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  floatingNavBtn: {
-    position: 'absolute',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000000',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 8,
-    elevation: 3,
-    zIndex: 10,
-  },
-  backBtnPosition: {
-    left: 20,
-  },
-  deleteBtnPosition: {
-    right: 20,
-  },
-  heroGraphicWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  concentricOuterRing: {
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  concentricInnerCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000000',
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  heroEmojiText: {
-    fontSize: 46,
-  },
-
-  // BOTTOM SHEET
-  bottomSheetContainer: {
-    flex: 1,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    marginTop: -28,
-    overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: -4 },
-    shadowRadius: 16,
-    elevation: 6,
-  },
-  scrollContent: {
-    paddingHorizontal: 22,
-    paddingTop: 26,
-    paddingBottom: 110,
-    gap: 22,
-  },
-
-  // HEADER & INFO
-  headerSection: {
-    gap: 6,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  habitName: {
-    fontFamily: FONTS.bold,
-    fontSize: 28,
-    letterSpacing: -0.6,
-    flex: 1,
-  },
-  editButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  createdDateText: {
-    fontFamily: FONTS.medium,
-    fontSize: 12,
-  },
-  descriptionText: {
-    fontFamily: FONTS.regular,
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 4,
-  },
-
-  // STREAK TILE
-  streakTile: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 22,
-    borderWidth: 1,
-    gap: 16,
-    shadowColor: '#000000',
-    shadowOpacity: 0.02,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  streakBadgeWrapper: {
-    position: 'relative',
-    width: 52,
-    height: 52,
-  },
-  streakIconBox: {
-    width: 52,
-    height: 52,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  streakCountBadge: {
-    position: 'absolute',
-    bottom: -4,
-    right: -4,
-    minWidth: 22,
-    height: 22,
-    borderRadius: 11,
-    paddingHorizontal: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  streakCountText: {
-    fontFamily: FONTS.bold,
-    color: '#FFFFFF',
-    fontSize: 11,
-  },
-  streakTextWrap: {
-    flex: 1,
-    gap: 2,
-  },
-  streakTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 16,
-    letterSpacing: -0.2,
-  },
-  streakSubtitle: {
-    fontFamily: FONTS.regular,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-
-  // COMMON SECTION HEADINGS
-  sectionBlock: {
-    gap: 12,
-  },
-  sectionHeading: {
-    fontFamily: FONTS.bold,
-    fontSize: 16,
-    letterSpacing: -0.3,
-  },
-
-  // WEEKLY SCHEDULE
-  daysRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  dayPill: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayPillText: {
-    fontFamily: FONTS.medium,
-    fontSize: 13,
-  },
-
-  // DAILY SCHEDULE (TIME PARTITION)
-  dailyScheduleGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  dailyPillButton: {
-    width: '48%',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dailyPillText: {
-    fontFamily: FONTS.medium,
-    fontSize: 13,
-  },
-
-  // PROGRESS/GOAL SLIDER
-  sliderContainer: {
-    gap: 10,
-    marginTop: 4,
-  },
-  sliderTrackBg: {
-    height: 10,
-    borderRadius: 5,
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  sliderTrackFill: {
-    height: '100%',
-    borderRadius: 5,
-  },
-  sliderThumb: {
-    position: 'absolute',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  sliderThumbDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  sliderLabelsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 2,
-  },
-  sliderNumericValue: {
-    fontFamily: FONTS.bold,
-    fontSize: 14,
-  },
-  sliderCapText: {
-    fontFamily: FONTS.medium,
-    fontSize: 12,
-  },
-
-  // REMINDER
-  reminderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  reminderTimePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 14,
-  },
-  reminderTimeText: {
-    fontFamily: FONTS.bold,
-    fontSize: 15,
-  },
-
-  // TODAY STATUS CARD
-  todayStatusCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginTop: 4,
-  },
-  todayStatusLeft: {
-    flex: 1,
-    marginRight: 12,
-  },
-  todayStatusLabel: {
-    fontFamily: FONTS.bold,
-    fontSize: 11,
-    letterSpacing: 0.8,
-    marginBottom: 4,
-  },
-  todayStatusValue: {
-    fontFamily: FONTS.bold,
-    fontSize: 15,
-  },
-
-  // TRACK BUTTON
-  trackActionSection: {
-    marginTop: 4,
-  },
-
-  // ACTIVITY & LOGS
-  noActivityText: {
-    fontFamily: FONTS.regular,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  emptyActivityBox: {
-    paddingVertical: 16,
-  },
-  historyItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    gap: 12,
-    marginBottom: 8,
-  },
-  statusCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  entryTextWrap: {
-    flex: 1,
-    gap: 2,
-  },
-  entryStatusText: {
-    fontFamily: FONTS.bold,
-    fontSize: 14,
-  },
-  entryDateText: {
-    fontFamily: FONTS.regular,
-    fontSize: 11,
-  },
-  entryMinutesText: {
-    fontFamily: FONTS.bold,
-    fontSize: 13,
-    marginRight: 6,
-  },
-  trashEntryBtn: {
-    padding: 6,
-  },
-});

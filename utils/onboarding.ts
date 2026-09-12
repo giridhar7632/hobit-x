@@ -13,6 +13,7 @@ export type OnboardingStep =
   | 'step2'
   | 'step3'
   | 'step4'
+  | 'step5'
   | 'ready';
 
 export interface OnboardingHabitDraft {
@@ -29,12 +30,12 @@ export interface OnboardingHabitDraft {
   target_value: number;
   target_unit: string;
   notify: boolean;
-  notify_times: string[]; // ISO strings for safe serialization
+  notify_times: string[];
   reminder_message: string;
 }
 
 export const DEFAULT_ONBOARDING_DRAFT: OnboardingHabitDraft = {
-  icon: 'SproutIcon',
+  icon: 'SparklesIcon',
   name: '',
   description: '',
   color: 'purple',
@@ -114,7 +115,7 @@ export async function getSavedOnboardingDraft(): Promise<OnboardingHabitDraft | 
 export async function clearOnboardingDraft(): Promise<void> {
   try {
     await AsyncStorage.removeItem(ONBOARDING_DRAFT_KEY);
-  } catch {}
+  } catch { }
 }
 
 export async function hasDismissedFirstHint(): Promise<boolean> {
@@ -129,5 +130,5 @@ export async function hasDismissedFirstHint(): Promise<boolean> {
 export async function dismissFirstHint(): Promise<void> {
   try {
     await AsyncStorage.setItem(FIRST_HINT_DISMISSED_KEY, 'true');
-  } catch {}
+  } catch { }
 }

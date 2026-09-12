@@ -101,7 +101,7 @@ export default function EditScreen() {
   const { id } = useLocalSearchParams();
   const habitId = id?.toString() ?? '';
 
-  const [stage, setStage] = useState<WizardStage>(1);
+  const [stage, setStage] = useState<WizardStage>(5);
   const [draft, setDraft] = useState<HabitDraft>(DEFAULT_DRAFT);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -204,7 +204,7 @@ export default function EditScreen() {
     ],
   });
 
-  const totalSteps = draft.notify ? 5 : 4;
+  const totalSteps = 5;
 
   const handleNext = () => {
     Keyboard.dismiss();
@@ -213,19 +213,23 @@ export default function EditScreen() {
     if (stage === 1) setStage(2);
     else if (stage === 2) setStage(3);
     else if (stage === 3) setStage(4);
-    else if (stage === 4 && draft.notify) setStage(5);
+    else if (stage === 4) setStage(5);
   };
 
   const handleBack = () => {
     Keyboard.dismiss();
     Haptics.selectionAsync();
-    if (stage === 5) setStage(4);
-    else if (stage === 4) setStage(3);
-    else if (stage === 3) setStage(2);
-    else if (stage === 2) setStage(1);
-    else if (stage === 1) {
+    if (stage === 5) {
       resetColor();
       router.back();
+    } else if (stage === 1) {
+      setStage(5);
+    } else if (stage === 4) {
+      setStage(3);
+    } else if (stage === 3) {
+      setStage(2);
+    } else if (stage === 2) {
+      setStage(1);
     }
   };
 
@@ -316,7 +320,7 @@ export default function EditScreen() {
   if (isLoading || !habit) {
     return (
       <SafeAreaView
-        edges={['top', 'left', 'right', 'bottom']}
+        edges={['top', 'left', 'right']}
         style={{
           backgroundColor: bgColor,
           flex: 1,
@@ -331,7 +335,7 @@ export default function EditScreen() {
 
   return (
     <SafeAreaView
-      edges={['top', 'left', 'right', 'bottom']}
+      edges={['top', 'left', 'right']}
       style={{ backgroundColor: bgColor, flex: 1 }}
     >
       <KeyboardAvoidingView
@@ -349,16 +353,8 @@ export default function EditScreen() {
             <StepProgressHeader
               currentStep={stage}
               totalSteps={totalSteps}
-              title={
-                stage === 4 && !draft.notify
-                  ? 'Review your habit'
-                  : STEP_TITLES[stage]?.title || 'Edit habit'
-              }
-              subtitle={
-                stage === 4 && !draft.notify
-                  ? 'Review details or enable reminders.'
-                  : STEP_TITLES[stage]?.subtitle || ''
-              }
+              title={STEP_TITLES[stage]?.title || 'Edit habit'}
+              subtitle={STEP_TITLES[stage]?.subtitle || ''}
               accentColor={accentColor}
             />
 
@@ -498,12 +494,12 @@ export default function EditScreen() {
           >
             {/* Back / Cancel */}
             <Button
-              title={stage === 1 ? 'Cancel' : 'Back'}
+              title={stage === 5 ? 'Cancel' : stage === 1 ? 'Back to Review' : 'Back'}
               variant="ghost"
               size="md"
               onPress={handleBack}
               leftIcon={
-                stage > 1 ? (
+                stage !== 5 ? (
                   <ChevronIcon
                     direction="left"
                     size={16}
@@ -515,7 +511,7 @@ export default function EditScreen() {
 
             {stage < totalSteps ? (
               <Button
-                title={stage === 4 && draft.notify ? 'Review' : 'Next'}
+                title={stage === 4 ? 'Review' : 'Next'}
                 variant="accent"
                 accentColor={accentColor}
                 size="md"

@@ -213,68 +213,77 @@ export async function deleteEntry(entry_id: string, habit_id: string) {
   const db = await getDb();
 
   try {
-    await db.runAsync('BEGIN TRANSACTION');
+    let updatedHabit: any = null;
 
-    const entryToDelete: any = await db.getFirstAsync(
-      `SELECT points FROM habit_entries WHERE id = ?`,
-      [entry_id]
-    );
-    const pointsToDeduct = entryToDelete?.points || 0;
+    await db.withTransactionAsync(async () => {
+      const entryToDelete: any = await db.getFirstAsync(
+        `SELECT points FROM habit_entries WHERE id = ?`,
+        [entry_id]
+      );
+      const pointsToDeduct = entryToDelete?.points || 0;
 
-    await db.runAsync(`DELETE FROM habit_entries WHERE id = ?`, [entry_id]);
+      await db.runAsync(`DELETE FROM habit_entries WHERE id = ?`, [entry_id]);
 
-    const stats: any = await db.getFirstAsync(
-      `SELECT 
-        (SELECT streak_on_day FROM habit_entries WHERE habit_id = $1 ORDER BY entry_date DESC LIMIT 1) as last_streak,
-        (SELECT status FROM habit_entries WHERE habit_id = $1 ORDER BY entry_date DESC LIMIT 1) as last_status,
-        (SELECT entry_date FROM habit_entries WHERE habit_id = $1 AND status = 'Completed' ORDER BY entry_date DESC LIMIT 1) as last_completed,
-        (SELECT entry_date FROM habit_entries WHERE habit_id = $1 AND status IN ('Completed', 'Skipped', 'Partial') ORDER BY entry_date DESC LIMIT 1) as last_active,
-        MAX(streak_on_day) as max_streak 
-       FROM habit_entries 
-       WHERE habit_id = $1`,
-      { $1: habit_id }
-    );
+      const lastEntry: any = await db.getFirstAsync(
+        `SELECT streak_on_day, status, entry_date FROM habit_entries WHERE habit_id = ? ORDER BY entry_date DESC LIMIT 1`,
+        [habit_id]
+      );
 
-    const habit: any = await db.getFirstAsync(`SELECT notify, notify_time FROM habits WHERE id = ?`, [habit_id]);
-    const totalReminders = getHabitTotalReminders(habit);
-    const todayISO = new Date().toISOString().split('T')[0];
-    const todayEntriesCount = (await db.getFirstAsync<{ cnt: number }>(
-      `SELECT COUNT(*) as cnt FROM habit_entries WHERE habit_id = ? AND DATE(entry_date) = ? AND status IN ('Completed', 'Partial')`,
-      [habit_id, todayISO]
-    ))?.cnt || 0;
+      const lastCompleted: any = await db.getFirstAsync(
+        `SELECT entry_date FROM habit_entries WHERE habit_id = ? AND status = 'Completed' ORDER BY entry_date DESC LIMIT 1`,
+        [habit_id]
+      );
 
-    const newLongestStreak = stats?.max_streak || 0;
-    let newLastCompleted = stats?.last_completed || null;
-    if (todayEntriesCount < totalReminders) {
-      const prevCompleted: any = await db.getFirstAsync(
-        `SELECT entry_date FROM habit_entries WHERE habit_id = ? AND DATE(entry_date) < ? AND status = 'Completed' ORDER BY entry_date DESC LIMIT 1`,
+      const lastActive: any = await db.getFirstAsync(
+        `SELECT entry_date FROM habit_entries WHERE habit_id = ? AND status IN ('Completed', 'Skipped', 'Partial') ORDER BY entry_date DESC LIMIT 1`,
+        [habit_id]
+      );
+
+      const maxStreakRow: any = await db.getFirstAsync(
+        `SELECT MAX(streak_on_day) as max_streak FROM habit_entries WHERE habit_id = ?`,
+        [habit_id]
+      );
+
+      const habit: any = await db.getFirstAsync(`SELECT notify, notify_time FROM habits WHERE id = ?`, [habit_id]);
+      const totalReminders = getHabitTotalReminders(habit);
+      const todayISO = new Date().toISOString().split('T')[0];
+      const todayEntriesCountRow = await db.getFirstAsync<{ cnt: number }>(
+        `SELECT COUNT(*) as cnt FROM habit_entries WHERE habit_id = ? AND DATE(entry_date) = ? AND status IN ('Completed', 'Partial')`,
         [habit_id, todayISO]
       );
-      newLastCompleted = prevCompleted?.entry_date || null;
-    }
+      const todayEntriesCount = todayEntriesCountRow?.cnt || 0;
 
-    const newLastActive = stats?.last_active || null;
-    const newCurrentStreak = stats?.last_status === 'Completed' || stats?.last_status === 'Partial'
-      ? (stats?.last_streak || 0)
-      : (stats?.last_status === 'Skipped' ? (stats?.last_streak || 0) : 0);
+      const newLongestStreak = maxStreakRow?.max_streak || 0;
+      let newLastCompleted = lastCompleted?.entry_date || null;
+      if (todayEntriesCount < totalReminders) {
+        const prevCompleted: any = await db.getFirstAsync(
+          `SELECT entry_date FROM habit_entries WHERE habit_id = ? AND DATE(entry_date) < ? AND status = 'Completed' ORDER BY entry_date DESC LIMIT 1`,
+          [habit_id, todayISO]
+        );
+        newLastCompleted = prevCompleted?.entry_date || null;
+      }
 
-    await db.runAsync(
-      `UPDATE habits 
-       SET total_points = MAX(0, total_points - ?),
-           current_streak = ?,
-           longest_streak = ?,
-           last_completed_date = ?,
-           last_active_date = ?
-       WHERE id = ?`,
-      [pointsToDeduct, newCurrentStreak, newLongestStreak, newLastCompleted, newLastActive, habit_id]
-    );
+      const newLastActive = lastActive?.entry_date || null;
+      const newCurrentStreak = lastEntry?.status === 'Completed' || lastEntry?.status === 'Partial'
+        ? (lastEntry?.streak_on_day || 0)
+        : (lastEntry?.status === 'Skipped' ? (lastEntry?.streak_on_day || 0) : 0);
 
-    const updatedHabit: any = await db.getFirstAsync(
-      `SELECT total_points, current_streak, longest_streak, last_completed_date, last_active_date FROM habits WHERE id = ?`,
-      [habit_id]
-    );
+      await db.runAsync(
+        `UPDATE habits 
+         SET total_points = MAX(0, total_points - ?),
+             current_streak = ?,
+             longest_streak = ?,
+             last_completed_date = ?,
+             last_active_date = ?
+         WHERE id = ?`,
+        [pointsToDeduct, newCurrentStreak, newLongestStreak, newLastCompleted, newLastActive, habit_id]
+      );
 
-    await db.runAsync('COMMIT');
+      updatedHabit = await db.getFirstAsync(
+        `SELECT total_points, current_streak, longest_streak, last_completed_date, last_active_date FROM habits WHERE id = ?`,
+        [habit_id]
+      );
+    });
 
     return {
       entry_id,
@@ -282,7 +291,6 @@ export async function deleteEntry(entry_id: string, habit_id: string) {
       habit_stats: updatedHabit,
     };
   } catch (error) {
-    await db.runAsync('ROLLBACK');
     console.error('Error deleting habit entry:', error);
     throw error;
   }
@@ -319,6 +327,8 @@ export async function trackHabit(formData: {
   const { habit_id, entry_date, status, actual_time_minutes, note } = formData;
   const entry_id = formData.entry_id || Crypto.randomUUID();
   const todayISO = new Date(entry_date).toISOString().split('T')[0];
+  const realTodayISO = new Date().toISOString().split('T')[0];
+  const isBackdate = todayISO < realTodayISO;
 
   const yesterday = new Date(entry_date);
   yesterday.setDate(yesterday.getDate() - 1);
@@ -343,11 +353,6 @@ export async function trackHabit(formData: {
 
     const todayCount = todayEntries?.count || 0;
 
-    const yesterdayEntry: any = await db.getFirstAsync(
-      `SELECT streak_on_day, status FROM habit_entries WHERE habit_id = ? AND DATE(entry_date) = ? AND status IN ('Completed', 'Partial', 'Skipped') ORDER BY entry_date DESC LIMIT 1`,
-      [habit_id, yesterdayISO]
-    );
-
     const addedMinutes = actual_time_minutes || habit.planned_time_minutes || 0;
     const pointsPerMin = habit.base_points || 1;
     const earnedPoints = status === 'Skipped' ? 0 : Math.round(pointsPerMin * addedMinutes);
@@ -355,65 +360,85 @@ export async function trackHabit(formData: {
     let newStreak = habit.current_streak || 0;
     let newLongest = habit.longest_streak || 0;
     let newLastCompleted = habit.last_completed_date;
-    let newLastActive = entry_date;
-    let streakOnDay = newStreak;
+    let newLastActive = habit.last_active_date;
+    let streakOnDay = 0;
 
-    const countsForStreak = status === 'Completed' || status === 'Partial';
-
-    if (status === 'Missed') {
-      newStreak = 0;
+    if (isBackdate) {
+      // Retroactive logging preserves honest live streak
       streakOnDay = 0;
-    } else if (status === 'Skipped') {
+    } else {
+      const yesterdayEntry: any = await db.getFirstAsync(
+        `SELECT streak_on_day, status FROM habit_entries WHERE habit_id = ? AND DATE(entry_date) = ? AND status IN ('Completed', 'Partial', 'Skipped') ORDER BY entry_date DESC LIMIT 1`,
+        [habit_id, yesterdayISO]
+      );
+
+      newLastActive = entry_date;
       streakOnDay = newStreak;
-    } else if (countsForStreak) {
-      if (todayCount === 0) {
-        const yesterdayKeepsStreak = yesterdayEntry && yesterdayEntry.streak_on_day > 0;
-        newStreak = yesterdayKeepsStreak ? yesterdayEntry.streak_on_day + 1 : 1;
-        newLongest = Math.max(newStreak, habit.longest_streak || 0);
+
+      const countsForStreak = status === 'Completed' || status === 'Partial';
+
+      if (status === 'Missed') {
+        newStreak = 0;
+        streakOnDay = 0;
+      } else if (status === 'Skipped') {
         streakOnDay = newStreak;
-      } else {
-        streakOnDay = newStreak;
+      } else if (countsForStreak) {
+        if (todayCount === 0) {
+          const yesterdayKeepsStreak = yesterdayEntry && yesterdayEntry.streak_on_day > 0;
+          newStreak = yesterdayKeepsStreak ? yesterdayEntry.streak_on_day + 1 : 1;
+          newLongest = Math.max(newStreak, habit.longest_streak || 0);
+          streakOnDay = newStreak;
+        } else {
+          streakOnDay = newStreak;
+        }
+      }
+
+      const newTodayCount = todayCount + (countsForStreak ? 1 : 0);
+      if (newTodayCount >= totalReminders) {
+        newLastCompleted = entry_date;
       }
     }
 
-    const newTodayCount = todayCount + (countsForStreak ? 1 : 0);
-    if (newTodayCount >= totalReminders) {
-      newLastCompleted = entry_date;
-    }
+    let updatedHabit: any = null;
 
-    await db.runAsync('BEGIN TRANSACTION');
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(
+        `INSERT INTO habit_entries (id, habit_id, entry_date, status, actual_time_minutes, points, streak_on_day, note)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [entry_id, habit_id, entry_date, status, addedMinutes, earnedPoints, streakOnDay, note || null]
+      );
 
-    await db.runAsync(
-      `INSERT INTO habit_entries (id, habit_id, entry_date, status, actual_time_minutes, points, streak_on_day, note)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [entry_id, habit_id, entry_date, status, addedMinutes, earnedPoints, streakOnDay, note || null]
-    );
+      if (isBackdate) {
+        await db.runAsync(
+          `UPDATE habits SET total_points = total_points + ? WHERE id = ?`,
+          [earnedPoints, habit_id]
+        );
+      } else {
+        let updateQuery = `UPDATE habits 
+                       SET total_points = total_points + ?, 
+                           current_streak = ?, 
+                           longest_streak = ?, 
+                           last_completed_date = ?,
+                           last_active_date = ?`;
 
-    let updateQuery = `UPDATE habits 
-                   SET total_points = total_points + ?, 
-                       current_streak = ?, 
-                       longest_streak = ?, 
-                       last_completed_date = ?,
-                       last_active_date = ?`;
+        let updateParams: any[] = [earnedPoints, newStreak, newLongest, newLastCompleted, newLastActive];
 
-    let updateParams: any[] = [earnedPoints, newStreak, newLongest, newLastCompleted, newLastActive];
+        if (formData.notification_ids) {
+          updateQuery += `, notification_ids = ?`;
+          updateParams.push(formData.notification_ids);
+        }
 
-    if (formData.notification_ids) {
-      updateQuery += `, notification_ids = ?`;
-      updateParams.push(formData.notification_ids);
-    }
+        updateQuery += ` WHERE id = ?`;
+        updateParams.push(habit_id);
 
-    updateQuery += ` WHERE id = ?`;
-    updateParams.push(habit_id);
+        await db.runAsync(updateQuery, updateParams);
+      }
 
-    await db.runAsync(updateQuery, updateParams);
-
-    const updatedHabit: any = await db.getFirstAsync(
-      `SELECT total_points, current_streak, longest_streak, last_completed_date, last_active_date, notification_ids FROM habits WHERE id = ?`,
-      [habit_id]
-    );
-
-    await db.runAsync('COMMIT');
+      updatedHabit = await db.getFirstAsync(
+        `SELECT total_points, current_streak, longest_streak, last_completed_date, last_active_date, notification_ids FROM habits WHERE id = ?`,
+        [habit_id]
+      );
+    });
 
     return {
       entry_id,
@@ -427,7 +452,6 @@ export async function trackHabit(formData: {
       habit_stats: updatedHabit,
     };
   } catch (error) {
-    await db.runAsync('ROLLBACK');
     console.error('Error adding habit entry:', error);
     throw error;
   }

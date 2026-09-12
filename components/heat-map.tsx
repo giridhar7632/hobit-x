@@ -22,9 +22,10 @@ interface HeatmapDateEntry {
 
 interface HeatmapProps {
     completedDates: HeatmapDateEntry[];
+    onDayPress?: (dateStr: string, status: string | null, displayDate: string) => void;
 }
 
-export default function Heatmap({ completedDates = [] }: HeatmapProps) {
+export default function Heatmap({ completedDates = [], onDayPress }: HeatmapProps) {
     const { activeColor } = useAppTheme();
     const colorScheme = useColorScheme();
     const isDark = colorScheme === 'dark';
@@ -65,12 +66,16 @@ export default function Heatmap({ completedDates = [] }: HeatmapProps) {
     }, [dateStatusMap]);
 
     const handleSquarePress = (day: any) => {
-        if (day.status === 'Completed') {
-            Alert.alert(day.displayDate, 'Completed');
-        } else if (day.status === 'Skipped') {
-            Alert.alert(day.displayDate, 'Skipped');
+        if (onDayPress) {
+            onDayPress(day.dateString, day.status, day.displayDate);
         } else {
-            Alert.alert(day.displayDate, 'No activity');
+            if (day.status === 'Completed') {
+                Alert.alert(day.displayDate, 'Completed');
+            } else if (day.status === 'Skipped') {
+                Alert.alert(day.displayDate, 'Skipped');
+            } else {
+                Alert.alert(day.displayDate, 'No activity');
+            }
         }
     };
 

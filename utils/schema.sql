@@ -1,10 +1,5 @@
--- Supabase PostgreSQL Schema for Hobit (Offline-First Habit Tracker)
--- Run this in your Supabase SQL Editor (https://supabase.com/dashboard/project/_/sql)
-
--- 1. Enable UUID Extension (usually enabled by default)
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 2. Habits Table
 CREATE TABLE IF NOT EXISTS public.habits (
     id TEXT PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -38,7 +33,6 @@ CREATE TABLE IF NOT EXISTS public.habits (
     updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
--- 3. Habit Entries Table
 CREATE TABLE IF NOT EXISTS public.habit_entries (
     id TEXT PRIMARY KEY,
     habit_id TEXT NOT NULL REFERENCES public.habits(id) ON DELETE CASCADE,

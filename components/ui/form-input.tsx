@@ -114,13 +114,15 @@ export default function FormInput({
           },
           style,
         ]}
-        className={`w-full border-[1.5px] flex-row items-center ${getSizeClasses()} ${isDark ? "bg-[#1F2023]" : "bg-neutral-50"
-          } ${disabled ? "opacity-50" : ""} ${containerStyles}`}
+        className={`w-full border-[1.5px] flex-row ${multiline ? "items-start" : "items-center"
+          } ${getSizeClasses()} ${isDark ? "bg-[#1F2023]" : "bg-neutral-50"} ${disabled ? "opacity-50" : ""
+          } ${containerStyles}`}
       >
-        {leftIcon && <View className="mr-2.5">{leftIcon}</View>}
+        {leftIcon && <View className={`mr-2.5 ${multiline ? "mt-1" : ""}`}>{leftIcon}</View>}
 
         <TextInput
-          className={`flex-1 font-pmedium text-base text-neutral-900 dark:text-neutral-100 ${inputClassName} ${otherStyles}`}
+          className={`flex-1 font-pmedium text-base text-neutral-900 dark:text-neutral-100 ${multiline ? "min-h-full pt-0" : ""
+            } ${inputClassName} ${otherStyles}`}
           selectionColor={accentColor}
           cursorColor={accentColor}
           placeholderTextColor={placeholderTextColor || defaultPlaceholderColor}
@@ -139,7 +141,7 @@ export default function FormInput({
           {...rest}
         />
 
-        {rightIcon && <View className="ml-2.5">{rightIcon}</View>}
+        {rightIcon && <View className={`ml-2.5 ${multiline ? "mt-1" : ""}`}>{rightIcon}</View>}
       </View>
 
       {error ? (

@@ -1,16 +1,14 @@
 import * as Haptics from 'expo-haptics';
 import React, { useEffect } from 'react';
 import {
-  ActivityIndicator,
   Text,
-  TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import Animated, {
+  Easing,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
-  withSequence,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
@@ -45,33 +43,78 @@ export function OnboardingReady({
   const colorDef = HABIT_COLORS[draft.color] || HABIT_COLORS.purple;
   const habitAccent = colorDef.accent;
 
-  // Animation values
-  const checkScale = useSharedValue(0);
-  const cardTranslateY = useSharedValue(24);
+  // Premium, well-damped animation values
+  const iconScale = useSharedValue(0.85);
+  const iconOpacity = useSharedValue(0);
+
+  const headerOpacity = useSharedValue(0);
+  const headerTranslateY = useSharedValue(14);
+
   const cardOpacity = useSharedValue(0);
+  const cardTranslateY = useSharedValue(16);
+
+  const footerOpacity = useSharedValue(0);
+  const footerTranslateY = useSharedValue(12);
 
   useEffect(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    checkScale.value = withSequence(
-      withSpring(1.2, { damping: 10, stiffness: 120 }),
-      withSpring(1, { damping: 12 })
+    iconOpacity.value = withTiming(1, {
+      duration: 380,
+      easing: Easing.out(Easing.cubic),
+    });
+    iconScale.value = withSpring(1, {
+      damping: 24,
+      stiffness: 220,
+      mass: 0.85,
+    });
+
+    headerOpacity.value = withDelay(
+      100,
+      withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) })
+    );
+    headerTranslateY.value = withDelay(
+      100,
+      withSpring(0, { damping: 25, stiffness: 200 })
     );
 
-    cardOpacity.value = withDelay(250, withTiming(1, { duration: 400 }));
+    cardOpacity.value = withDelay(
+      220,
+      withTiming(1, { duration: 450, easing: Easing.out(Easing.cubic) })
+    );
     cardTranslateY.value = withDelay(
-      250,
-      withSpring(0, { damping: 14, stiffness: 100 })
+      220,
+      withSpring(0, { damping: 25, stiffness: 200 })
+    );
+
+    footerOpacity.value = withDelay(
+      320,
+      withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) })
+    );
+    footerTranslateY.value = withDelay(
+      320,
+      withSpring(0, { damping: 25, stiffness: 200 })
     );
   }, []);
 
-  const checkAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: checkScale.value }],
+  const iconAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: iconOpacity.value,
+    transform: [{ scale: iconScale.value }],
+  }));
+
+  const headerAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: headerOpacity.value,
+    transform: [{ translateY: headerTranslateY.value }],
   }));
 
   const cardAnimatedStyle = useAnimatedStyle(() => ({
     opacity: cardOpacity.value,
     transform: [{ translateY: cardTranslateY.value }],
+  }));
+
+  const footerAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: footerOpacity.value,
+    transform: [{ translateY: footerTranslateY.value }],
   }));
 
   // Build target / frequency subtitle
@@ -103,26 +146,28 @@ export function OnboardingReady({
                 : `${habitAccent}18`,
               borderColor: habitAccent,
             },
-            checkAnimatedStyle,
+            iconAnimatedStyle,
           ]}
           className="w-20 h-20 rounded-full border-2 items-center justify-center mb-7"
         >
           <TickIcon size={38} color={habitAccent} />
         </Animated.View>
 
-        {/* Headline */}
-        <Text className="text-3xl font-pbold text-center tracking-tight text-gray-900 dark:text-gray-100 mb-2.5">
-          You're ready to begin.
-        </Text>
+        {/* Headline & Description */}
+        <Animated.View style={[{ alignItems: 'center' }, headerAnimatedStyle]}>
+          <Text className="text-3xl font-pbold text-center tracking-tight text-gray-900 dark:text-gray-100 mb-2.5">
+            You're ready to begin.
+          </Text>
 
-        <Text className="text-sm font-pregular leading-5 text-center text-gray-500 dark:text-gray-400 max-w-[300px] mb-8">
-          Your first habit is ready. Small actions become meaningful when you show up consistently.
-        </Text>
+          <Text className="text-sm font-pregular leading-5 text-center text-gray-500 dark:text-gray-400 max-w-[300px] mb-8">
+            Your first habit is ready. Small actions become meaningful when you show up consistently.
+          </Text>
+        </Animated.View>
 
         {/* Habit Card Preview */}
         <Animated.View
-          style={cardAnimatedStyle}
-          className="w-full max-w-[340px] flex-row items-center p-4 rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#1F2023] shadow-md shadow-black/5"
+          style={[cardAnimatedStyle, { width: '100%', maxWidth: 340 }]}
+          className="flex-row items-center p-4 rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#1F2023] shadow-md shadow-black/5"
         >
           <View
             style={{
@@ -152,12 +197,15 @@ export function OnboardingReady({
       </View>
 
       {/* Action Buttons */}
-      <View className="pb-8 w-full max-w-[360px] mx-auto gap-3">
+      <Animated.View
+        style={footerAnimatedStyle}
+        className="pb-8 w-full max-w-[360px] mx-auto gap-3"
+      >
         {/* Google Sign In & Save */}
         <Button
           title="Continue with Google"
           variant="outline"
-          size="default"
+          size="lg"
           loading={isSubmitting}
           disabled={isSubmitting}
           onPress={onGoogleSignIn}
@@ -174,7 +222,7 @@ export function OnboardingReady({
           onPress={onContinueAsGuest}
           className="w-full"
         />
-      </View>
+      </Animated.View>
     </SafeAreaView>
   );
 }

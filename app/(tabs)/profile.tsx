@@ -1,6 +1,13 @@
 import { ThemedText } from '@/components/themed-text';
 import Button from '@/components/ui/button';
-import { GoogleIcon, UserIcon } from '@/constants/icons';
+import {
+  CloudSyncIcon,
+  GoogleIcon,
+  MoonIcon,
+  SparklesIcon,
+  SunIcon,
+  UserIcon,
+} from '@/constants/icons';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
 import { useAppTheme } from '@/context/theme-context';
@@ -9,6 +16,7 @@ import { APP_NAME } from '@/lib/meridian';
 import { pullFromCloud } from '@/lib/sync';
 import { getHabits } from '@/utils/actions';
 import { CustomAlert as Alert } from '@/utils/custom-alert';
+import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect } from 'expo-router';
 import { getStorage, useMeridianContext, useQuery, useQueryClient } from 'meridian-lite';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -17,13 +25,17 @@ import {
   ScrollView,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+// Premium locked-in brand color
+const BRAND_PURPLE = '#6366F1';
 
 export default function ProfileScreen() {
   const colorScheme = useColorScheme();
   const currentTheme = colorScheme === 'dark' ? 'dark' : 'light';
+  const isDark = currentTheme === 'dark';
   const { themeMode, setThemeMode } = useThemeMode();
   const { activeColor } = useAppTheme();
   const { user, signInWithGoogle, signOut } = useAuth();
@@ -44,6 +56,16 @@ export default function ProfileScreen() {
   });
 
   const userId = user?.id ?? null;
+
+  // Calculate quick metrics
+  const totalHabits = habits.length;
+  const bestStreak = useMemo(() => {
+    if (!habits.length) return 0;
+    return Math.max(0, ...habits.map((h: any) => h.longest_streak || h.current_streak || 0));
+  }, [habits]);
+  const activeStreaksCount = useMemo(() => {
+    return habits.filter((h: any) => (h.current_streak || 0) > 0).length;
+  }, [habits]);
 
   const refreshOutbox = useCallback(async () => {
     if (!userId) return;
@@ -68,10 +90,10 @@ export default function ProfileScreen() {
     try {
       const { error } = await signInWithGoogle();
       if (error) {
-        Alert.alert('Notice', error.message);
+        setSyncMessage(error.message);
       }
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to sign in');
+      setSyncMessage(e.message || 'Failed to sign in');
     } finally {
       setIsSigningIn(false);
     }
@@ -86,36 +108,59 @@ export default function ProfileScreen() {
         const result = await pullFromCloud(user.id);
         if (result.success) {
           queryClient.invalidateQueries({ queryKey: ['habits'] });
-          setSyncMessage('All changes synced.');
+          setSyncMessage('All changes synced successfully.');
         } else {
-          setSyncMessage('Sync finished.');
+          setSyncMessage('Sync finished with some errors.');
         }
       }
       await refreshOutbox();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => { });
     } catch (err: any) {
-      Alert.alert('Sync Notice', err.message || 'Sync failed');
+      // Replaced jarring Alert with smooth inline messaging & haptic error
+      setSyncMessage(err.message || 'Sync failed. Please try again.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => { });
     } finally {
       setIsManualSyncing(false);
     }
   };
 
   const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: async () => {
-          await signOut();
-          router.replace('/auth' as any);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
+    // Keep Alert here because it is a destructive action requiring confirmation
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out? Your habits on this device will remain saved.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await signOut();
+              router.replace('/auth' as any);
+            } catch (err: any) {
+              Alert.alert('Sign Out Error', err?.message || 'Could not sign out.');
+            }
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
 
   const userAvatar = user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
-  const userName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'Hobit User';
-  const userEmail = user?.email || 'Guest Account';
+  const userName =
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    user?.email?.split('@')[0] ||
+    'Guest User';
+  const userEmail = user?.email || 'Local Account';
+
+  // Premium UI Theme Variables
+  const cardBg = isDark ? '#1C1C1E' : '#FFFFFF';
+  const cardBorder = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+  const mutedText = isDark ? '#8E8E93' : '#6B7280';
+  const subCardBg = isDark ? '#2C2C2E' : '#F3F4F6';
 
   return (
     <SafeAreaView
@@ -124,209 +169,300 @@ export default function ProfileScreen() {
       className="flex-1"
     >
       <ScrollView
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          flexGrow: 1,
-          justifyContent: 'space-between',
-          paddingHorizontal: 24,
+          paddingHorizontal: 24, // Increased outer padding for a breathable layout
           paddingTop: 16,
-          paddingBottom: 110,
+          paddingBottom: 180,
         }}
       >
-        <View>
-          <ThemedText className="text-3xl font-pbold mb-8">Profile</ThemedText>
-
-          {/* User Header */}
-          <View className="flex-row items-center gap-4 mb-8">
-            {userAvatar ? (
-              <Image
-                source={{ uri: userAvatar }}
-                className="w-16 h-16 rounded-full border-2 border-purple-500"
-              />
-            ) : (
-              <View
-                className="w-16 h-16 rounded-full items-center justify-center border border-purple-500/30"
-                style={{ backgroundColor: `${activeColor.accent}20` }}
-              >
-                <UserIcon size={30} color={activeColor.accent} />
-              </View>
-            )}
-
-            <View className="flex-1">
-              <ThemedText className="text-xl font-pbold" numberOfLines={1}>
-                {user ? userName : 'Guest User'}
-              </ThemedText>
-              <ThemedText className="text-sm font-pregular opacity-50 mt-0.5" numberOfLines={1}>
-                {userEmail}
-              </ThemedText>
-
-              <View className="flex-row items-center gap-2 mt-2">
-                <View
-                  className="px-2.5 py-0.5 rounded-full"
-                  style={{
-                    backgroundColor: user ? '#4655E020' : '#73737320',
-                  }}
-                >
-                  <Text
-                    className="text-xs font-psemibold"
-                    style={{ color: user ? '#4655E0' : '#a3a3a3' }}
-                  >
-                    {user ? 'Cloud Synced' : 'Offline Mode'}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          {/* Divider */}
-          <View
-            className="h-[1px] w-full mb-8"
-            style={{ backgroundColor: currentTheme === 'dark' ? '#27272a' : '#e4e4e7' }}
-          />
-
-          {/* Appearance Section */}
-          <View className="mb-8">
-            <ThemedText className="text-base font-pbold mb-4">Appearance</ThemedText>
-            <View className="flex-row items-center justify-between py-2">
-              <View className="flex-row gap-3 w-full justify-between">
-                {(['light', 'dark', 'system'] as const).map((mode) => {
-                  const isSelected = themeMode === mode;
-                  const label = mode.charAt(0).toUpperCase() + mode.slice(1);
-                  return (
-                    <TouchableOpacity
-                      key={mode}
-                      activeOpacity={0.7}
-                      onPress={() => setThemeMode(mode)}
-                      className="flex-1 py-3 rounded-xl border items-center justify-center"
-                      style={{
-                        backgroundColor: isSelected
-                          ? activeColor.accent
-                          : (currentTheme === 'dark' ? '#262626' : '#f5f5f5'),
-                        borderColor: isSelected
-                          ? activeColor.accent
-                          : (currentTheme === 'dark' ? '#404040' : '#e5e5e5'),
-                      }}
-                    >
-                      <Text
-                        className="font-psemibold text-sm"
-                        style={{
-                          color: isSelected
-                            ? '#ffffff'
-                            : (currentTheme === 'dark' ? '#d4d4d4' : '#525252'),
-                        }}
-                      >
-                        {label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          </View>
-
-          {/* Section Divider */}
-          <View
-            className="h-[1px] w-full mb-8"
-            style={{ backgroundColor: currentTheme === 'dark' ? '#27272a' : '#e4e4e7' }}
-          />
-
-          {/* Logged-In Outbox & Cloud Sync Details */}
-          {user ? (
-            <View className="space-y-6">
-              <View className="flex-row items-center justify-between py-2">
-                <ThemedText className="text-sm font-pmedium opacity-70">
-                  Habits Tracked
-                </ThemedText>
-                <ThemedText className="text-sm font-pbold">
-                  {habits.length}
-                </ThemedText>
-              </View>
-
-              <View className="flex-row items-center justify-between py-2">
-                <ThemedText className="text-sm font-pmedium opacity-70">
-                  Network Status
-                </ThemedText>
-                <View className="flex-row items-center gap-2">
-                  <View
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: isOnline ? '#4655E0' : '#ef4444' }}
-                  />
-                  <Text
-                    className="text-sm font-pmedium"
-                    style={{ color: isOnline ? '#4655E0' : '#ef4444' }}
-                  >
-                    {isOnline ? 'Online' : 'Offline'}
-                  </Text>
-                </View>
-              </View>
-
-              <View className="flex-row items-center justify-between py-2">
-                <ThemedText className="text-sm font-pmedium opacity-70">
-                  Pending Uploads
-                </ThemedText>
-                <ThemedText className="text-sm font-pbold">
-                  {pendingCount === 0 ? 'All synced' : `${pendingCount} pending`}
-                </ThemedText>
-              </View>
-
-              {syncMessage && (
-                <View className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 mt-4">
-                  <Text className="text-purple-600 dark:text-purple-400 text-xs font-pmedium text-center">
-                    {syncMessage}
-                  </Text>
-                </View>
-              )}
-
-              {/* Sync Now Action */}
-              <Button
-                title="Sync Now"
-                variant="accent"
-                accentColor={activeColor.accent}
-                size="md"
-                loading={isManualSyncing || isSyncing}
-                disabled={isManualSyncing || isSyncing}
-                onPress={handleSyncNow}
-                className="w-full mt-6"
-              />
-            </View>
-          ) : (
-            /* Guest View - Explanatory & Accessible Sign In */
-            <View>
-              <ThemedText className="text-base font-pbold mb-2">
-                Cloud Backup
-              </ThemedText>
-
-              <Text
-                className="text-sm font-pregular opacity-60 leading-6 mb-6"
-                style={{ color: Colors[currentTheme].text }}
-              >
-                Your habits and streaks are currently saved only on this device. Sign in with Google to backup your progress and access your habits anywhere.
-              </Text>
-
-              {/* Accessible Google Sign In Button */}
-              <Button
-                title="Sign In with Google"
-                variant="outline"
-                size="default"
-                loading={isSigningIn}
-                disabled={isSigningIn}
-                onPress={handleEnableSync}
-                leftIcon={<GoogleIcon size={20} />}
-                className="w-full"
-              />
-            </View>
-          )}
+        {/* Header Title */}
+        <View className="mb-6 mt-2">
+          <ThemedText className="text-3xl font-pbold tracking-tight">Your Profile</ThemedText>
         </View>
 
-        {/* Accessible Sign Out Button */}
+        <View
+          className="p-6 rounded-[32px] mb-8 border"
+          style={{
+            backgroundColor: cardBg,
+            borderColor: cardBorder,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: isDark ? 0.2 : 0.04,
+            shadowRadius: 24,
+            elevation: 4,
+          }}
+        >
+          <View className="flex-row items-center gap-5 mb-7">
+            <View className="relative">
+              {userAvatar ? (
+                <Image
+                  source={{ uri: userAvatar }}
+                  className="w-[68px] h-[68px] rounded-full border-2 border-purple-500"
+                />
+              ) : (
+                <View
+                  className="w-[68px] h-[68px] rounded-full items-center justify-center"
+                  style={{ backgroundColor: `${activeColor.accent}15` }}
+                >
+                  <UserIcon size={32} color={activeColor.accent} />
+                </View>
+              )}
+              {user && (
+                <View
+                  className="absolute bottom-0 right-0 w-[18px] h-[18px] rounded-full border-[3px]"
+                  style={{
+                    backgroundColor: isOnline ? '#10B981' : '#EF4444',
+                    borderColor: cardBg
+                  }}
+                />
+              )}
+            </View>
+
+            <View className="flex-1 justify-center">
+              <ThemedText className="text-[22px] font-pbold leading-tight" numberOfLines={1}>
+                {userName}
+              </ThemedText>
+              <Text
+                className="text-[13px] font-pmedium mt-1"
+                style={{ color: mutedText }}
+                numberOfLines={1}
+              >
+                {userEmail}
+              </Text>
+            </View>
+          </View>
+
+          <View className="h-[1px] mb-6" style={{ backgroundColor: isDark ? '#2C2C2E' : '#F3F4F6' }} />
+          <View className="flex-row justify-between items-end px-1">
+            <View>
+              <Text className="text-[10px] font-pbold tracking-[1.5px] uppercase mb-1" style={{ color: BRAND_PURPLE }}>
+                All-Time Best
+              </Text>
+              <View className="flex-row items-end gap-1">
+                <Text className="text-[40px] font-pbold leading-none tracking-tighter" style={{ color: isDark ? '#FFFFFF' : '#111827' }}>
+                  {bestStreak}
+                </Text>
+                <Text className="text-sm font-pmedium mb-1.5" style={{ color: mutedText }}>
+                  days
+                </Text>
+              </View>
+            </View>
+
+            <View className="items-end gap-3.5 pb-1">
+              <View className="items-end">
+                <Text className="text-xl font-pbold leading-none" style={{ color: isDark ? '#FFFFFF' : '#111827' }}>
+                  {activeStreaksCount}
+                </Text>
+                <Text
+                  className="text-[10px] font-pbold tracking-[1px] uppercase mt-1"
+                  style={{ color: mutedText }}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  Active Streaks
+                </Text>
+              </View>
+              <View className="items-end">
+                <Text className="text-xl font-pbold leading-none" style={{ color: isDark ? '#FFFFFF' : '#111827' }}>
+                  {totalHabits}
+                </Text>
+                <Text
+                  className="text-[10px] font-pbold tracking-[1px] uppercase mt-1"
+                  style={{ color: mutedText }}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  Total Habits
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <View className="mb-8">
+          <Text
+            className="text-[11px] font-pbold tracking-[1.5px] uppercase mb-3 ml-2"
+            style={{ color: mutedText }}
+          >
+            Appearance
+          </Text>
+
+          <View
+            className="p-5 rounded-[28px] border"
+            style={{ backgroundColor: cardBg, borderColor: cardBorder }}
+          >
+            <View
+              className="flex-row p-1.5 rounded-[20px]"
+              style={{ backgroundColor: subCardBg }}
+            >
+              {(
+                [
+                  { mode: 'system', label: 'System', Icon: SparklesIcon },
+                  { mode: 'light', label: 'Light', Icon: SunIcon },
+                  { mode: 'dark', label: 'Dark', Icon: MoonIcon },
+                ] as const
+              ).map(({ mode, label, Icon }) => {
+                const isSelected = themeMode === mode;
+                return (
+                  <TouchableOpacity
+                    key={mode}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
+                    onPress={() => {
+                      Haptics.selectionAsync().catch(() => { });
+                      setThemeMode(mode);
+                    }}
+                    className="flex-1 py-3 rounded-2xl flex-row items-center justify-center gap-2"
+                    style={{
+                      backgroundColor: isSelected ? (isDark ? '#3A3A3C' : '#FFFFFF') : 'transparent',
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: isSelected ? 0.06 : 0,
+                      shadowRadius: 4,
+                      elevation: isSelected ? 2 : 0,
+                    }}
+                  >
+                    <Icon
+                      size={15}
+                      color={isSelected ? BRAND_PURPLE : mutedText}
+                    />
+                    <Text
+                      className="text-xs font-psemibold"
+                      style={{ color: isSelected ? (isDark ? '#FFFFFF' : '#111827') : mutedText }}
+                    >
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+
+        <View className="mb-8">
+          <Text
+            className="text-[11px] font-pbold tracking-[1.5px] uppercase mb-3 ml-2"
+            style={{ color: mutedText }}
+          >
+            Data & Sync
+          </Text>
+
+          <View
+            className="p-5 rounded-[28px] border"
+            style={{ backgroundColor: cardBg, borderColor: cardBorder }}
+          >
+            {user ? (
+              <View>
+                <View className="flex-row items-center justify-between pb-4 border-b" style={{ borderColor: isDark ? '#2C2C2E' : '#F3F4F6' }}>
+                  <View className="flex-row items-center gap-2.5">
+                    <CloudSyncIcon size={18} color={BRAND_PURPLE} />
+                    <ThemedText className="text-sm font-psemibold">Sync Status</ThemedText>
+                  </View>
+                  <View className="flex-row items-center gap-2">
+                    <View
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: isOnline ? '#10B981' : '#EF4444' }}
+                    />
+                    <Text
+                      className="text-[13px] font-psemibold"
+                      style={{ color: isOnline ? '#10B981' : '#EF4444' }}
+                    >
+                      {isOnline ? 'Online' : 'Offline'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View className="flex-row items-center justify-between pt-4 pb-1">
+                  <Text className="text-[13px] font-pmedium" style={{ color: mutedText }}>
+                    Pending Changes
+                  </Text>
+                  <ThemedText className="text-[13px] font-pbold">
+                    {pendingCount === 0 ? 'All synced' : `${pendingCount} pending`}
+                  </ThemedText>
+                </View>
+
+                {syncMessage && (
+                  <View
+                    className="p-3.5 rounded-2xl mt-4 border"
+                    style={{
+                      backgroundColor: `${BRAND_PURPLE}10`,
+                      borderColor: `${BRAND_PURPLE}25`,
+                    }}
+                  >
+                    <Text
+                      className="text-[13px] font-psemibold text-center leading-5"
+                      style={{ color: BRAND_PURPLE }}
+                    >
+                      {syncMessage}
+                    </Text>
+                  </View>
+                )}
+
+                <Button
+                  title="Sync Now"
+                  variant="accent"
+                  accentColor={BRAND_PURPLE}
+                  size="md"
+                  loading={isManualSyncing || isSyncing}
+                  disabled={isManualSyncing || isSyncing}
+                  onPress={handleSyncNow}
+                  className="w-full mt-5"
+                />
+              </View>
+            ) : (
+              <View>
+                <ThemedText className="text-base font-pbold mb-2">
+                  Backup & Access Anywhere
+                </ThemedText>
+                <Text
+                  className="text-[13px] font-pregular leading-[22px] mb-5"
+                  style={{ color: mutedText }}
+                >
+                  Your habits and streaks are currently saved only on this device. Sign in with Google to enable automatic cloud backup and never lose your streak.
+                </Text>
+
+                {syncMessage && (
+                  <Text className="text-xs font-pmedium text-[#EF4444] text-center mb-4">
+                    {syncMessage}
+                  </Text>
+                )}
+
+                <Button
+                  title="Sign In with Google"
+                  variant="outline"
+                  size="md"
+                  loading={isSigningIn}
+                  disabled={isSigningIn}
+                  onPress={handleEnableSync}
+                  leftIcon={<GoogleIcon size={18} />}
+                  className="w-full"
+                />
+              </View>
+            )}
+          </View>
+        </View>
+
         {user && (
-          <Button
-            title="Sign Out"
-            variant="danger"
-            size="md"
-            onPress={handleSignOut}
-            className="w-full mt-8"
-          />
+          <View className="mb-6">
+            <Button
+              title="Sign Out"
+              variant="danger"
+              size="md"
+              onPress={handleSignOut}
+              className="w-full border-red-500/30"
+            />
+          </View>
         )}
+
+        <View className="items-center justify-center mt-6 mb-2">
+          <Text className="text-[11px] font-pbold tracking-wider mb-1.5" style={{ color: mutedText }}>
+            HOBIT • v1.0.0
+          </Text>
+          <Text className="text-[11px] font-pmedium opacity-60" style={{ color: mutedText }}>
+            Build small habits, create big changes 🌱
+          </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
