@@ -27,6 +27,13 @@ CREATE TABLE IF NOT EXISTS public.habits (
     last_completed_date TEXT,
     last_active_date TEXT,
     notification_ids TEXT DEFAULT '[]',
+    time_of_day TEXT DEFAULT 'anytime',
+    icon TEXT,
+    sort_order INTEGER DEFAULT 0,
+    completion_type TEXT DEFAULT 'check',
+    target_value NUMERIC,
+    target_unit TEXT,
+    reminder_message TEXT,
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );

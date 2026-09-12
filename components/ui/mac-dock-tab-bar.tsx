@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { HomeIcon, PlusIcon, UserIcon } from '@/constants/icons';
+import { CalendarIcon, HomeIcon, UserIcon } from '@/constants/icons';
 import { useAppTheme } from '@/context/theme-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -33,11 +33,23 @@ export function MacDockTabBar({ state, descriptors, navigation }: MacDockTabBarP
     const focusedRoute = state.routes[state.index];
     const nestedName = getNestedRouteName(focusedRoute);
 
-    // Hide the dock on sub-screens like habit details ([id]), edit activity, or track activity
-    const hideDock = nestedName === '[id]' || nestedName === 'track' || nestedName === 'edit';
+    // Hide the dock on create screen and sub-screens like habit details ([id]), edit activity, or track activity
+    const hideDock =
+        focusedRoute?.name === 'create' ||
+        nestedName === '[id]' ||
+        nestedName === 'track' ||
+        nestedName === 'edit' ||
+        nestedName?.includes('edit') ||
+        nestedName?.includes('track');
     if (hideDock) {
         return null;
     }
+
+    // Filter out hidden routes (e.g. href: null or 'create')
+    const visibleRoutes = state.routes.filter((route) => {
+        const { options } = descriptors[route.key];
+        return (options as any)?.href !== null && route.name !== 'create';
+    });
 
     return (
         <View
@@ -55,9 +67,9 @@ export function MacDockTabBar({ state, descriptors, navigation }: MacDockTabBarP
                     isDark ? styles.dockDark : styles.dockLight,
                 ]}
             >
-                {state.routes.map((route, index) => {
+                {visibleRoutes.map((route) => {
                     const { options } = descriptors[route.key];
-                    const isFocused = state.index === index;
+                    const isFocused = state.routes[state.index]?.name === route.name;
 
                     const onPress = () => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -79,34 +91,14 @@ export function MacDockTabBar({ state, descriptors, navigation }: MacDockTabBarP
                         });
                     };
 
-                    // Render icon based on route
-                    if (route.name === 'create') {
-                        return (
-                            <TouchableOpacity
-                                key={route.key}
-                                accessibilityRole="button"
-                                accessibilityState={isFocused ? { selected: true } : {}}
-                                accessibilityLabel={options.tabBarAccessibilityLabel || 'Create Habit'}
-                                testID={options.tabBarButtonTestID}
-                                onPress={onPress}
-                                onLongPress={onLongPress}
-                                activeOpacity={0.85}
-                                style={[
-                                    styles.createButton,
-                                    {
-                                        backgroundColor: activeColor.accent,
-                                        shadowColor: activeColor.accent,
-                                    },
-                                ]}
-                            >
-                                <PlusIcon size={26} color="#ffffff" />
-                            </TouchableOpacity>
-                        );
-                    }
-
                     let IconComponent = HomeIcon;
-                    if (route.name === 'profile') {
+                    let label = 'Habits';
+                    if (route.name === 'calendar') {
+                        IconComponent = CalendarIcon;
+                        label = 'Calendar';
+                    } else if (route.name === 'profile') {
                         IconComponent = UserIcon;
+                        label = 'Profile';
                     }
 
                     const iconColor = isFocused
@@ -118,13 +110,12 @@ export function MacDockTabBar({ state, descriptors, navigation }: MacDockTabBarP
                             key={route.key}
                             accessibilityRole="button"
                             accessibilityState={isFocused ? { selected: true } : {}}
-                            accessibilityLabel={options.tabBarAccessibilityLabel || (route.name === 'habits' ? 'Habits' : 'Profile')}
+                            accessibilityLabel={options.tabBarAccessibilityLabel || label}
                             testID={options.tabBarButtonTestID}
                             onPress={onPress}
                             onLongPress={onLongPress}
                             activeOpacity={0.7}
-                            style={[
-                                styles.tabItem]}
+                            style={styles.tabItem}
                         >
                             <IconComponent color={iconColor} size={24} />
                             <View
@@ -156,7 +147,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingHorizontal: 22,
+        paddingHorizontal: 28,
         paddingVertical: 8,
         borderRadius: 36,
         gap: 32,
@@ -190,23 +181,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         borderRadius: 24,
-    },
-    createButton: {
-        width: 52,
-        height: 52,
-        borderRadius: 26,
-        alignItems: 'center',
-        justifyContent: 'center',
-        ...Platform.select({
-            ios: {
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.38,
-                shadowRadius: 10,
-            },
-            android: {
-                elevation: 8,
-            },
-        }),
     },
     activeDot: {
         width: 4,

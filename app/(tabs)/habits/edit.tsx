@@ -1,195 +1,265 @@
-import { useMeridianMutation, useQuery, useQueryClient } from "meridian-lite";
-import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
-import { CustomAlert as Alert } from "@/utils/custom-alert";
+import * as Haptics from 'expo-haptics';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useMeridianMutation, useQuery, useQueryClient } from 'meridian-lite';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
-  useColorScheme
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+  View
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { DurationSelector } from "@/components/duration";
-import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
-import { CustomTimePicker } from "@/components/time-picker";
-import Button from "@/components/ui/button";
-import FormInput from "@/components/ui/form-input";
-import { CustomActionSheetPicker } from "@/components/ui/picker";
-import { CustomSwitch } from "@/components/ui/switch";
-import { HABIT_COLORS, PASTEL_PALETTE } from "@/constants/habit-colors";
-import { Colors } from "@/constants/theme";
-import { useAppTheme } from "@/context/theme-context";
-import { getHabitById, updateHabit } from "@/utils/actions";
-import { parseNotifyTimes, refreshHabitNotifications } from "@/utils/notifications";
-import { getBasePoints } from "@/utils/points";
-import { Habit } from "@/utils/types";
+import { StepGoal } from '@/components/create/step-goal';
+import { StepIdentity } from '@/components/create/step-identity';
+import { StepProgressHeader } from '@/components/create/step-progress-header';
+import { StepReminder } from '@/components/create/step-reminder';
+import { StepSchedule } from '@/components/create/step-schedule';
+import { StepSummary } from '@/components/create/step-summary';
+import Button from '@/components/ui/button';
+import { getContrastTextColor, HABIT_COLORS } from '@/constants/habit-colors';
+import { ChevronIcon } from '@/constants/icons';
+import { Colors } from '@/constants/theme';
+import { useAppTheme } from '@/context/theme-context';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { getHabitById, updateHabit } from '@/utils/actions';
+import { CustomAlert as Alert } from '@/utils/custom-alert';
+import {
+  getDefaultReminderTimesForSessions,
+  parseNotifyTimes,
+  parseTimesOfDay,
+  refreshHabitNotifications,
+  TimeOfDay,
+} from '@/utils/notifications';
+import { getBasePoints } from '@/utils/points';
+import { Habit } from '@/utils/types';
 
-const WEEK_DAYS = [
-  { label: 'M', value: 1 },
-  { label: 'T', value: 2 },
-  { label: 'W', value: 3 },
-  { label: 'T', value: 4 },
-  { label: 'F', value: 5 },
-  { label: 'S', value: 6 },
-  { label: 'S', value: 0 },
-];
+type WizardStage = 1 | 2 | 3 | 4 | 5;
 
-const FREQUENCY_OPTIONS = [
-  { label: 'Daily', value: 'daily' },
-  { label: 'Weekly (Specific Days)', value: 'weekly' },
-  { label: 'Monthly', value: 'monthly' },
-];
+interface HabitDraft {
+  icon: string;
+  name: string;
+  description: string;
+  color: string;
+  times_of_day: TimeOfDay[];
+  frequency: 'daily' | 'weekly' | 'interval';
+  target_days: number[];
+  interval: number;
+  completion_type: 'check' | 'time' | 'quantity';
+  planned_time_minutes: number;
+  target_value: number;
+  target_unit: string;
+  notify: boolean;
+  notify_times: Date[];
+  reminder_message: string;
+}
+
+const DEFAULT_DRAFT: HabitDraft = {
+  icon: 'SproutIcon',
+  name: '',
+  description: '',
+  color: 'purple',
+  times_of_day: ['anytime'],
+  frequency: 'daily',
+  target_days: [1, 2, 3, 4, 5],
+  interval: 1,
+  completion_type: 'check',
+  planned_time_minutes: 0,
+  target_value: 0,
+  target_unit: '',
+  notify: false,
+  notify_times: getDefaultReminderTimesForSessions(['anytime']),
+  reminder_message: '',
+};
+
+const STEP_TITLES: Record<number, { title: string; subtitle: string }> = {
+  1: {
+    title: 'Edit your habit',
+    subtitle: 'Update the basics.',
+  },
+  2: {
+    title: 'When does it happen?',
+    subtitle: 'Choose when this habit fits into your routine.',
+  },
+  3: {
+    title: 'What does success look like?',
+    subtitle: 'Choose how you want to track this habit.',
+  },
+  4: {
+    title: 'Want a reminder?',
+    subtitle: 'A little nudge can help you stay consistent.',
+  },
+  5: {
+    title: 'Review your habit',
+    subtitle: 'Confirm your changes before saving.',
+  },
+};
 
 export default function EditScreen() {
   const { id } = useLocalSearchParams();
-  const habitId = id?.toString() ?? "";
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [notifyTimes, setNotifyTimes] = useState<Date[]>([
-    (() => {
-      const d = new Date();
-      d.setHours(9, 0, 0, 0);
-      return d;
-    })(),
-  ]);
-  const [editingTimeIndex, setEditingTimeIndex] = useState<number | null>(null);
+  const habitId = id?.toString() ?? '';
+
+  const [stage, setStage] = useState<WizardStage>(1);
+  const [draft, setDraft] = useState<HabitDraft>(DEFAULT_DRAFT);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const colorScheme = useColorScheme();
-  const currentTheme = colorScheme === "dark" ? "dark" : "light";
-  const { setActiveColor } = useAppTheme();
+  const currentTheme = colorScheme === 'dark' ? 'dark' : 'light';
+  const isDark = currentTheme === 'dark';
+  const { setActiveColor, resetColor } = useAppTheme();
 
-  const {
-    control,
-    handleSubmit,
-    reset,
-    watch,
-    setValue,
-    formState: { errors },
-  } = useForm({
-    defaultValues: {
-      name: "",
-      description: "",
-      planned_time_minutes: "",
-      frequency: "weekly",
-      color: "lime",
-      target_days: [1, 2, 3, 4, 5] as number[],
-      interval: 1,
-      notify: false,
-    },
-  });
+  // Reset theme color on unmount
+  useEffect(() => {
+    return () => {
+      resetColor();
+    };
+  }, [resetColor]);
 
-  const habitKey = useMemo(() => ["habit", habitId], [habitId]);
+  const habitKey = useMemo(() => ['habit', habitId], [habitId]);
 
   const { data: habit, isLoading } = useQuery<Habit | null>({
     queryKey: habitKey,
     queryFn: async () => {
       const h = await getHabitById(habitId);
-      if (!h) throw new Error("Habit not found");
+      if (!h) throw new Error('Habit not found');
       return h;
     },
   });
 
-  // Pre-fill form when habit loads
+  // Pre-fill draft from habit data
   useEffect(() => {
     if (habit && !isInitialized) {
-      setValue("name", habit.name);
-      setValue("description", habit.description || "");
-      setValue("planned_time_minutes", String(habit.planned_time_minutes || ""));
-      setValue("frequency", habit.frequency);
-      setValue("color", habit.color || "lime");
-      setValue("interval", habit.interval || 1);
-      setValue("notify", habit.notify === 1);
-
+      let parsedTargetDays: number[] = [1, 2, 3, 4, 5];
       if (habit.target_days) {
         try {
-          const days = typeof habit.target_days === 'string'
-            ? JSON.parse(habit.target_days)
-            : habit.target_days;
-          setValue("target_days", days);
-        } catch (e) {
-          // keep defaults
+          const days =
+            typeof habit.target_days === 'string'
+              ? JSON.parse(habit.target_days)
+              : habit.target_days;
+          if (Array.isArray(days)) {
+            parsedTargetDays = days;
+          }
+        } catch {
+          // Keep defaults
         }
       }
 
+      let parsedNotifyTimes: Date[] = [];
       if (habit.notify_time) {
         const parsed = parseNotifyTimes(habit.notify_time);
-        if (parsed.length > 0) {
-          const dates = parsed.map(t => new Date(t)).filter(d => !isNaN(d.getTime()));
-          if (dates.length > 0) {
-            setNotifyTimes(dates);
-          }
-        }
+        parsedNotifyTimes = parsed
+          .map((t) => new Date(t))
+          .filter((d) => !isNaN(d.getTime()));
+      }
+      if (parsedNotifyTimes.length === 0) {
+        const d = new Date();
+        d.setHours(9, 0, 0, 0);
+        parsedNotifyTimes = [d];
       }
 
+      const validFrequency: 'daily' | 'weekly' | 'interval' =
+        habit.frequency === 'weekly' || habit.frequency === 'interval'
+          ? habit.frequency
+          : 'daily';
+
+      setDraft({
+        icon: habit.icon || 'SproutIcon',
+        name: habit.name || '',
+        description: habit.description || '',
+        color: habit.color || 'purple',
+        times_of_day: parseTimesOfDay(habit.time_of_day),
+        frequency: validFrequency,
+        target_days: parsedTargetDays,
+        interval: habit.interval || 1,
+        completion_type:
+          (habit.completion_type as any) || (habit.planned_time_minutes ? 'time' : 'check'),
+        planned_time_minutes: habit.planned_time_minutes || 0,
+        target_value: (habit.target_value as number) || 0,
+        target_unit: habit.target_unit || '',
+        notify: habit.notify === 1,
+        notify_times: parsedNotifyTimes,
+        reminder_message: habit.reminder_message || '',
+      });
+
+      if (habit.color) {
+        setActiveColor(habit.color);
+      }
       setIsInitialized(true);
     }
-  }, [habit, isInitialized, setValue]);
+  }, [habit, isInitialized, setActiveColor]);
 
-  const frequencyWatch = watch("frequency");
-  const selectedColorId = watch("color");
-  const selectedTheme = HABIT_COLORS[selectedColorId] || HABIT_COLORS.lime;
-
-  useEffect(() => {
-    setActiveColor(selectedColorId);
-  }, [selectedColorId, setActiveColor]);
+  const selectedColorDef = HABIT_COLORS[draft.color] || HABIT_COLORS.purple;
+  const accentColor = selectedColorDef.accent;
 
   const queryClient = useQueryClient();
-
   const { mutate: mutateOutbox } = useMeridianMutation({
-    invalidateKeys: [["habits"], ["habit", habitId], ["habit_entries", habitId], ["habit-dates", habitId]],
+    invalidateKeys: [
+      ['habits'],
+      ['habit', habitId],
+      ['habit_entries', habitId],
+      ['habit-dates', habitId],
+    ],
   });
 
-  const handleAddTime = () => {
-    if (notifyTimes.length >= 5) {
-      Alert.alert("Limit Reached", "You can set up to 5 reminders per habit.");
+  const totalSteps = draft.notify ? 5 : 4;
+
+  const handleNext = () => {
+    Keyboard.dismiss();
+    Haptics.selectionAsync();
+    if (stage === 1 && !draft.name.trim()) return;
+    if (stage === 1) setStage(2);
+    else if (stage === 2) setStage(3);
+    else if (stage === 3) setStage(4);
+    else if (stage === 4 && draft.notify) setStage(5);
+  };
+
+  const handleBack = () => {
+    Keyboard.dismiss();
+    Haptics.selectionAsync();
+    if (stage === 5) setStage(4);
+    else if (stage === 4) setStage(3);
+    else if (stage === 3) setStage(2);
+    else if (stage === 2) setStage(1);
+    else if (stage === 1) {
+      resetColor();
+      router.back();
+    }
+  };
+
+  const handleSaveHabit = async () => {
+    if (!draft.name.trim()) {
+      Alert.alert('Missing Name', 'Please give your habit a name.');
       return;
     }
-    setEditingTimeIndex(null);
-    setShowTimePicker(true);
-  };
 
-  const handleRemoveTime = (indexToRemove: number) => {
-    if (notifyTimes.length <= 1) {
-      const d = new Date();
-      d.setHours(9, 0, 0, 0);
-      setNotifyTimes([d]);
-      setValue("notify", false);
-    } else {
-      setNotifyTimes(notifyTimes.filter((_, idx) => idx !== indexToRemove));
-    }
-  };
-
-  const onSave = async (formData: any) => {
-    setIsSaving(true);
+    setIsSubmitting(true);
     try {
-      let points = 15;
-      try {
-        points = await getBasePoints(formData.name, Number(formData.planned_time_minutes));
-      } catch (error) {
-        console.log("Error getting points, falling back to 15.");
-      }
+      const points = getBasePoints(
+        draft.name,
+        draft.completion_type === 'time' ? Number(draft.planned_time_minutes) : 0
+      );
 
-      // Cancel old notifications and schedule new ones
+      const formattedNotifyTime = draft.notify
+        ? JSON.stringify(draft.notify_times.map((d) => d.toISOString()))
+        : null;
+
+      const formattedTimeOfDay = JSON.stringify(draft.times_of_day);
+
       const todayISO = new Date().toISOString().split('T')[0];
       const isDone = habit?.last_completed_date?.startsWith(todayISO) ?? false;
-
-      const formattedNotifyTime = formData.notify
-        ? JSON.stringify(notifyTimes.map(d => d.toISOString()))
-        : null;
 
       const notificationIds = await refreshHabitNotifications(
         {
           ...habit,
-          ...formData,
-          id: habitId,
-          notify: formData.notify ? 1 : 0,
+          name: draft.name,
+          notify: draft.notify ? 1 : 0,
           notify_time: formattedNotifyTime,
+          planned_time_minutes: draft.planned_time_minutes,
+          target_days: JSON.stringify(draft.target_days),
+          reminder_message: draft.reminder_message,
         },
         (habit as any)?.today_tracked_minutes || 0,
         isDone
@@ -197,43 +267,63 @@ export default function EditScreen() {
 
       const updatedHabitData = {
         id: habitId,
-        name: formData.name,
-        description: formData.description,
-        color: formData.color,
-        frequency: formData.frequency,
-        planned_time_minutes: Number(formData.planned_time_minutes),
-        interval: Number(formData.interval),
-        target_days: JSON.stringify(formData.target_days),
-        notify: formData.notify ? 1 : 0,
+        name: draft.name.trim(),
+        description: draft.description.trim() || null,
+        color: draft.color,
+        frequency: draft.frequency,
+        planned_time_minutes:
+          draft.completion_type === 'time' ? Number(draft.planned_time_minutes) : 0,
+        interval: Number(draft.interval) || 1,
+        target_days: JSON.stringify(draft.target_days),
+        notify: draft.notify ? 1 : 0,
         notify_time: formattedNotifyTime,
         base_points: points,
         notification_ids: JSON.stringify(notificationIds),
+        time_of_day: formattedTimeOfDay,
+        icon: draft.icon,
+        sort_order: habit?.sort_order ?? 0,
+        completion_type: draft.completion_type,
+        target_value: draft.target_value ? Number(draft.target_value) : null,
+        target_unit: draft.target_unit || null,
+        reminder_message: draft.reminder_message.trim() || null,
       };
 
       // 1. Update SQLite locally
       await updateHabit(updatedHabitData);
 
       // 2. Invalidate queries
-      queryClient.invalidateQueries({ queryKey: ["habits"] });
-      queryClient.invalidateQueries({ queryKey: ["habit", habitId] });
-      queryClient.invalidateQueries({ queryKey: ["habit_entries", habitId] });
-      queryClient.invalidateQueries({ queryKey: ["habit-dates", habitId] });
+      queryClient.invalidateQueries({ queryKey: ['habits'] });
+      queryClient.invalidateQueries({ queryKey: ['habit', habitId] });
+      queryClient.invalidateQueries({ queryKey: ['habit_entries', habitId] });
+      queryClient.invalidateQueries({ queryKey: ['habit-dates', habitId] });
 
       // 3. Enqueue to Meridian Lite outbox
-      await mutateOutbox("update_habit", updatedHabitData);
+      await mutateOutbox('update_habit', updatedHabitData);
 
       router.back();
     } catch (error: any) {
-      console.error("Error updating habit:", error);
-      Alert.alert("Error updating habit:", error.message);
+      console.error('Error updating habit:', error);
+      Alert.alert('Error updating habit', error.message || 'Please try again.');
     } finally {
-      setIsSaving(false);
+      setIsSubmitting(false);
     }
   };
 
+  const insets = useSafeAreaInsets();
+  const bgColor = Colors[currentTheme].background;
+  const isNextDisabled = stage === 1 && !draft.name.trim();
+
   if (isLoading || !habit) {
     return (
-      <SafeAreaView style={{ backgroundColor: Colors[currentTheme].background, flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <SafeAreaView
+        edges={['top', 'left', 'right', 'bottom']}
+        style={{
+          backgroundColor: bgColor,
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
         <ActivityIndicator size="large" color={Colors[currentTheme].tint} />
       </SafeAreaView>
     );
@@ -241,315 +331,229 @@ export default function EditScreen() {
 
   return (
     <SafeAreaView
-      style={{ backgroundColor: Colors[currentTheme].background }}
-      className="flex-1"
+      edges={['top', 'left', 'right', 'bottom']}
+      style={{ backgroundColor: bgColor, flex: 1 }}
     >
-      <ScrollView contentContainerStyle={{ paddingBottom: 60 }}>
-        <ThemedView className="flex-1 flex-col space-y-4 p-4 mt-2" style={{ backgroundColor: 'transparent' }}>
-
-          {/* Drag indicator */}
-          <View className="items-center pb-2">
-            <View className="w-10 h-1 rounded-full bg-neutral-300 dark:bg-neutral-600" />
-          </View>
-
-          <ThemedText className="text-3xl font-pbold mb-2">Edit Habit</ThemedText>
-
-          {/* Name & Description */}
-          <Controller
-            control={control}
-            name="name"
-            rules={{ required: "Habit name is required" }}
-            render={({ field: { onChange, onBlur, value } }) => (
-              <FormInput
-                handleBlur={onBlur}
-                handleChangeText={onChange}
-                value={value}
-                label="Habit name"
-                placeholder="e.g., Read a book"
-                error={errors.name?.message as string}
-                accentColor={selectedTheme.accent}
-              />
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="description"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <FormInput
-                handleBlur={onBlur}
-                handleChangeText={onChange}
-                value={value}
-                label="Description (Optional)"
-                placeholder="A short and sweet description"
-                error={errors.description?.message as string}
-                accentColor={selectedTheme.accent}
-              />
-            )}
-          />
-
-          {/* Theme Color Picker */}
-          <View className="mx-4 mt-2">
-            <ThemedText className="text-sm opacity-70 mb-3">Color Theme</ThemedText>
-            <View className="flex-row justify-between items-center px-2">
-              {PASTEL_PALETTE.map((item) => {
-                const isSelected = selectedColorId === item.id;
-                return (
-                  <TouchableOpacity
-                    key={item.id}
-                    onPress={() => setValue("color", item.id)}
-                    style={{
-                      backgroundColor: currentTheme === 'dark' ? `${item.accent}70` : item.hex,
-                      borderColor: isSelected ? `${item.accent}` : 'transparent',
-                      borderWidth: 3
-                    }}
-                    className={`w-10 h-10 rounded-full items-center justify-center ${isSelected ? "scale-110" : ""}`}
-                  />
-                );
-              })}
-            </View>
-          </View>
-
-          {/* Frequency Type */}
-          <View className="mx-4 mt-4">
-            <ThemedText className="text-sm opacity-70 mb-2 ml-1">Frequency</ThemedText>
-            <Controller
-              control={control}
-              name="frequency"
-              render={({ field: { onChange, value } }) => (
-                <CustomActionSheetPicker
-                  label="Frequency"
-                  value={value}
-                  options={FREQUENCY_OPTIONS}
-                  onValueChange={onChange}
-                  accentColor={selectedTheme.accent}
-                />
-              )}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={{ flex: 1, justifyContent: 'space-between' }}>
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ paddingBottom: 40, paddingTop: 8 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="always"
+          >
+            {/* Progress & Heading */}
+            <StepProgressHeader
+              currentStep={stage}
+              totalSteps={totalSteps}
+              title={
+                stage === 4 && !draft.notify
+                  ? 'Review your habit'
+                  : STEP_TITLES[stage]?.title || 'Edit habit'
+              }
+              subtitle={
+                stage === 4 && !draft.notify
+                  ? 'Review details or enable reminders.'
+                  : STEP_TITLES[stage]?.subtitle || ''
+              }
+              accentColor={accentColor}
             />
-          </View>
 
-          {/* Target Days */}
-          {frequencyWatch !== "monthly" && (
-            <View className="mx-4 mt-4">
-              <ThemedText className="text-sm opacity-70 mb-3">Target Days</ThemedText>
-              <Controller
-                control={control}
-                name="target_days"
-                render={({ field: { onChange, value } }) => (
-                  <View className="flex-row justify-between items-center">
-                    {WEEK_DAYS.map((day) => {
-                      const isActive = value.includes(day.value);
-
-                      return (
-                        <TouchableOpacity
-                          key={day.label + day.value}
-                          onPress={() => {
-                            if (isActive) {
-                              onChange(value.filter((v: number) => v !== day.value));
-                            } else {
-                              onChange([...value, day.value]);
-                            }
-                          }}
-                          style={{
-                            backgroundColor: currentTheme === 'dark'
-                              ? (isActive ? `${selectedTheme.accent}40` : 'transparent')
-                              : (isActive ? selectedTheme.hex : 'transparent'),
-                            borderColor: currentTheme === 'dark'
-                              ? (isActive ? selectedTheme.accent : '#404040')
-                              : (isActive ? `${selectedTheme.accent}40` : '#d4d4d8'),
-                            borderWidth: isActive ? (currentTheme === 'dark' ? 2 : 3) : 1,
-                          }}
-                          className="w-10 h-10 rounded-full items-center justify-center"
-                        >
-                          <Text style={{ zIndex: 1, color: isActive ? selectedTheme.accent : (currentTheme === 'dark' ? selectedTheme.hex : selectedTheme.accent) }} className="font-pbold text-sm">
-                            {day.label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                )}
-              />
-            </View>
-          )}
-
-          {/* Repeat Interval */}
-          <View className="mx-4 mt-4 flex-row items-center justify-between">
-            <ThemedText className="text-sm opacity-70">Repeat every</ThemedText>
-            <Controller
-              control={control}
-              name="interval"
-              render={({ field: { onChange, value } }) => (
-                <View className="flex-row items-center gap-4">
-                  <TouchableOpacity
-                    onPress={() => onChange(Math.max(1, value - 1))}
-                    className="w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-800 items-center justify-center"
-                  >
-                    <Text className={`font-bold ${currentTheme === 'dark' ? 'text-white' : 'text-black'}`}>-</Text>
-                  </TouchableOpacity>
-
-                  <ThemedText className="font-pbold text-lg">{value}</ThemedText>
-
-                  <TouchableOpacity
-                    onPress={() => onChange(value + 1)}
-                    className="w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-800 items-center justify-center"
-                  >
-                    <Text className={`font-bold ${currentTheme === 'dark' ? 'text-white' : 'text-black'}`}>+</Text>
-                  </TouchableOpacity>
-
-                  <ThemedText className="text-sm opacity-70 w-12">
-                    {frequencyWatch === 'daily' ? 'days' : frequencyWatch === 'monthly' ? 'months' : 'weeks'}
-                  </ThemedText>
-                </View>
-              )}
-            />
-          </View>
-
-          {/* Planned Time */}
-          <View className="mx-4 mt-4">
-            <ThemedText className="text-sm opacity-70 mb-2 ml-1">Planned time</ThemedText>
-            <Controller
-              control={control}
-              name="planned_time_minutes"
-              rules={{ required: "Please select a duration" }}
-              render={({ field: { onChange, value } }) => (
-                <DurationSelector
-                  value={value}
-                  onChange={onChange}
-                  accentColor={selectedTheme.accent}
-                />
-              )}
-            />
-            {errors.planned_time_minutes && (
-              <ThemedText className="text-red-500 text-xs mt-2 ml-1">
-                {errors.planned_time_minutes.message as string}
-              </ThemedText>
-            )}
-          </View>
-
-          {/* Notifications */}
-          <View className="mx-4 mt-4 p-4 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/50">
-
-            <View className="flex-row items-center justify-between">
-              <ThemedText className="text-base font-pmedium">Enable Notifications</ThemedText>
-              <Controller
-                control={control}
-                name="notify"
-                render={({ field: { onChange, value } }) => (
-                  <CustomSwitch
-                    value={value}
-                    onValueChange={onChange}
-                    activeColor={selectedTheme.accent}
-                  />
-                )}
-              />
-            </View>
-
-            {watch("notify") && (
-              <View className="mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-800">
-                <View className="flex-row items-center justify-between mb-3">
-                  <View>
-                    <ThemedText className="text-sm font-pmedium dark:text-gray-300">Reminders</ThemedText>
-                    <ThemedText className="text-xs opacity-50 mt-0.5">Alerts fire 5 min before planned time</ThemedText>
-                  </View>
-                  {notifyTimes.length < 5 ? (
-                    <TouchableOpacity
-                      activeOpacity={0.7}
-                      onPress={handleAddTime}
-                      className="px-3 py-1.5 rounded-xl border flex-row items-center gap-1.5"
-                      style={{
-                        backgroundColor: `${selectedTheme.accent}15`,
-                        borderColor: `${selectedTheme.accent}30`,
-                        borderWidth: 1
-                      }}
-                    >
-                      <Text style={{ color: selectedTheme.accent }} className="font-pbold text-xs">
-                        + Add Time
-                      </Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <View className="px-2.5 py-1 bg-neutral-200 dark:bg-neutral-800 rounded-lg">
-                      <Text className="text-[10px] font-pbold opacity-60">Max 5</Text>
-                    </View>
-                  )}
-                </View>
-
-                {/* List of reminder chips */}
-                <View className="flex-row flex-wrap gap-2 pt-1">
-                  {notifyTimes.map((time, idx) => (
-                    <View
-                      key={idx}
-                      className="flex-row items-center rounded-xl border pl-3 pr-2 py-1.5 gap-2"
-                      style={{
-                        backgroundColor: `${selectedTheme.accent}10`,
-                        borderColor: `${selectedTheme.accent}35`,
-                        borderWidth: 1
-                      }}
-                    >
-                      <TouchableOpacity
-                        activeOpacity={0.7}
-                        onPress={() => {
-                          setEditingTimeIndex(idx);
-                          setShowTimePicker(true);
-                        }}
-                      >
-                        <ThemedText style={{ color: selectedTheme.accent }} className="font-psemibold text-sm">
-                          {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </ThemedText>
-                      </TouchableOpacity>
-
-                      {notifyTimes.length > 1 && (
-                        <TouchableOpacity
-                          activeOpacity={0.7}
-                          onPress={() => handleRemoveTime(idx)}
-                          className="w-5 h-5 rounded-full items-center justify-center bg-neutral-200 dark:bg-neutral-800 ml-1"
-                        >
-                          <Text className="text-neutral-600 dark:text-neutral-400 font-bold text-[10px]">✕</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            <CustomTimePicker
-              visible={showTimePicker}
-              onClose={() => {
-                setShowTimePicker(false);
-                setEditingTimeIndex(null);
-              }}
-              initialTime={editingTimeIndex !== null && notifyTimes[editingTimeIndex] ? notifyTimes[editingTimeIndex] : new Date()}
-              onSave={(newTime) => {
-                if (editingTimeIndex !== null) {
-                  const updated = [...notifyTimes];
-                  updated[editingTimeIndex] = newTime;
-                  updated.sort((a, b) => a.getHours() * 60 + a.getMinutes() - (b.getHours() * 60 + b.getMinutes()));
-                  setNotifyTimes(updated);
-                } else {
-                  const updated = [...notifyTimes, newTime];
-                  updated.sort((a, b) => a.getHours() * 60 + a.getMinutes() - (b.getHours() * 60 + b.getMinutes()));
-                  setNotifyTimes(updated);
+            {/* STEP 1: IDENTITY */}
+            {stage === 1 && (
+              <StepIdentity
+                icon={draft.icon}
+                onChangeIcon={(icon) => setDraft((d) => ({ ...d, icon }))}
+                name={draft.name}
+                onChangeName={(name) => setDraft((d) => ({ ...d, name }))}
+                description={draft.description}
+                onChangeDescription={(description) =>
+                  setDraft((d) => ({ ...d, description }))
                 }
-                setEditingTimeIndex(null);
-                setShowTimePicker(false);
-              }}
-              accentColor={selectedTheme.accent}
-            />
+                color={draft.color}
+                onChangeColor={(color) => {
+                  setDraft((d) => ({ ...d, color }));
+                  setActiveColor(color);
+                }}
+              />
+            )}
 
-          </View>
+            {/* STEP 2: SCHEDULE */}
+            {stage === 2 && (
+              <StepSchedule
+                timesOfDay={draft.times_of_day}
+                onChangeTimesOfDay={(times_of_day) => {
+                  const defaultDates = getDefaultReminderTimesForSessions(times_of_day);
+                  setDraft((d) => ({
+                    ...d,
+                    times_of_day,
+                    notify_times: defaultDates,
+                  }));
+                }}
+                frequency={draft.frequency}
+                onChangeFrequency={(frequency) =>
+                  setDraft((d) => ({ ...d, frequency }))
+                }
+                targetDays={draft.target_days}
+                onChangeTargetDays={(target_days) =>
+                  setDraft((d) => ({ ...d, target_days }))
+                }
+                interval={draft.interval}
+                onChangeInterval={(interval) =>
+                  setDraft((d) => ({ ...d, interval }))
+                }
+                accentColor={accentColor}
+              />
+            )}
 
-          <View className="w-full px-4 mt-6">
+            {/* STEP 3: GOAL */}
+            {stage === 3 && (
+              <StepGoal
+                completionType={draft.completion_type}
+                onChangeCompletionType={(completion_type) =>
+                  setDraft((d) => ({ ...d, completion_type }))
+                }
+                plannedMinutes={draft.planned_time_minutes}
+                onChangePlannedMinutes={(planned_time_minutes) =>
+                  setDraft((d) => ({ ...d, planned_time_minutes }))
+                }
+                targetValue={draft.target_value}
+                onChangeTargetValue={(target_value) =>
+                  setDraft((d) => ({ ...d, target_value }))
+                }
+                targetUnit={draft.target_unit}
+                onChangeTargetUnit={(target_unit) =>
+                  setDraft((d) => ({ ...d, target_unit }))
+                }
+                accentColor={accentColor}
+              />
+            )}
+
+            {/* STEP 4: REMINDER (Shows inline summary when notify is false) */}
+            {stage === 4 && (
+              <StepReminder
+                notify={draft.notify}
+                onChangeNotify={(notify) => setDraft((d) => ({ ...d, notify }))}
+                notifyTimes={draft.notify_times}
+                onChangeNotifyTimes={(notify_times) =>
+                  setDraft((d) => ({ ...d, notify_times }))
+                }
+                reminderMessage={draft.reminder_message}
+                onChangeReminderMessage={(reminder_message) =>
+                  setDraft((d) => ({ ...d, reminder_message }))
+                }
+                name={draft.name}
+                accentColor={accentColor}
+                icon={draft.icon}
+                description={draft.description}
+                color={draft.color}
+                timesOfDay={draft.times_of_day}
+                frequency={draft.frequency}
+                targetDays={draft.target_days}
+                interval={draft.interval}
+                completionType={draft.completion_type}
+                plannedMinutes={draft.planned_time_minutes}
+                targetValue={draft.target_value}
+                targetUnit={draft.target_unit}
+                onJumpToStep={(s) => setStage(s as WizardStage)}
+              />
+            )}
+
+            {/* STEP 5: DEDICATED REVIEW SCREEN (When reminders are enabled) */}
+            {stage === 5 && (
+              <StepSummary
+                icon={draft.icon}
+                name={draft.name}
+                description={draft.description}
+                color={draft.color}
+                timesOfDay={draft.times_of_day}
+                frequency={draft.frequency}
+                targetDays={draft.target_days}
+                interval={draft.interval}
+                completionType={draft.completion_type}
+                plannedMinutes={draft.planned_time_minutes}
+                targetValue={draft.target_value}
+                targetUnit={draft.target_unit}
+                notify={draft.notify}
+                notifyTimes={draft.notify_times}
+                reminderMessage={draft.reminder_message}
+                accentColor={accentColor}
+                onJumpToStep={(s) => setStage(s as WizardStage)}
+              />
+            )}
+          </ScrollView>
+
+          {/* Bottom Action Navigation Bar */}
+          <View
+            style={{
+              paddingBottom: insets.bottom > 0 ? insets.bottom + 8 : 16,
+              backgroundColor: isDark ? '#191A1D' : '#FFFFFF',
+              borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+              borderTopWidth: 1,
+            }}
+            className="flex-row items-center justify-between px-5 pt-3.5 shadow-md shadow-black/5"
+          >
+            {/* Back / Cancel */}
             <Button
-              title={isSaving ? "Saving..." : "Save Changes"}
-              handlePress={handleSubmit(onSave)}
-              loading={isSaving}
-              style={{ backgroundColor: selectedTheme.accent }}
+              title={stage === 1 ? 'Cancel' : 'Back'}
+              variant="ghost"
+              size="md"
+              onPress={handleBack}
+              leftIcon={
+                stage > 1 ? (
+                  <ChevronIcon
+                    direction="left"
+                    size={16}
+                    color={isDark ? '#9CA3AF' : '#6B7280'}
+                  />
+                ) : undefined
+              }
             />
-          </View>
 
-        </ThemedView>
-      </ScrollView>
+            {stage < totalSteps ? (
+              <Button
+                title={stage === 4 && draft.notify ? 'Review' : 'Next'}
+                variant="accent"
+                accentColor={accentColor}
+                size="md"
+                disabled={isNextDisabled}
+                onPress={handleNext}
+                rightIcon={
+                  <ChevronIcon
+                    direction="right"
+                    size={16}
+                    color={getContrastTextColor(accentColor)}
+                  />
+                }
+                className="min-w-[120px]"
+              />
+            ) : (
+              <Button
+                title="Save Habit"
+                variant="accent"
+                accentColor={accentColor}
+                size="md"
+                loading={isSubmitting}
+                disabled={isSubmitting}
+                onPress={handleSaveHabit}
+                rightIcon={
+                  !isSubmitting ? (
+                    <ChevronIcon
+                      direction="right"
+                      size={16}
+                      color={getContrastTextColor(accentColor)}
+                    />
+                  ) : undefined
+                }
+                className="min-w-[150px]"
+              />
+            )}
+          </View>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

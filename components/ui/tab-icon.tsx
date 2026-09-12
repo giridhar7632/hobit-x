@@ -1,6 +1,6 @@
 import { IconProps } from "@/constants/icons";
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 
 type TabBarIconProps = {
   icon: React.FC<IconProps>;
@@ -11,36 +11,14 @@ type TabBarIconProps = {
 
 export function TabBarIcon({ icon: Icon, color, name, focused }: TabBarIconProps) {
   return (
-    <View style={styles.container}>
+    <View className="items-center justify-center py-0.5 min-w-[56px]">
       <Icon color={color} size={22} />
       <Text
-        style={[
-          styles.label,
-          { color },
-          focused ? styles.labelFocused : styles.labelRegular,
-        ]}
+        style={{ color }}
+        className={`text-[11px] mt-0.5 ${focused ? 'font-psemibold' : 'font-pregular'}`}
       >
         {name}
       </Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 2,
-    minWidth: 56,
-  },
-  label: {
-    fontSize: 11,
-    marginTop: 3,
-  },
-  labelRegular: {
-    fontFamily: 'Poppins-Regular',
-  },
-  labelFocused: {
-    fontFamily: 'Poppins-SemiBold',
-  },
-});

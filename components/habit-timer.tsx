@@ -118,7 +118,7 @@ export function HabitTimerScreen({ habit, onClose }: HabitTimerProps) {
     const colorScheme = useColorScheme();
     const currentTheme = colorScheme === "dark" ? "dark" : "light";
     const isDark = currentTheme === 'dark';
-    const theme = HABIT_COLORS[habit.color] || HABIT_COLORS.lime;
+    const theme = HABIT_COLORS[habit.color] || HABIT_COLORS.purple;
 
     const targetSeconds = (habit.planned_time_minutes || 10) * 60;
 
@@ -273,7 +273,7 @@ export function HabitTimerScreen({ habit, onClose }: HabitTimerProps) {
     });
 
     const handleSaveAtTime = async (
-        seconds: number, 
+        seconds: number,
         status: 'Completed' | 'Missed' | 'Skipped' | 'Partial',
         alertTitle?: string,
         alertMessage?: string

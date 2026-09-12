@@ -131,7 +131,7 @@ export async function createHabit(habitData: any) {
       user_id: habitData.user_id || null,
       name: habitData.name,
       description: habitData.description || null,
-      color: habitData.color || 'lime',
+      color: habitData.color || 'purple',
       time_spent: habitData.time_spent || 0,
       planned_time_minutes: habitData.planned_time_minutes || 0,
       frequency: habitData.frequency || 'daily',
@@ -150,11 +150,18 @@ export async function createHabit(habitData: any) {
       last_completed_date: habitData.last_completed_date || null,
       last_active_date: habitData.last_active_date || null,
       notification_ids: typeof habitData.notification_ids === 'string' ? habitData.notification_ids : JSON.stringify(habitData.notification_ids || []),
+      time_of_day: typeof habitData.time_of_day === 'object' && habitData.time_of_day !== null ? JSON.stringify(habitData.time_of_day) : (habitData.time_of_day || 'anytime'),
+      icon: habitData.icon || null,
+      sort_order: habitData.sort_order ?? 0,
+      completion_type: habitData.completion_type || 'check',
+      target_value: habitData.target_value ?? null,
+      target_unit: habitData.target_unit || null,
+      reminder_message: habitData.reminder_message || null,
     };
 
     await db.runAsync(
-      `INSERT INTO habits (id, user_id, name, description, color, frequency, planned_time_minutes, interval, target_days, notify, notify_time, start_date, base_points, notification_ids, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [fullHabit.id, fullHabit.user_id, fullHabit.name, fullHabit.description, fullHabit.color, fullHabit.frequency, fullHabit.planned_time_minutes, fullHabit.interval, fullHabit.target_days, fullHabit.notify, fullHabit.notify_time, fullHabit.start_date, fullHabit.base_points, fullHabit.notification_ids, fullHabit.created_at]
+      `INSERT INTO habits (id, user_id, name, description, color, frequency, planned_time_minutes, interval, target_days, notify, notify_time, start_date, base_points, notification_ids, created_at, time_of_day, icon, sort_order, completion_type, target_value, target_unit, reminder_message) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [fullHabit.id, fullHabit.user_id, fullHabit.name, fullHabit.description, fullHabit.color, fullHabit.frequency, fullHabit.planned_time_minutes, fullHabit.interval, fullHabit.target_days, fullHabit.notify, fullHabit.notify_time, fullHabit.start_date, fullHabit.base_points, fullHabit.notification_ids, fullHabit.created_at, fullHabit.time_of_day, fullHabit.icon, fullHabit.sort_order, fullHabit.completion_type, fullHabit.target_value, fullHabit.target_unit, fullHabit.reminder_message]
     );
 
     return fullHabit;
@@ -458,6 +465,13 @@ export async function updateHabit(habitData: any) {
         notify_time = ?, 
         base_points = ?,
         notification_ids = ?,
+        time_of_day = ?,
+        icon = ?,
+        sort_order = ?,
+        completion_type = ?,
+        target_value = ?,
+        target_unit = ?,
+        reminder_message = ?,
         updated_at = datetime('now')
        WHERE id = ?`,
       [
@@ -467,11 +481,18 @@ export async function updateHabit(habitData: any) {
         habitData.frequency,
         habitData.planned_time_minutes,
         habitData.interval,
-        habitData.target_days,
+        typeof habitData.target_days === 'string' ? habitData.target_days : JSON.stringify(habitData.target_days || []),
         habitData.notify,
         habitData.notify_time,
         habitData.base_points,
-        habitData.notification_ids,
+        typeof habitData.notification_ids === 'string' ? habitData.notification_ids : JSON.stringify(habitData.notification_ids || []),
+        typeof habitData.time_of_day === 'object' && habitData.time_of_day !== null ? JSON.stringify(habitData.time_of_day) : (habitData.time_of_day || 'anytime'),
+        habitData.icon || null,
+        habitData.sort_order ?? 0,
+        habitData.completion_type || 'check',
+        habitData.target_value ?? null,
+        habitData.target_unit || null,
+        habitData.reminder_message || null,
         habitData.id,
       ]
     );
@@ -489,3 +510,132 @@ export const updateHabitNotificationIds = async ({ id, notification_ids }: { id:
     [notification_ids, id]
   );
 };
+
+export function isHabitScheduledForDate(habit: Habit, dateISO: string): boolean {
+  const d = new Date(dateISO + 'T00:00:00');
+
+  if (habit.start_date) {
+    const startISO = habit.start_date.split('T')[0];
+    if (dateISO < startISO) return false;
+  }
+  if (habit.end_date) {
+    const endISO = habit.end_date.split('T')[0];
+    if (dateISO > endISO) return false;
+  }
+
+  if (!habit.frequency || habit.frequency === 'daily') {
+    return true;
+  }
+
+  if (habit.frequency === 'weekly') {
+    if (!habit.target_days) return true;
+    try {
+      const days =
+        typeof habit.target_days === 'string'
+          ? JSON.parse(habit.target_days)
+          : habit.target_days;
+      if (Array.isArray(days) && days.length > 0) {
+        return days.includes(d.getDay());
+      }
+    } catch {
+      return true;
+    }
+    return true;
+  }
+
+  if (habit.frequency === 'monthly') {
+    const startDay = habit.start_date ? new Date(habit.start_date).getDate() : 1;
+    return d.getDate() === startDay;
+  }
+
+  return true;
+}
+
+export async function getHabitsWithEntriesForDate(dateISO: string): Promise<{
+  habit: Habit;
+  entries: HabitEntry[];
+  isCompleted: boolean;
+  isSkipped: boolean;
+  totalTimeMinutes: number;
+}[]> {
+  const db = await getDb();
+  try {
+    const habits = await db.getAllAsync<Habit>(`SELECT * FROM habits ORDER BY sort_order ASC, created_at DESC`);
+    const entries = await db.getAllAsync<HabitEntry>(
+      `SELECT * FROM habit_entries WHERE DATE(entry_date) = ?`,
+      [dateISO]
+    );
+
+    const scheduled = (habits || []).filter(h => isHabitScheduledForDate(h, dateISO));
+
+    return scheduled.map(habit => {
+      const habitEntries = (entries || []).filter(e => e.habit_id === habit.id);
+      const completedEntries = habitEntries.filter(e => e.status === 'Completed' || e.status === 'Partial');
+      const isSkipped = habitEntries.some(e => e.status === 'Skipped');
+      const totalTime = habitEntries.reduce((acc, e) => acc + (e.actual_time_minutes || 0), 0);
+      const totalReminders = getHabitTotalReminders(habit);
+      const isCompleted = completedEntries.length >= totalReminders && totalReminders > 0;
+
+      return {
+        habit,
+        entries: habitEntries,
+        isCompleted,
+        isSkipped,
+        totalTimeMinutes: totalTime,
+      };
+    });
+  } catch (error: any) {
+    console.error('Error in getHabitsWithEntriesForDate:', error);
+    return [];
+  }
+}
+
+export async function getCalendarMonthData(startDateISO: string, endDateISO: string): Promise<{
+  date: string;
+  completedCount: number;
+  totalScheduled: number;
+  pointsEarned: number;
+}[]> {
+  const db = await getDb();
+  try {
+    const habits = await db.getAllAsync<Habit>(`SELECT * FROM habits`);
+    const entries = await db.getAllAsync<HabitEntry>(
+      `SELECT habit_id, DATE(entry_date) as entry_date, status, points, actual_time_minutes 
+       FROM habit_entries 
+       WHERE DATE(entry_date) >= ? AND DATE(entry_date) <= ?`,
+      [startDateISO, endDateISO]
+    );
+
+    const start = new Date(startDateISO + 'T00:00:00');
+    const end = new Date(endDateISO + 'T00:00:00');
+    const dayMap: Record<string, { completedCount: number; totalScheduled: number; pointsEarned: number }> = {};
+
+    for (let cur = new Date(start); cur <= end; cur.setDate(cur.getDate() + 1)) {
+      const iso = cur.toISOString().split('T')[0];
+      const scheduledOnDay = (habits || []).filter(h => isHabitScheduledForDate(h, iso));
+      dayMap[iso] = {
+        completedCount: 0,
+        totalScheduled: scheduledOnDay.length,
+        pointsEarned: 0,
+      };
+    }
+
+    (entries || []).forEach(e => {
+      const dateKey = (e as any).entry_date;
+      if (dayMap[dateKey]) {
+        if (e.status === 'Completed') {
+          dayMap[dateKey].completedCount += 1;
+        }
+        dayMap[dateKey].pointsEarned += (e.points || 0);
+      }
+    });
+
+    return Object.entries(dayMap).map(([date, data]) => ({
+      date,
+      ...data,
+    }));
+  } catch (error: any) {
+    console.error('Error in getCalendarMonthData:', error);
+    return [];
+  }
+}

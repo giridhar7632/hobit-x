@@ -1,6 +1,6 @@
 import { CustomAlert as Alert } from "@/utils/custom-alert";
-import { useMeridianMutation, useQuery, useQueryClient } from "meridian-lite";
 import { router, useLocalSearchParams } from "expo-router";
+import { useMeridianMutation, useQuery, useQueryClient } from "meridian-lite";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -15,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
 import Button from "@/components/ui/button";
+import FormInput from "@/components/ui/form-input";
 import { HABIT_COLORS } from "@/constants/habit-colors";
 import { Colors } from "@/constants/theme";
 import { useAppTheme } from "@/context/theme-context";
@@ -99,7 +100,7 @@ export default function TrackScreen() {
     );
   }
 
-  const theme = HABIT_COLORS[habit.color || "lime"] || HABIT_COLORS.lime;
+  const theme = HABIT_COLORS[habit.color || "purple"] || HABIT_COLORS.purple;
 
   return (
     <SafeAreaView
@@ -128,28 +129,22 @@ export default function TrackScreen() {
           How did it go today?
         </ThemedText>
         <View className="flex-row gap-3 mb-8">
-          <TouchableOpacity
+          <Button
+            title="Completed"
+            variant={status === 'Completed' ? 'accent' : 'outline'}
+            accentColor={theme.accent}
+            size="md"
             onPress={() => setStatus('Completed')}
-            style={status === 'Completed' ? { backgroundColor: theme.accent } : {}}
-            className={`flex-1 py-3 rounded-xl items-center border ${status === 'Completed' ? 'border-transparent' : 'border-neutral-300 dark:border-neutral-700'
-              }`}
-          >
-            <Text className={`font-pbold ${status === 'Completed' ? 'text-white' : ''}`}
-              style={status !== 'Completed' ? { color: Colors[currentTheme].text } : undefined}
-            >
-              Completed
-            </Text>
-          </TouchableOpacity>
+            className="flex-1"
+          />
 
-          <TouchableOpacity
+          <Button
+            title="Skipped"
+            variant={status === 'Skipped' ? 'secondary' : 'outline'}
+            size="md"
             onPress={() => setStatus('Skipped')}
-            className={`flex-1 py-3 rounded-xl items-center border ${status === 'Skipped' ? 'border-neutral-800 dark:border-neutral-200 bg-neutral-200 dark:bg-neutral-800' : 'border-neutral-300 dark:border-neutral-700'
-              }`}
-          >
-            <Text className="font-pbold" style={{ color: Colors[currentTheme].text }}>
-              Skipped
-            </Text>
-          </TouchableOpacity>
+            className="flex-1"
+          />
         </View>
 
         {/* 2. Actual Time Stepper (Only show if completed) */}
@@ -159,18 +154,18 @@ export default function TrackScreen() {
               <ThemedText className="text-base font-pmedium opacity-70">
                 Time spent (minutes)
               </ThemedText>
-              <ThemedText className="text-xs opacity-50">
+              <ThemedText className="text-xs opacity-50 font-pregular">
                 Planned: {habit.planned_time_minutes}m
               </ThemedText>
             </View>
 
-            <View className="flex-row items-center justify-between bg-neutral-100 dark:bg-neutral-900 rounded-2xl p-2 border border-neutral-200 dark:border-neutral-800">
+            <View className="flex-row items-center justify-between bg-neutral-100 dark:bg-neutral-900 rounded-[18px] p-2 border border-neutral-200 dark:border-neutral-800">
               <TouchableOpacity
                 onPress={() => setActualTime(Math.max(1, actualTime - 5))}
                 className="w-12 h-12 rounded-xl items-center justify-center"
                 style={{ backgroundColor: `${theme.accent}15` }}
               >
-                <Text style={{ color: theme.accent }} className="text-2xl font-bold">−</Text>
+                <Text style={{ color: theme.accent }} className="text-2xl font-pbold">−</Text>
               </TouchableOpacity>
 
               <View className="items-center">
@@ -180,41 +175,35 @@ export default function TrackScreen() {
 
               <TouchableOpacity
                 onPress={() => setActualTime(actualTime + 5)}
-                className="w-12 h-12 rounded-xl items-center justify-center"
-                style={{ backgroundColor: `${theme.accent}15` }}
+                className="w-12 h-12 rounded-xl bg-neutral-100 dark:bg-neutral-800 items-center justify-center active:scale-95"
               >
-                <Text style={{ color: theme.accent }} className="text-2xl font-bold">+</Text>
+                <Text style={{ color: theme.accent }} className="text-2xl font-pbold">+</Text>
               </TouchableOpacity>
             </View>
           </View>
         )}
 
         {/* 3. Notes / Journaling */}
-        <ThemedText className="text-base font-pmedium opacity-70 mb-3">
-          Add a note (Optional)
-        </ThemedText>
-        <TextInput
-          multiline
-          numberOfLines={4}
-          placeholder="How did you feel? Any roadblocks?"
-          placeholderTextColor={currentTheme === 'dark' ? '#737373' : '#a3a3a3'}
-          value={note}
-          onChangeText={setNote}
-          className="bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-4 text-base font-pregular mb-8"
-          selectionColor={theme.accent}
-          cursorColor={theme.accent}
-          style={{
-            color: currentTheme === 'dark' ? '#fff' : '#000',
-            textAlignVertical: 'top',
-            minHeight: 120
-          }}
-        />
+        <View className="mb-8">
+          <FormInput
+            label="Add a note (Optional)"
+            multiline
+            numberOfLines={4}
+            placeholder="How did you feel? Any roadblocks?"
+            value={note}
+            onChangeText={setNote}
+            accentColor={theme.accent}
+          />
+        </View>
 
         <Button
           title={isSaving ? "Saving..." : "Save Log"}
-          handlePress={handleSave}
+          variant="accent"
+          accentColor={theme.accent}
+          size="default"
+          onPress={handleSave}
           loading={isSaving}
-          style={{ backgroundColor: theme.accent }}
+          className="w-full"
         />
 
       </ScrollView>

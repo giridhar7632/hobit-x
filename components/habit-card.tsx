@@ -57,7 +57,7 @@ const COMPLETION_MESSAGES = [
 export function HabitCard({ habit, onPress, onTrack, onUntrack, onTimerPress, completedToday = false }: HabitCardProps) {
     const colorScheme = useColorScheme();
     const currentTheme = colorScheme === "dark" ? "dark" : "light";
-    const theme = HABIT_COLORS[habit.color] || HABIT_COLORS.lime;
+    const theme = HABIT_COLORS[habit.color] || HABIT_COLORS.purple;
 
     const totalReminders = getHabitTotalReminders(habit);
     const todayCompleted = habit.today_completed_count || 0;
@@ -152,7 +152,7 @@ export function HabitCard({ habit, onPress, onTrack, onUntrack, onTimerPress, co
     };
 
     const handlePressOut = (scale: SharedValue<number>) => {
-        scale.value = withSpring(1, { damping: 10, stiffness: 300 });
+        scale.value = withTiming(1, { duration: 120, easing: Easing.out(Easing.quad) });
     };
 
     const completedTime = habit.last_completed_date
@@ -310,7 +310,7 @@ export function HabitCard({ habit, onPress, onTrack, onUntrack, onTimerPress, co
                                         style={{ backgroundColor: theme.accent }}
                                         className="px-3 py-1 rounded-full"
                                     >
-                                        <Text className="text-xs font-pbold text-white">
+                                        <Text className="text-xs font-pbold text-white" numberOfLines={1}>
                                             {microCopyText}
                                         </Text>
                                     </View>

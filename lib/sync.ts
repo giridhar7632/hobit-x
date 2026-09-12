@@ -57,8 +57,9 @@ export async function pullFromCloud(userId: string, isInternal = false): Promise
                 frequency, target_days, interval, start_date, end_date, created_at,
                 updated_at, notify, notify_time, base_points, total_points,
                 current_streak, longest_streak, last_completed_date, last_active_date,
-                notification_ids
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                notification_ids, time_of_day, icon, sort_order, completion_type,
+                target_value, target_unit, reminder_message
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
               [
                 habit.id,
                 habit.user_id,
@@ -83,6 +84,13 @@ export async function pullFromCloud(userId: string, isInternal = false): Promise
                 habit.last_completed_date,
                 habit.last_active_date,
                 typeof habit.notification_ids === 'string' ? habit.notification_ids : JSON.stringify(habit.notification_ids || []),
+                typeof habit.time_of_day === 'object' && habit.time_of_day !== null ? JSON.stringify(habit.time_of_day) : (habit.time_of_day || 'anytime'),
+                habit.icon || null,
+                habit.sort_order ?? 0,
+                habit.completion_type || 'check',
+                habit.target_value ?? null,
+                habit.target_unit || null,
+                habit.reminder_message || null,
               ]
             );
           }
@@ -188,6 +196,16 @@ export async function pushAllToCloud(userId: string, isInternal = false): Promis
           typeof h.notification_ids === 'string'
             ? h.notification_ids
             : JSON.stringify(h.notification_ids || []),
+        time_of_day:
+          typeof h.time_of_day === 'object' && h.time_of_day !== null
+            ? JSON.stringify(h.time_of_day)
+            : (h.time_of_day || 'anytime'),
+        icon: h.icon || null,
+        sort_order: h.sort_order ?? 0,
+        completion_type: h.completion_type || 'check',
+        target_value: h.target_value ?? null,
+        target_unit: h.target_unit || null,
+        reminder_message: h.reminder_message || null,
         updated_at: new Date().toISOString(),
       }));
 

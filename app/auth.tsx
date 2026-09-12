@@ -1,4 +1,5 @@
 import { ThemedText } from '@/components/themed-text';
+import Button from '@/components/ui/button';
 import { GoogleIcon } from '@/constants/icons';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
@@ -7,11 +8,9 @@ import { CustomAlert as Alert } from '@/utils/custom-alert';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
   Dimensions,
   Image,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -99,48 +98,28 @@ export default function AuthScreen() {
 
       {/* Accessible Bottom Actions */}
       <View className="px-8 pb-10 z-10 w-full items-center">
-        <View className="w-full max-w-[360px]">
+        <View className="w-full max-w-[360px] gap-3">
           {/* Google Sign In Button */}
-          <TouchableOpacity
-            activeOpacity={0.85}
+          <Button
+            title="Continue with Google"
+            variant="outline"
+            size="default"
+            loading={isSigningIn}
             disabled={isSigningIn}
             onPress={handleGoogleSignIn}
-            className="w-full py-4 px-6 rounded-2xl flex-row items-center justify-center gap-3"
-            style={{
-              backgroundColor: currentTheme === 'dark' ? '#27272a' : '#ffffff',
-              borderWidth: 1,
-              borderColor: currentTheme === 'dark' ? '#3f3f46' : '#e4e4e7',
-            }}
-          >
-            {isSigningIn ? (
-              <ActivityIndicator size="small" color="#84cc16" />
-            ) : (
-              <>
-                <GoogleIcon size={20} />
-                <Text
-                  className="font-psemibold text-base"
-                  style={{ color: currentTheme === 'dark' ? '#f4f4f5' : '#18181b' }}
-                >
-                  Continue with Google
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
+            leftIcon={<GoogleIcon size={20} />}
+            className="w-full"
+          />
 
           {/* Guest / Skip Option */}
-          <TouchableOpacity
-            activeOpacity={0.7}
+          <Button
+            title="Skip for now · Start tracking"
+            variant="ghost"
+            size="md"
             disabled={isSigningIn}
             onPress={handleGuestContinue}
-            className="w-full py-3.5 items-center justify-center mt-2.5"
-          >
-            <Text
-              className="font-pmedium text-sm"
-              style={{ color: Colors[currentTheme].icon }}
-            >
-              Skip for now · Start tracking
-            </Text>
-          </TouchableOpacity>
+            className="w-full"
+          />
         </View>
       </View>
     </SafeAreaView>

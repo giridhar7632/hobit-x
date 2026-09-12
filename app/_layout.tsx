@@ -14,9 +14,9 @@ import * as Notifications from 'expo-notifications';
 import * as SplashScreen from "expo-splash-screen";
 import { MeridianProvider } from 'meridian-lite';
 
-import { useCallback, useEffect, useState } from 'react';
-import { Platform } from "react-native";
 import { MutationRecord } from 'meridian-lite';
+import { useEffect, useState } from 'react';
+import { Platform } from "react-native";
 
 function onDeadLetter(mutation: MutationRecord, error: unknown) {
   console.error('[Meridian] Mutation dead-lettered:', mutation, error);
@@ -41,11 +41,12 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   const [fontsLoaded, fontError] = useFonts({
-    "Poppins-Bold": require("../assets/fonts/Poppins-Bold.ttf"),
-    "Poppins-Italic": require("../assets/fonts/Poppins-Italic.ttf"),
-    "Poppins-Medium": require("../assets/fonts/Poppins-Medium.ttf"),
-    "Poppins-Regular": require("../assets/fonts/Poppins-Regular.ttf"),
-    "Poppins-SemiBold": require("../assets/fonts/Poppins-SemiBold.ttf"),
+    "Obviously-Bold": require("../assets/fonts/ObviouslyDemo-Bold.otf"),
+    "Obviously-Black": require("../assets/fonts/ObviouslyDemo-Black.otf"),
+    "Obviously-RegularItalic": require("../assets/fonts/ObviouslyDemo-RegularItalic.otf"),
+    "Obviously-Medium": require("../assets/fonts/ObviouslyDemo-Medium.otf"),
+    "Obviously-Regular": require("../assets/fonts/ObviouslyDemo-Regular.otf"),
+    "Obviously-SemiBold": require("../assets/fonts/ObviouslyDemo-Semibold.otf"),
   });
 
   useEffect(() => {
@@ -101,6 +102,7 @@ export default function RootLayout() {
           <CustomAlertProvider>
             <Stack>
               <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
               <Stack.Screen name="auth" options={{ headerShown: false }} />
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen name="+not-found" options={{ headerShown: false }} />

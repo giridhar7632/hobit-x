@@ -28,6 +28,13 @@ export interface Habit {
   last_completed_date: string | null;
   last_active_date: string | null;
   notification_ids: string | null;
+  time_of_day?: 'morning' | 'afternoon' | 'evening' | 'anytime' | string | string[] | null;
+  icon?: string | null;
+  sort_order?: number;
+  completion_type?: 'check' | 'time' | 'quantity';
+  target_value?: number | null;
+  target_unit?: string | null;
+  reminder_message?: string | null;
   today_completed_count?: number;
   today_tracked_minutes?: number;
 }

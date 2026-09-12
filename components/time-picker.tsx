@@ -1,6 +1,7 @@
+import { getContrastTextColor } from '@/constants/habit-colors';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import React, { useEffect, useState } from 'react';
-import { Keyboard, Modal, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Keyboard, Modal, Text, TouchableOpacity, View } from 'react-native';
 
 interface CustomTimePickerProps {
     visible: boolean;
@@ -12,6 +13,7 @@ interface CustomTimePickerProps {
 
 export function CustomTimePicker({ visible, onClose, initialTime, onSave, accentColor }: CustomTimePickerProps) {
     const isDark = useColorScheme() === 'dark';
+    const contrastTextColor = getContrastTextColor(accentColor);
 
     const [activeTab, setActiveTab] = useState<'hour' | 'minute'>('hour');
 
@@ -59,7 +61,7 @@ export function CustomTimePicker({ visible, onClose, initialTime, onSave, accent
             <View className={`flex-1 justify-center items-center px-4 ${bgModal}`}>
                 <View className={`w-full max-w-sm rounded-3xl p-6 ${bgCard}`}>
 
-                    <Text className={`text-lg font-psemibold mb-6 ${textColor}`}>Set Time</Text>
+                    <Text className={`text-lg font-pbold mb-6 ${textColor}`}>Set Time</Text>
 
                     {/* ─── HUGE TIME DISPLAY ─────────────────────────────────── */}
                     <View className="flex-row justify-center items-center mb-8 gap-2">
@@ -110,18 +112,30 @@ export function CustomTimePicker({ visible, onClose, initialTime, onSave, accent
                         {/* AM / PM Toggles */}
                         <View className="ml-2 gap-2">
                             <TouchableOpacity
+                                activeOpacity={0.7}
                                 onPress={() => { setPeriod('AM'); Keyboard.dismiss(); }}
-                                className="px-3 py-2 rounded-lg"
-                                style={{ backgroundColor: period === 'AM' ? `${accentColor}20` : 'transparent' }}
+                                className="px-3.5 py-2 rounded-xl"
+                                style={{ backgroundColor: period === 'AM' ? accentColor : (isDark ? '#262626' : '#f5f5f5') }}
                             >
-                                <Text className="font-pbold text-sm" style={{ color: period === 'AM' ? accentColor : (isDark ? '#737373' : '#a3a3a3') }}>AM</Text>
+                                <Text
+                                    className="font-pbold text-sm"
+                                    style={{ color: period === 'AM' ? contrastTextColor : (isDark ? '#737373' : '#a3a3a3') }}
+                                >
+                                    AM
+                                </Text>
                             </TouchableOpacity>
                             <TouchableOpacity
+                                activeOpacity={0.7}
                                 onPress={() => { setPeriod('PM'); Keyboard.dismiss(); }}
-                                className="px-3 py-2 rounded-lg"
-                                style={{ backgroundColor: period === 'PM' ? `${accentColor}20` : 'transparent' }}
+                                className="px-3.5 py-2 rounded-xl"
+                                style={{ backgroundColor: period === 'PM' ? accentColor : (isDark ? '#262626' : '#f5f5f5') }}
                             >
-                                <Text className="font-pbold text-sm" style={{ color: period === 'PM' ? accentColor : (isDark ? '#737373' : '#a3a3a3') }}>PM</Text>
+                                <Text
+                                    className="font-pbold text-sm"
+                                    style={{ color: period === 'PM' ? contrastTextColor : (isDark ? '#737373' : '#a3a3a3') }}
+                                >
+                                    PM
+                                </Text>
                             </TouchableOpacity>
                         </View>
 
@@ -136,8 +150,8 @@ export function CustomTimePicker({ visible, onClose, initialTime, onSave, accent
                             return (
                                 <TouchableOpacity
                                     key={item}
+                                    activeOpacity={0.7}
                                     onPress={() => {
-                                        // 1. Force the keyboard and text input to lose focus
                                         Keyboard.dismiss();
 
                                         if (activeTab === 'hour') {
@@ -147,12 +161,12 @@ export function CustomTimePicker({ visible, onClose, initialTime, onSave, accent
                                             setMinute(item);
                                         }
                                     }}
-                                    className="w-[22%] aspect-square rounded-full items-center justify-center"
+                                    className="w-[22%] aspect-square rounded-2xl items-center justify-center"
                                     style={{ backgroundColor: isSelected ? accentColor : 'transparent' }}
                                 >
                                     <Text
                                         className={`text-lg m-auto ${isSelected ? 'font-pbold' : 'font-pmedium'}`}
-                                        style={{ color: isSelected ? 'white' : (isDark ? '#d4d4d4' : '#404040') }}
+                                        style={{ color: isSelected ? contrastTextColor : (isDark ? '#d4d4d4' : '#404040') }}
                                     >
                                         {displayValue}
                                     </Text>
@@ -162,13 +176,20 @@ export function CustomTimePicker({ visible, onClose, initialTime, onSave, accent
                     </View>
 
                     {/* ─── ACTIONS ───────────────────────────────────────────── */}
-                    <View className="flex-row justify-end mt-8 gap-4">
-                        <TouchableOpacity onPress={onClose} className="px-4 py-2">
+                    <View className="flex-row justify-end items-center mt-8 gap-3">
+                        <TouchableOpacity activeOpacity={0.7} onPress={onClose} className="px-4 py-2.5 rounded-xl">
                             <Text className={`font-psemibold ${mutedText}`}>Cancel</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity onPress={handleSave} className="px-4 py-2">
-                            <Text className="font-psemibold" style={{ color: accentColor }}>Save Time</Text>
+                        <TouchableOpacity
+                            activeOpacity={0.8}
+                            onPress={handleSave}
+                            style={{ backgroundColor: accentColor }}
+                            className="px-5 py-2.5 rounded-xl shadow-sm"
+                        >
+                            <Text className="font-pbold text-sm" style={{ color: contrastTextColor }}>
+                                Save Time
+                            </Text>
                         </TouchableOpacity>
                     </View>
 

@@ -16,15 +16,22 @@ export default function TabLayout() {
 				}}
 			/>
 			<Tabs.Screen
-				name='create'
+				name='calendar'
 				options={{
-					title: 'Create',
+					title: 'Calendar',
 				}}
 			/>
 			<Tabs.Screen
 				name='profile'
 				options={{
 					title: 'Profile',
+				}}
+			/>
+			<Tabs.Screen
+				name='create'
+				options={{
+					title: 'Create',
+					href: null,
 				}}
 			/>
 		</Tabs>

@@ -1,32 +1,6 @@
+import { ENCOURAGING_MESSAGES, NOTIFICATION_TITLES } from '@/constants/messages';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-
-export const ENCOURAGING_MESSAGES = [
-    "It's almost time for {habit}! A quick 5-minute heads up to get ready. ✨",
-    "Your daily dose of progress: {habit} starts in 5 minutes! 🚀",
-    "Small habits create big results. Ready for {habit}? 💪",
-    "Your future self will thank you for doing {habit} today! 🌟",
-    "5 minutes until {habit}. Take a deep breath and let's do this! 🌿",
-    "Consistency is your superpower! Time to shine with {habit}. ⭐",
-    "Friendly reminder: {habit} is coming up in 5 minutes. You've got this! 🎯",
-    "Keep your streak alive! {habit} starts in just a few minutes. 🔥",
-    "Time to invest in yourself: {habit} is up next in 5 minutes! ⏳",
-    "Every session counts. Get ready for {habit}! 🏆",
-    "A little progress each day adds up to big results. {habit} in 5 minutes! 📈",
-    "Time to conquer the day! Get set for {habit}. ⚡",
-    "Make today count! {habit} is scheduled in 5 minutes. 🌈",
-    "Stay focused and build the momentum with {habit}! 💫",
-    "You're doing amazing! Get ready for your {habit} session. 🎈",
-];
-
-export const NOTIFICATION_TITLES = [
-    "Almost Time!",
-    "Time to Focus!",
-    "Habit Reminder",
-    "Get Ready!",
-    "Stay on Track!",
-    "Keep Going!",
-];
 
 export function getRandomNotification(habitName: string): { title: string; body: string } {
     const randomBodyTemplate = ENCOURAGING_MESSAGES[Math.floor(Math.random() * ENCOURAGING_MESSAGES.length)];
@@ -35,6 +9,75 @@ export function getRandomNotification(habitName: string): { title: string; body:
         title: randomTitle,
         body: randomBodyTemplate.replace(/\{habit\}/g, habitName),
     };
+}
+
+export type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'anytime';
+
+export function parseTimesOfDay(tod: any): TimeOfDay[] {
+    if (!tod) return ['anytime'];
+    if (Array.isArray(tod)) {
+        const valid = tod.filter((t): t is TimeOfDay =>
+            ['morning', 'afternoon', 'evening', 'anytime'].includes(t)
+        );
+        return valid.length > 0 ? valid : ['anytime'];
+    }
+    if (typeof tod === 'string') {
+        try {
+            const parsed = JSON.parse(tod);
+            if (Array.isArray(parsed)) {
+                const valid = parsed.filter((t): t is TimeOfDay =>
+                    ['morning', 'afternoon', 'evening', 'anytime'].includes(t)
+                );
+                if (valid.length > 0) return valid;
+            }
+        } catch {
+            if (tod.includes(',')) {
+                const parts = tod.split(',').map(s => s.trim().toLowerCase()) as TimeOfDay[];
+                const valid = parts.filter(t => ['morning', 'afternoon', 'evening', 'anytime'].includes(t));
+                if (valid.length > 0) return valid;
+            }
+        }
+        const clean = tod.trim().toLowerCase() as TimeOfDay;
+        if (['morning', 'afternoon', 'evening', 'anytime'].includes(clean)) {
+            return [clean];
+        }
+    }
+    return ['anytime'];
+}
+
+export function formatTimesOfDay(tod: any): string {
+    const times = parseTimesOfDay(tod);
+    if (times.includes('anytime') && times.length === 1) return 'Anytime';
+    const labels: Record<TimeOfDay, string> = {
+        morning: 'Morning',
+        afternoon: 'Afternoon',
+        evening: 'Evening',
+        anytime: 'Anytime',
+    };
+    return times.map(t => labels[t] || t).join(', ');
+}
+
+export function getDefaultReminderTimesForSessions(tod: any): Date[] {
+    const times: TimeOfDay[] = parseTimesOfDay(tod);
+    const timeMap: Record<TimeOfDay, { hour: number; minute: number }> = {
+        morning: { hour: 8, minute: 0 },
+        afternoon: { hour: 17, minute: 0 },
+        evening: { hour: 19, minute: 0 },
+        anytime: { hour: 9, minute: 0 },
+    };
+
+    const withoutAnytime = times.filter((t): t is TimeOfDay => t !== 'anytime');
+    const activeList: TimeOfDay[] = withoutAnytime.length > 0 ? withoutAnytime : ['anytime'];
+
+    const dates: Date[] = activeList.map((session) => {
+        const config = timeMap[session] || timeMap.anytime;
+        const d = new Date();
+        d.setHours(config.hour, config.minute, 0, 0);
+        return d;
+    });
+
+    dates.sort((a, b) => a.getHours() * 60 + a.getMinutes() - (b.getHours() * 60 + b.getMinutes()));
+    return dates;
 }
 
 export function parseNotifyTimes(notifyTime: string | null | undefined): string[] {
@@ -51,9 +94,12 @@ export function parseNotifyTimes(notifyTime: string | null | undefined): string[
 }
 
 export function getHabitTotalReminders(habit: any): number {
-    if (!habit || !habit.notify || !habit.notify_time) return 1;
-    const times = parseNotifyTimes(habit.notify_time);
-    return times.length > 0 ? times.length : 1;
+    if (!habit) return 1;
+    const timesOfDay = parseTimesOfDay(habit.time_of_day);
+    const specificTimesCount = timesOfDay.filter(t => t !== 'anytime').length;
+    const notifyTimes = habit.notify ? parseNotifyTimes(habit.notify_time) : [];
+    const count = Math.max(specificTimesCount, notifyTimes.length, 1);
+    return Math.min(5, count);
 }
 
 export async function requestNotificationPermissions() {
@@ -116,9 +162,9 @@ export async function refreshHabitNotifications(
     const progress = trackedMinutesToday / (habit.planned_time_minutes || 1);
     const todayISO = new Date().toISOString().split('T')[0];
 
-    const isDoneToday = isCompletedToday || 
-                        progress >= 1 || 
-                        habit.last_completed_date?.startsWith(todayISO);
+    const isDoneToday = isCompletedToday ||
+        progress >= 1 ||
+        habit.last_completed_date?.startsWith(todayISO);
 
     const WINDOW_DAYS = 7;
     const ADVANCE_MINUTES = 5;
@@ -146,6 +192,9 @@ export async function refreshHabitNotifications(
             if (!isTargetDay) continue;
 
             let { title, body } = getRandomNotification(habit.name);
+            if (habit.reminder_message && habit.reminder_message.trim()) {
+                body = habit.reminder_message.trim();
+            }
 
             if (i === 0) {
                 if (isDoneToday) {

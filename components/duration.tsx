@@ -2,6 +2,7 @@ import * as Haptics from 'expo-haptics';
 import React, { useEffect, useState } from 'react';
 import { Text, TextInput, TouchableOpacity, View } from 'react-native';
 
+import { FONTS } from '@/constants/fonts';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 interface DurationSelectorProps {
@@ -106,7 +107,7 @@ export function DurationSelector({ value, onChange, accentColor }: DurationSelec
                     onChangeText={handleCustomChange}
                     style={{
                         color: isDark ? '#ffffff' : '#171717',
-                        fontFamily: 'Poppins-Medium',
+                        fontFamily: FONTS.medium,
                         fontSize: 16,
                         flex: 1,
                         padding: 0,

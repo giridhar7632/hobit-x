@@ -128,7 +128,7 @@ export default function Heatmap({ completedDates = [] }: HeatmapProps) {
 
             {/* Legend */}
             <View className="flex-row justify-end items-center px-4 mt-3 gap-2">
-                <Text className="text-xs opacity-50 dark:text-neutral-400">Missed</Text>
+                <Text className="text-xs font-pmedium opacity-50 dark:text-neutral-400">Missed</Text>
                 <View style={{ width: SQUARE_SIZE * 0.75, height: SQUARE_SIZE * 0.75 }} className="rounded-sm bg-neutral-200 dark:bg-neutral-800 opacity-40" />
 
                 <View
@@ -142,10 +142,10 @@ export default function Heatmap({ completedDates = [] }: HeatmapProps) {
                     }}
                     className="rounded-sm"
                 />
-                <Text className="text-xs opacity-50 dark:text-neutral-400">Skipped</Text>
+                <Text className="text-xs font-pmedium opacity-50 dark:text-neutral-400">Skipped</Text>
 
                 <View style={{ width: SQUARE_SIZE * 0.75, height: SQUARE_SIZE * 0.75, backgroundColor: activeColor.accent }} className="rounded-sm" />
-                <Text className="text-xs opacity-50 dark:text-neutral-400">Done</Text>
+                <Text className="text-xs font-pmedium opacity-50 dark:text-neutral-400">Done</Text>
             </View>
         </View>
     );

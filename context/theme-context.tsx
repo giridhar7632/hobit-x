@@ -9,7 +9,7 @@ interface ThemeContextValue {
     resetColor: () => void;
 }
 
-const DEFAULT_COLOR = HABIT_COLORS.lime;
+const DEFAULT_COLOR = HABIT_COLORS.purple;
 
 const ThemeContext = createContext<ThemeContextValue>({
     activeColor: DEFAULT_COLOR,

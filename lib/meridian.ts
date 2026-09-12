@@ -54,6 +54,16 @@ export async function handleSync(mutation: MutationRecord): Promise<void> {
           typeof habit.notification_ids === 'string'
             ? habit.notification_ids
             : JSON.stringify(habit.notification_ids || []),
+        time_of_day:
+          typeof habit.time_of_day === 'object' && habit.time_of_day !== null
+            ? JSON.stringify(habit.time_of_day)
+            : (habit.time_of_day || 'anytime'),
+        icon: habit.icon || null,
+        sort_order: habit.sort_order ?? 0,
+        completion_type: habit.completion_type || 'check',
+        target_value: habit.target_value ?? null,
+        target_unit: habit.target_unit || null,
+        reminder_message: habit.reminder_message || null,
         updated_at: new Date().toISOString(),
       });
 
@@ -83,6 +93,16 @@ export async function handleSync(mutation: MutationRecord): Promise<void> {
             typeof habit.notification_ids === 'string'
               ? habit.notification_ids
               : JSON.stringify(habit.notification_ids || []),
+          time_of_day:
+            typeof habit.time_of_day === 'object' && habit.time_of_day !== null
+              ? JSON.stringify(habit.time_of_day)
+              : (habit.time_of_day || 'anytime'),
+          icon: habit.icon || null,
+          sort_order: habit.sort_order ?? 0,
+          completion_type: habit.completion_type || 'check',
+          target_value: habit.target_value ?? null,
+          target_unit: habit.target_unit || null,
+          reminder_message: habit.reminder_message || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', habit.id)

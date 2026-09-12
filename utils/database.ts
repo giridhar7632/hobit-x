@@ -86,6 +86,17 @@ export async function getDb(): Promise<SQLite.SQLiteDatabase> {
   return dbInstance;
 }
 
+// Additive column migrations — safe to re-run (silently skips if column exists)
+const columnMigrations = [
+  `ALTER TABLE habits ADD COLUMN time_of_day TEXT DEFAULT 'anytime'`,
+  `ALTER TABLE habits ADD COLUMN icon TEXT`,
+  `ALTER TABLE habits ADD COLUMN sort_order INTEGER DEFAULT 0`,
+  `ALTER TABLE habits ADD COLUMN completion_type TEXT DEFAULT 'check'`,
+  `ALTER TABLE habits ADD COLUMN target_value NUMERIC`,
+  `ALTER TABLE habits ADD COLUMN target_unit TEXT`,
+  `ALTER TABLE habits ADD COLUMN reminder_message TEXT`,
+];
+
 export async function initDatabase() {
   if (Platform.OS === 'web') return;
 
@@ -95,6 +106,15 @@ export async function initDatabase() {
   // Run initial setup / ensure tables & views exist
   for (const migration of databaseMigrations) {
     await db.execAsync(migration);
+  }
+
+  // Run additive column migrations (idempotent)
+  for (const alter of columnMigrations) {
+    try {
+      await db.execAsync(alter);
+    } catch (_e) {
+      // Column already exists — safe to ignore
+    }
   }
 
   // Recalculate streaks on app startup

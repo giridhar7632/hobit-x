@@ -1,23 +1,23 @@
 import { ThemedText } from '@/components/themed-text';
-import { CloudSyncIcon, GoogleIcon, UserIcon } from '@/constants/icons';
+import Button from '@/components/ui/button';
+import { GoogleIcon, UserIcon } from '@/constants/icons';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
 import { useAppTheme } from '@/context/theme-context';
 import { useColorScheme, useThemeMode } from '@/hooks/use-color-scheme';
 import { APP_NAME } from '@/lib/meridian';
-import { pullFromCloud, pushAllToCloud } from '@/lib/sync';
+import { pullFromCloud } from '@/lib/sync';
 import { getHabits } from '@/utils/actions';
 import { CustomAlert as Alert } from '@/utils/custom-alert';
 import { router, useFocusEffect } from 'expo-router';
 import { getStorage, useMeridianContext, useQuery, useQueryClient } from 'meridian-lite';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Image,
   ScrollView,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -140,11 +140,11 @@ export default function ProfileScreen() {
             {userAvatar ? (
               <Image
                 source={{ uri: userAvatar }}
-                className="w-16 h-16 rounded-full border-2 border-lime-500"
+                className="w-16 h-16 rounded-full border-2 border-purple-500"
               />
             ) : (
               <View
-                className="w-16 h-16 rounded-full items-center justify-center border border-lime-500/30"
+                className="w-16 h-16 rounded-full items-center justify-center border border-purple-500/30"
                 style={{ backgroundColor: `${activeColor.accent}20` }}
               >
                 <UserIcon size={30} color={activeColor.accent} />
@@ -163,12 +163,12 @@ export default function ProfileScreen() {
                 <View
                   className="px-2.5 py-0.5 rounded-full"
                   style={{
-                    backgroundColor: user ? '#84cc1620' : '#73737320',
+                    backgroundColor: user ? '#4655E020' : '#73737320',
                   }}
                 >
                   <Text
                     className="text-xs font-psemibold"
-                    style={{ color: user ? '#84cc16' : '#a3a3a3' }}
+                    style={{ color: user ? '#4655E0' : '#a3a3a3' }}
                   >
                     {user ? 'Cloud Synced' : 'Offline Mode'}
                   </Text>
@@ -248,11 +248,11 @@ export default function ProfileScreen() {
                 <View className="flex-row items-center gap-2">
                   <View
                     className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: isOnline ? '#84cc16' : '#ef4444' }}
+                    style={{ backgroundColor: isOnline ? '#4655E0' : '#ef4444' }}
                   />
                   <Text
                     className="text-sm font-pmedium"
-                    style={{ color: isOnline ? '#84cc16' : '#ef4444' }}
+                    style={{ color: isOnline ? '#4655E0' : '#ef4444' }}
                   >
                     {isOnline ? 'Online' : 'Offline'}
                   </Text>
@@ -269,27 +269,24 @@ export default function ProfileScreen() {
               </View>
 
               {syncMessage && (
-                <View className="p-3 rounded-xl bg-lime-500/10 border border-lime-500/20 mt-4">
-                  <Text className="text-lime-600 dark:text-lime-400 text-xs font-pmedium text-center">
+                <View className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 mt-4">
+                  <Text className="text-purple-600 dark:text-purple-400 text-xs font-pmedium text-center">
                     {syncMessage}
                   </Text>
                 </View>
               )}
 
               {/* Sync Now Action */}
-              <TouchableOpacity
-                activeOpacity={0.8}
+              <Button
+                title="Sync Now"
+                variant="accent"
+                accentColor={activeColor.accent}
+                size="md"
+                loading={isManualSyncing || isSyncing}
                 disabled={isManualSyncing || isSyncing}
                 onPress={handleSyncNow}
-                className="w-full py-3.5 px-4 rounded-2xl items-center justify-center flex-row gap-2 mt-6"
-                style={{ backgroundColor: activeColor.accent }}
-              >
-                {isManualSyncing || isSyncing ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
-                ) : (
-                  <Text className="text-white font-pbold text-sm">Sync Now</Text>
-                )}
-              </TouchableOpacity>
+                className="w-full mt-6"
+              />
             </View>
           ) : (
             /* Guest View - Explanatory & Accessible Sign In */
@@ -306,43 +303,29 @@ export default function ProfileScreen() {
               </Text>
 
               {/* Accessible Google Sign In Button */}
-              <TouchableOpacity
-                activeOpacity={0.85}
+              <Button
+                title="Sign In with Google"
+                variant="outline"
+                size="default"
+                loading={isSigningIn}
                 disabled={isSigningIn}
                 onPress={handleEnableSync}
-                className="w-full py-4 px-6 rounded-2xl flex-row items-center justify-center gap-3 border shadow-sm"
-                style={{
-                  backgroundColor: currentTheme === 'dark' ? '#27272a' : '#ffffff',
-                  borderColor: currentTheme === 'dark' ? '#3f3f46' : '#e4e4e7',
-                }}
-              >
-                {isSigningIn ? (
-                  <ActivityIndicator size="small" color={activeColor.accent} />
-                ) : (
-                  <>
-                    <GoogleIcon size={20} />
-                    <Text
-                      className="font-psemibold text-base"
-                      style={{ color: Colors[currentTheme].text }}
-                    >
-                      Sign In with Google
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
+                leftIcon={<GoogleIcon size={20} />}
+                className="w-full"
+              />
             </View>
           )}
         </View>
 
         {/* Accessible Sign Out Button */}
         {user && (
-          <TouchableOpacity
-            activeOpacity={0.8}
+          <Button
+            title="Sign Out"
+            variant="danger"
+            size="md"
             onPress={handleSignOut}
-            className="w-full py-4 items-center justify-center rounded-2xl border border-red-500/30 bg-red-500/10 mt-8"
-          >
-            <Text className="text-red-500 font-pbold text-base">Sign Out</Text>
-          </TouchableOpacity>
+            className="w-full mt-8"
+          />
         )}
       </ScrollView>
     </SafeAreaView>
