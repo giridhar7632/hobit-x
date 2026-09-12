@@ -43,7 +43,6 @@ export function OnboardingReady({
   const colorDef = HABIT_COLORS[draft.color] || HABIT_COLORS.purple;
   const habitAccent = colorDef.accent;
 
-  // Premium, well-damped animation values
   const iconScale = useSharedValue(0.85);
   const iconOpacity = useSharedValue(0);
 
@@ -95,7 +94,7 @@ export function OnboardingReady({
       320,
       withSpring(0, { damping: 25, stiffness: 200 })
     );
-  }, []);
+  }, [cardOpacity, cardTranslateY, footerOpacity, footerTranslateY, headerOpacity, headerTranslateY, iconOpacity, iconScale]);
 
   const iconAnimatedStyle = useAnimatedStyle(() => ({
     opacity: iconOpacity.value,
@@ -117,7 +116,6 @@ export function OnboardingReady({
     transform: [{ translateY: footerTranslateY.value }],
   }));
 
-  // Build target / frequency subtitle
   const frequencyLabel =
     draft.frequency === 'daily'
       ? 'Every day'
@@ -137,7 +135,6 @@ export function OnboardingReady({
   return (
     <SafeAreaView style={{ backgroundColor: bgColor }} className="flex-1 justify-between px-7">
       <View className="flex-1 justify-center items-center py-5">
-        {/* Animated Checkmark Emblem */}
         <Animated.View
           style={[
             {
@@ -153,10 +150,9 @@ export function OnboardingReady({
           <TickIcon size={38} color={habitAccent} />
         </Animated.View>
 
-        {/* Headline & Description */}
         <Animated.View style={[{ alignItems: 'center' }, headerAnimatedStyle]}>
           <Text className="text-3xl font-pbold text-center tracking-tight text-gray-900 dark:text-gray-100 mb-2.5">
-            You're ready to begin.
+            You&apos;re ready to begin.
           </Text>
 
           <Text className="text-sm font-pregular leading-5 text-center text-gray-500 dark:text-gray-400 max-w-[300px] mb-8">
@@ -164,7 +160,6 @@ export function OnboardingReady({
           </Text>
         </Animated.View>
 
-        {/* Habit Card Preview */}
         <Animated.View
           style={[cardAnimatedStyle, { width: '100%', maxWidth: 340 }]}
           className="flex-row items-center p-4 rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#1F2023] shadow-md shadow-black/5"
@@ -196,12 +191,10 @@ export function OnboardingReady({
         </Animated.View>
       </View>
 
-      {/* Action Buttons */}
       <Animated.View
         style={footerAnimatedStyle}
         className="pb-8 w-full max-w-[360px] mx-auto gap-3"
       >
-        {/* Google Sign In & Save */}
         <Button
           title="Continue with Google"
           variant="outline"
@@ -213,7 +206,6 @@ export function OnboardingReady({
           className="w-full"
         />
 
-        {/* Guest Continue */}
         <Button
           title="Skip for now · Start tracking"
           variant="ghost"

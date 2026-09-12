@@ -87,7 +87,6 @@ export const CustomAlertProvider = ({ children, overrideTheme }: { children: Rea
                 {buttons.map((btn, index) => {
                   const isDestructive = btn.style === 'destructive';
                   const isCancel = btn.style === 'cancel';
-                  const isDefault = !isDestructive && !isCancel;
 
                   let bgColor = isDestructive
                     ? 'rgba(239, 68, 68, 0.15)'

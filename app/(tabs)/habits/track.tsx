@@ -1,12 +1,11 @@
 import { CustomAlert as Alert } from "@/utils/custom-alert";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMeridianMutation, useQuery, useQueryClient } from "meridian-lite";
-import { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
   Text,
-  TextInput,
   TouchableOpacity,
   useColorScheme,
   View,
@@ -23,52 +22,30 @@ import { getHabitById, trackHabit } from "@/utils/actions";
 import { refreshHabitNotifications } from "@/utils/notifications";
 import { Habit } from "@/utils/types";
 
-export default function TrackScreen() {
-  const { id } = useLocalSearchParams();
-  const habitId = id?.toString() ?? "";
+function TrackForm({ habit }: { habit: Habit }) {
   const colorScheme = useColorScheme();
   const currentTheme = colorScheme === "dark" ? "dark" : "light";
-  const { activeColor } = useAppTheme();
 
-  const [actualTime, setActualTime] = useState<number>(0);
+  const [actualTime, setActualTime] = useState<number>(() => habit.planned_time_minutes || 0);
   const [status, setStatus] = useState<'Completed' | 'Skipped'>('Completed');
   const [note, setNote] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
-  const habitKey = useMemo(() => ["habit", habitId], [habitId]);
-
-  const { data: habit, isLoading } = useQuery<Habit | null>({
-    queryKey: habitKey,
-    queryFn: async () => {
-      const habit = await getHabitById(habitId);
-      if (!habit) throw new Error("Habit not found");
-      return habit;
-    },
-  });
-
-  useEffect(() => {
-    if (habit && actualTime === 0) {
-      setActualTime(habit.planned_time_minutes || 0);
-    }
-  }, [habit]);
-
   const queryClient = useQueryClient();
 
   const { mutate: mutateOutbox } = useMeridianMutation({
-    invalidateKeys: [["habits"], ["habit_entries", habitId], ["habit-dates", habitId]],
+    invalidateKeys: [["habits"], ["habit_entries", habit.id], ["habit-dates", habit.id]],
   });
 
   const handleSave = async () => {
-    if (!habitId) return;
     setIsSaving(true);
     try {
       const totalMinutesToday = actualTime;
       const isDone = status === 'Completed' || status === 'Skipped';
-      const newNotificationIds = await refreshHabitNotifications(habit as Habit, totalMinutesToday, isDone);
+      const newNotificationIds = await refreshHabitNotifications(habit, totalMinutesToday, isDone);
 
-      // 1. Optimistic write to local SQLite database
       const trackedResult = await trackHabit({
-        habit_id: habitId,
+        habit_id: habit.id,
         actual_time_minutes: actualTime,
         status: status,
         entry_date: new Date().toISOString(),
@@ -76,12 +53,10 @@ export default function TrackScreen() {
         note: note.trim(),
       });
 
-      // 2. Invalidate local queries immediately
       queryClient.invalidateQueries({ queryKey: ["habits"] });
-      queryClient.invalidateQueries({ queryKey: ["habit_entries", habitId] });
-      queryClient.invalidateQueries({ queryKey: ["habit-dates", habitId] });
+      queryClient.invalidateQueries({ queryKey: ["habit_entries", habit.id] });
+      queryClient.invalidateQueries({ queryKey: ["habit-dates", habit.id] });
 
-      // 3. Enqueue to Meridian Lite outbox for sync
       await mutateOutbox("track_habit", trackedResult);
 
       router.back();
@@ -92,14 +67,6 @@ export default function TrackScreen() {
     }
   };
 
-  if (isLoading || !habit) {
-    return (
-      <SafeAreaView style={{ backgroundColor: Colors[currentTheme].background, flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color={activeColor.accent} />
-      </SafeAreaView>
-    );
-  }
-
   const theme = HABIT_COLORS[habit.color || "purple"] || HABIT_COLORS.purple;
 
   return (
@@ -108,13 +75,10 @@ export default function TrackScreen() {
       className="flex-1"
     >
       <ScrollView contentContainerStyle={{ paddingBottom: 60, paddingHorizontal: 20 }}>
-
-        {/* Drag indicator */}
         <View className="items-center pt-3 pb-2">
           <View className="w-10 h-1 rounded-full bg-neutral-300 dark:bg-neutral-600" />
         </View>
 
-        {/* Themed Header */}
         <View className={`p-6 mt-4 rounded-3xl mb-8 ${theme.bg}`}>
           <Text className={`text-sm font-pbold uppercase tracking-widest opacity-60 mb-2 ${theme.text}`}>
             Detailed Log
@@ -124,7 +88,6 @@ export default function TrackScreen() {
           </Text>
         </View>
 
-        {/* 1. Status Selection */}
         <ThemedText className="text-base font-pmedium opacity-70 mb-3">
           How did it go today?
         </ThemedText>
@@ -147,7 +110,6 @@ export default function TrackScreen() {
           />
         </View>
 
-        {/* 2. Actual Time Stepper (Only show if completed) */}
         {status === 'Completed' && (
           <View className="mb-8">
             <View className="flex-row justify-between items-center mb-3">
@@ -183,7 +145,6 @@ export default function TrackScreen() {
           </View>
         )}
 
-        {/* 3. Notes / Journaling */}
         <View className="mb-8">
           <FormInput
             label="Add a note (Optional)"
@@ -205,8 +166,36 @@ export default function TrackScreen() {
           loading={isSaving}
           className="w-full"
         />
-
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+export default function TrackScreen() {
+  const { id } = useLocalSearchParams();
+  const habitId = id?.toString() ?? "";
+  const colorScheme = useColorScheme();
+  const currentTheme = colorScheme === "dark" ? "dark" : "light";
+  const { activeColor } = useAppTheme();
+
+  const habitKey = useMemo(() => ["habit", habitId], [habitId]);
+
+  const { data: habit, isLoading } = useQuery<Habit | null>({
+    queryKey: habitKey,
+    queryFn: async () => {
+      const h = await getHabitById(habitId);
+      if (!h) throw new Error("Habit not found");
+      return h;
+    },
+  });
+
+  if (isLoading || !habit) {
+    return (
+      <SafeAreaView style={{ backgroundColor: Colors[currentTheme].background, flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={activeColor.accent} />
+      </SafeAreaView>
+    );
+  }
+
+  return <TrackForm habit={habit} />;
 }

@@ -89,7 +89,6 @@ export default function OnboardingScreen() {
     invalidateKeys: [['habits']],
   });
 
-  // Restore persisted state on mount
   useEffect(() => {
     async function restoreState() {
       try {
@@ -111,9 +110,8 @@ export default function OnboardingScreen() {
       }
     }
     restoreState();
-  }, []);
+  }, [setActiveColor]);
 
-  // Persist step and draft on changes
   const updateStep = (newStep: OnboardingStep) => {
     setStep(newStep);
     saveOnboardingStep(newStep).catch(() => { });
@@ -130,7 +128,6 @@ export default function OnboardingScreen() {
   const selectedColorDef = HABIT_COLORS[draft.color] || HABIT_COLORS.purple;
   const accentColor = selectedColorDef.accent;
 
-  // Direct sign in on Welcome screen
   const handleWelcomeSignIn = async () => {
     setIsSigningIn(true);
     try {
@@ -176,14 +173,12 @@ export default function OnboardingScreen() {
     updateStep('step1');
   };
 
-  // Custom habit chosen
   const handleSelectCustom = () => {
     updateDraft(() => DEFAULT_ONBOARDING_DRAFT);
     setActiveColor('purple');
     updateStep('step1');
   };
 
-  // Final habit creation handler
   const finalizeHabitAndExit = async (assignedUserId?: string | null) => {
     setIsSavingHabit(true);
     try {
@@ -238,7 +233,6 @@ export default function OnboardingScreen() {
       queryClient.invalidateQueries({ queryKey: ['habits'] });
       await mutateCreateHabit('create_habit', newHabit);
 
-      // Mark onboarding completed and route to Home screen!
       await completeOnboarding();
       resetColor();
       router.replace('/(tabs)/habits');
@@ -250,7 +244,6 @@ export default function OnboardingScreen() {
     }
   };
 
-  // Google sign in on ready screen
   const handleGoogleSignIn = async () => {
     setIsSigningIn(true);
     try {
@@ -268,7 +261,6 @@ export default function OnboardingScreen() {
     }
   };
 
-  // Guest continue on ready screen
   const handleContinueAsGuest = async () => {
     await signInAsGuest();
     await finalizeHabitAndExit(null);
@@ -306,7 +298,6 @@ export default function OnboardingScreen() {
     );
   }
 
-  // FIRST HABIT READY (Save with Google or Continue as Guest directly)
   if (step === 'ready') {
     return (
       <OnboardingReady
@@ -319,7 +310,6 @@ export default function OnboardingScreen() {
     );
   }
 
-  // SCREEN 3: 4 or 5-STEP WIZARD (step1, step2, step3, step4, step5)
   const numericStep =
     step === 'step1'
       ? 1
@@ -391,11 +381,15 @@ export default function OnboardingScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="always"
         >
-          {/* STEP 1: IDENTITY */}
           {numericStep === 1 && (
             <StepIdentity
               icon={draft.icon}
-              onChangeIcon={(icon) => updateDraft((d) => ({ ...d, icon }))}
+              onChangeIcon={(icon, color) => {
+                updateDraft((d) => ({ ...d, icon, ...(color ? { color } : {}) }));
+                if (color) {
+                  setActiveColor(color);
+                }
+              }}
               name={draft.name}
               onChangeName={(name) => updateDraft((d) => ({ ...d, name }))}
               description={draft.description}
@@ -410,7 +404,6 @@ export default function OnboardingScreen() {
             />
           )}
 
-          {/* STEP 2: SCHEDULE */}
           {numericStep === 2 && (
             <StepSchedule
               timesOfDay={draft.times_of_day}
@@ -438,7 +431,6 @@ export default function OnboardingScreen() {
             />
           )}
 
-          {/* STEP 3: GOAL */}
           {numericStep === 3 && (
             <StepGoal
               completionType={draft.completion_type}
@@ -461,7 +453,6 @@ export default function OnboardingScreen() {
             />
           )}
 
-          {/* STEP 4: REMINDER (Shows inline summary when notify is false) */}
           {numericStep === 4 && (
             <StepReminder
               notify={draft.notify}
@@ -494,7 +485,6 @@ export default function OnboardingScreen() {
             />
           )}
 
-          {/* STEP 5: DEDICATED REVIEW SCREEN (Only when reminders are enabled) */}
           {numericStep === 5 && (
             <StepSummary
               icon={draft.icon}
@@ -518,7 +508,6 @@ export default function OnboardingScreen() {
           )}
         </ScrollView>
 
-        {/* Bottom Navigation Bar */}
         <View className="flex-row items-center justify-between px-5 pt-4 pb-12 border-t border-black/[0.05] dark:border-white/[0.06] bg-white dark:bg-[#191A1D]">
           <Button
             variant="ghost"

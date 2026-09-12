@@ -56,24 +56,6 @@ interface HabitDraft {
   reminder_message: string;
 }
 
-const DEFAULT_DRAFT: HabitDraft = {
-  icon: 'SproutIcon',
-  name: '',
-  description: '',
-  color: 'purple',
-  times_of_day: ['anytime'],
-  frequency: 'daily',
-  target_days: [1, 2, 3, 4, 5],
-  interval: 1,
-  completion_type: 'check',
-  planned_time_minutes: 0,
-  target_value: 0,
-  target_unit: '',
-  notify: false,
-  notify_times: getDefaultReminderTimesForSessions(['anytime']),
-  reminder_message: '',
-};
-
 const STEP_TITLES: Record<number, { title: string; subtitle: string }> = {
   1: {
     title: 'Edit your habit',
@@ -97,13 +79,62 @@ const STEP_TITLES: Record<number, { title: string; subtitle: string }> = {
   },
 };
 
-export default function EditScreen() {
-  const { id } = useLocalSearchParams();
-  const habitId = id?.toString() ?? '';
+function createInitialDraft(habit: Habit): HabitDraft {
+  let parsedTargetDays: number[] = [1, 2, 3, 4, 5];
+  if (habit.target_days) {
+    try {
+      const days =
+        typeof habit.target_days === 'string'
+          ? JSON.parse(habit.target_days)
+          : habit.target_days;
+      if (Array.isArray(days)) {
+        parsedTargetDays = days;
+      }
+    } catch {
+    }
+  }
 
+  let parsedNotifyTimes: Date[] = [];
+  if (habit.notify_time) {
+    const parsed = parseNotifyTimes(habit.notify_time);
+    parsedNotifyTimes = parsed
+      .map((t) => new Date(t))
+      .filter((d) => !isNaN(d.getTime()));
+  }
+  if (parsedNotifyTimes.length === 0) {
+    const d = new Date();
+    d.setHours(9, 0, 0, 0);
+    parsedNotifyTimes = [d];
+  }
+
+  const validFrequency: 'daily' | 'weekly' | 'interval' =
+    habit.frequency === 'weekly' || habit.frequency === 'interval'
+      ? habit.frequency
+      : 'daily';
+
+  return {
+    icon: habit.icon || 'SparklesIcon',
+    name: habit.name || '',
+    description: habit.description || '',
+    color: habit.color || 'purple',
+    times_of_day: parseTimesOfDay(habit.time_of_day),
+    frequency: validFrequency,
+    target_days: parsedTargetDays,
+    interval: habit.interval || 1,
+    completion_type:
+      (habit.completion_type as any) || (habit.planned_time_minutes ? 'time' : 'check'),
+    planned_time_minutes: habit.planned_time_minutes || 0,
+    target_value: (habit.target_value as number) || 0,
+    target_unit: habit.target_unit || '',
+    notify: habit.notify === 1,
+    notify_times: parsedNotifyTimes,
+    reminder_message: habit.reminder_message || '',
+  };
+}
+
+function EditHabitForm({ habit }: { habit: Habit }) {
   const [stage, setStage] = useState<WizardStage>(5);
-  const [draft, setDraft] = useState<HabitDraft>(DEFAULT_DRAFT);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [draft, setDraft] = useState<HabitDraft>(() => createInitialDraft(habit));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const colorScheme = useColorScheme();
@@ -111,85 +142,14 @@ export default function EditScreen() {
   const isDark = currentTheme === 'dark';
   const { setActiveColor, resetColor } = useAppTheme();
 
-  // Reset theme color on unmount
   useEffect(() => {
+    if (habit.color) {
+      setActiveColor(habit.color);
+    }
     return () => {
       resetColor();
     };
-  }, [resetColor]);
-
-  const habitKey = useMemo(() => ['habit', habitId], [habitId]);
-
-  const { data: habit, isLoading } = useQuery<Habit | null>({
-    queryKey: habitKey,
-    queryFn: async () => {
-      const h = await getHabitById(habitId);
-      if (!h) throw new Error('Habit not found');
-      return h;
-    },
-  });
-
-  // Pre-fill draft from habit data
-  useEffect(() => {
-    if (habit && !isInitialized) {
-      let parsedTargetDays: number[] = [1, 2, 3, 4, 5];
-      if (habit.target_days) {
-        try {
-          const days =
-            typeof habit.target_days === 'string'
-              ? JSON.parse(habit.target_days)
-              : habit.target_days;
-          if (Array.isArray(days)) {
-            parsedTargetDays = days;
-          }
-        } catch {
-          // Keep defaults
-        }
-      }
-
-      let parsedNotifyTimes: Date[] = [];
-      if (habit.notify_time) {
-        const parsed = parseNotifyTimes(habit.notify_time);
-        parsedNotifyTimes = parsed
-          .map((t) => new Date(t))
-          .filter((d) => !isNaN(d.getTime()));
-      }
-      if (parsedNotifyTimes.length === 0) {
-        const d = new Date();
-        d.setHours(9, 0, 0, 0);
-        parsedNotifyTimes = [d];
-      }
-
-      const validFrequency: 'daily' | 'weekly' | 'interval' =
-        habit.frequency === 'weekly' || habit.frequency === 'interval'
-          ? habit.frequency
-          : 'daily';
-
-      setDraft({
-        icon: habit.icon || 'SproutIcon',
-        name: habit.name || '',
-        description: habit.description || '',
-        color: habit.color || 'purple',
-        times_of_day: parseTimesOfDay(habit.time_of_day),
-        frequency: validFrequency,
-        target_days: parsedTargetDays,
-        interval: habit.interval || 1,
-        completion_type:
-          (habit.completion_type as any) || (habit.planned_time_minutes ? 'time' : 'check'),
-        planned_time_minutes: habit.planned_time_minutes || 0,
-        target_value: (habit.target_value as number) || 0,
-        target_unit: habit.target_unit || '',
-        notify: habit.notify === 1,
-        notify_times: parsedNotifyTimes,
-        reminder_message: habit.reminder_message || '',
-      });
-
-      if (habit.color) {
-        setActiveColor(habit.color);
-      }
-      setIsInitialized(true);
-    }
-  }, [habit, isInitialized, setActiveColor]);
+  }, [habit.color, setActiveColor, resetColor]);
 
   const selectedColorDef = HABIT_COLORS[draft.color] || HABIT_COLORS.purple;
   const accentColor = selectedColorDef.accent;
@@ -198,9 +158,9 @@ export default function EditScreen() {
   const { mutate: mutateOutbox } = useMeridianMutation({
     invalidateKeys: [
       ['habits'],
-      ['habit', habitId],
-      ['habit_entries', habitId],
-      ['habit-dates', habitId],
+      ['habit', habit.id],
+      ['habit_entries', habit.id],
+      ['habit-dates', habit.id],
     ],
   });
 
@@ -270,7 +230,7 @@ export default function EditScreen() {
       );
 
       const updatedHabitData = {
-        id: habitId,
+        id: habit.id,
         name: draft.name.trim(),
         description: draft.description.trim() || null,
         color: draft.color,
@@ -292,16 +252,13 @@ export default function EditScreen() {
         reminder_message: draft.reminder_message.trim() || null,
       };
 
-      // 1. Update SQLite locally
       await updateHabit(updatedHabitData);
 
-      // 2. Invalidate queries
       queryClient.invalidateQueries({ queryKey: ['habits'] });
-      queryClient.invalidateQueries({ queryKey: ['habit', habitId] });
-      queryClient.invalidateQueries({ queryKey: ['habit_entries', habitId] });
-      queryClient.invalidateQueries({ queryKey: ['habit-dates', habitId] });
+      queryClient.invalidateQueries({ queryKey: ['habit', habit.id] });
+      queryClient.invalidateQueries({ queryKey: ['habit_entries', habit.id] });
+      queryClient.invalidateQueries({ queryKey: ['habit-dates', habit.id] });
 
-      // 3. Enqueue to Meridian Lite outbox
       await mutateOutbox('update_habit', updatedHabitData);
 
       router.back();
@@ -316,22 +273,6 @@ export default function EditScreen() {
   const insets = useSafeAreaInsets();
   const bgColor = Colors[currentTheme].background;
   const isNextDisabled = stage === 1 && !draft.name.trim();
-
-  if (isLoading || !habit) {
-    return (
-      <SafeAreaView
-        edges={['top', 'left', 'right']}
-        style={{
-          backgroundColor: bgColor,
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      >
-        <ActivityIndicator size="large" color={Colors[currentTheme].tint} />
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView
@@ -349,7 +290,6 @@ export default function EditScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="always"
           >
-            {/* Progress & Heading */}
             <StepProgressHeader
               currentStep={stage}
               totalSteps={totalSteps}
@@ -358,11 +298,15 @@ export default function EditScreen() {
               accentColor={accentColor}
             />
 
-            {/* STEP 1: IDENTITY */}
             {stage === 1 && (
               <StepIdentity
                 icon={draft.icon}
-                onChangeIcon={(icon) => setDraft((d) => ({ ...d, icon }))}
+                onChangeIcon={(icon, color) => {
+                  setDraft((d) => ({ ...d, icon, ...(color ? { color } : {}) }));
+                  if (color) {
+                    setActiveColor(color);
+                  }
+                }}
                 name={draft.name}
                 onChangeName={(name) => setDraft((d) => ({ ...d, name }))}
                 description={draft.description}
@@ -377,7 +321,6 @@ export default function EditScreen() {
               />
             )}
 
-            {/* STEP 2: SCHEDULE */}
             {stage === 2 && (
               <StepSchedule
                 timesOfDay={draft.times_of_day}
@@ -405,7 +348,6 @@ export default function EditScreen() {
               />
             )}
 
-            {/* STEP 3: GOAL */}
             {stage === 3 && (
               <StepGoal
                 completionType={draft.completion_type}
@@ -428,7 +370,6 @@ export default function EditScreen() {
               />
             )}
 
-            {/* STEP 4: REMINDER (Shows inline summary when notify is false) */}
             {stage === 4 && (
               <StepReminder
                 notify={draft.notify}
@@ -458,7 +399,6 @@ export default function EditScreen() {
               />
             )}
 
-            {/* STEP 5: DEDICATED REVIEW SCREEN (When reminders are enabled) */}
             {stage === 5 && (
               <StepSummary
                 icon={draft.icon}
@@ -482,7 +422,6 @@ export default function EditScreen() {
             )}
           </ScrollView>
 
-          {/* Bottom Action Navigation Bar */}
           <View
             style={{
               paddingBottom: insets.bottom > 0 ? insets.bottom + 8 : 16,
@@ -492,7 +431,6 @@ export default function EditScreen() {
             }}
             className="flex-row items-center justify-between px-5 pt-3.5 shadow-md shadow-black/5"
           >
-            {/* Back / Cancel */}
             <Button
               title={stage === 5 ? 'Cancel' : stage === 1 ? 'Back to Review' : 'Back'}
               variant="ghost"
@@ -552,4 +490,40 @@ export default function EditScreen() {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
+}
+
+export default function EditScreen() {
+  const { id } = useLocalSearchParams();
+  const habitId = id?.toString() ?? '';
+  const colorScheme = useColorScheme();
+  const currentTheme = colorScheme === 'dark' ? 'dark' : 'light';
+  const { activeColor } = useAppTheme();
+
+  const habitKey = useMemo(() => ['habit', habitId], [habitId]);
+
+  const { data: habit, isLoading } = useQuery<Habit | null>({
+    queryKey: habitKey,
+    queryFn: async () => {
+      const h = await getHabitById(habitId);
+      if (!h) throw new Error('Habit not found');
+      return h;
+    },
+  });
+
+  if (isLoading || !habit) {
+    return (
+      <SafeAreaView
+        style={{
+          backgroundColor: Colors[currentTheme].background,
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        <ActivityIndicator size="large" color={activeColor.accent} />
+      </SafeAreaView>
+    );
+  }
+
+  return <EditHabitForm habit={habit} />;
 }

@@ -1,6 +1,6 @@
 import { getContrastTextColor } from '@/constants/habit-colors';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Keyboard, Modal, Text, TouchableOpacity, View } from 'react-native';
 
 interface CustomTimePickerProps {
@@ -11,30 +11,25 @@ interface CustomTimePickerProps {
     accentColor: string;
 }
 
-export function CustomTimePicker({ visible, onClose, initialTime, onSave, accentColor }: CustomTimePickerProps) {
+interface TimePickerModalContentProps {
+    onClose: () => void;
+    initialTime: Date;
+    onSave: (date: Date) => void;
+    accentColor: string;
+}
+
+function TimePickerModalContent({ onClose, initialTime, onSave, accentColor }: TimePickerModalContentProps) {
     const isDark = useColorScheme() === 'dark';
     const contrastTextColor = getContrastTextColor(accentColor);
 
     const [activeTab, setActiveTab] = useState<'hour' | 'minute'>('hour');
 
-    const [hour, setHour] = useState(initialTime.getHours() % 12 || 12);
-    const [minute, setMinute] = useState(initialTime.getMinutes());
-    const [period, setPeriod] = useState<'AM' | 'PM'>(initialTime.getHours() >= 12 ? 'PM' : 'AM');
+    const [hour, setHour] = useState(() => initialTime.getHours() % 12 || 12);
+    const [minute, setMinute] = useState(() => initialTime.getMinutes());
+    const [period, setPeriod] = useState<'AM' | 'PM'>(() => initialTime.getHours() >= 12 ? 'PM' : 'AM');
 
-    const [hourStr, setHourStr] = useState(hour.toString());
-    const [minuteStr, setMinuteStr] = useState(minute.toString().padStart(2, '0'));
-
-    useEffect(() => { setHourStr(hour.toString()); }, [hour]);
-    useEffect(() => { setMinuteStr(minute.toString().padStart(2, '0')); }, [minute]);
-
-    useEffect(() => {
-        if (visible) {
-            setHour(initialTime.getHours() % 12 || 12);
-            setMinute(initialTime.getMinutes());
-            setPeriod(initialTime.getHours() >= 12 ? 'PM' : 'AM');
-            setActiveTab('hour');
-        }
-    }, [visible, initialTime]);
+    const hourStr = hour.toString();
+    const minuteStr = minute.toString().padStart(2, '0');
 
     const handleSave = () => {
         const newDate = new Date(initialTime);
@@ -57,16 +52,13 @@ export function CustomTimePicker({ visible, onClose, initialTime, onSave, accent
     const mutedText = isDark ? 'text-neutral-500' : 'text-neutral-400';
 
     return (
-        <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-            <View className={`flex-1 justify-center items-center px-4 ${bgModal}`}>
-                <View className={`w-full max-w-sm rounded-3xl p-6 ${bgCard}`}>
+        <View className={`flex-1 justify-center items-center px-4 ${bgModal}`}>
+            <View className={`w-full max-w-sm rounded-3xl p-6 ${bgCard}`}>
 
                     <Text className={`text-lg font-pbold mb-6 ${textColor}`}>Set Time</Text>
 
-                    {/* ─── HUGE TIME DISPLAY ─────────────────────────────────── */}
                     <View className="flex-row justify-center items-center mb-8 gap-2">
 
-                        {/* Hour Display Box */}
                         <TouchableOpacity
                             activeOpacity={0.7}
                             onPress={() => setActiveTab('hour')}
@@ -91,7 +83,6 @@ export function CustomTimePicker({ visible, onClose, initialTime, onSave, accent
                             :
                         </Text>
 
-                        {/* Minute Display Box */}
                         <TouchableOpacity
                             activeOpacity={0.7}
                             onPress={() => setActiveTab('minute')}
@@ -109,7 +100,6 @@ export function CustomTimePicker({ visible, onClose, initialTime, onSave, accent
                             </Text>
                         </TouchableOpacity>
 
-                        {/* AM / PM Toggles */}
                         <View className="ml-2 gap-2">
                             <TouchableOpacity
                                 activeOpacity={0.7}
@@ -141,7 +131,6 @@ export function CustomTimePicker({ visible, onClose, initialTime, onSave, accent
 
                     </View>
 
-                    {/* ─── SELECTION GRID ────────────────────────────────────── */}
                     <View className="flex-row flex-wrap justify-between gap-y-4">
                         {(activeTab === 'hour' ? hoursGrid : minutesGrid).map((item) => {
                             const isSelected = activeTab === 'hour' ? hour === item : minute === item;
@@ -175,7 +164,6 @@ export function CustomTimePicker({ visible, onClose, initialTime, onSave, accent
                         })}
                     </View>
 
-                    {/* ─── ACTIONS ───────────────────────────────────────────── */}
                     <View className="flex-row justify-end items-center mt-8 gap-3">
                         <TouchableOpacity activeOpacity={0.7} onPress={onClose} className="px-4 py-2.5 rounded-xl">
                             <Text className={`font-psemibold ${mutedText}`}>Cancel</Text>
@@ -195,6 +183,20 @@ export function CustomTimePicker({ visible, onClose, initialTime, onSave, accent
 
                 </View>
             </View>
+    );
+}
+
+export function CustomTimePicker({ visible, onClose, initialTime, onSave, accentColor }: CustomTimePickerProps) {
+    return (
+        <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+            {visible && (
+                <TimePickerModalContent
+                    onClose={onClose}
+                    initialTime={initialTime}
+                    onSave={onSave}
+                    accentColor={accentColor}
+                />
+            )}
         </Modal>
     );
 }

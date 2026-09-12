@@ -3,15 +3,11 @@ import { router } from 'expo-router';
 import { useMeridianMutation, useQueryClient } from 'meridian-lite';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -23,7 +19,6 @@ import { StepSchedule } from '@/components/create/step-schedule';
 import { StepSummary } from '@/components/create/step-summary';
 import { TemplatePickerScreen } from '@/components/create/template-picker-screen';
 import Button from '@/components/ui/button';
-import { FONTS } from '@/constants/fonts';
 import { getContrastTextColor, HABIT_COLORS } from '@/constants/habit-colors';
 import { HabitTemplate } from '@/constants/habit-templates';
 import { ChevronIcon } from '@/constants/icons';
@@ -61,7 +56,7 @@ interface HabitDraft {
 }
 
 const DEFAULT_DRAFT: HabitDraft = {
-  icon: 'SproutIcon',
+  icon: 'SparklesIcon',
   name: '',
   description: '',
   color: 'purple',
@@ -128,7 +123,7 @@ export default function CreateScreen() {
     const defaultDates = getDefaultReminderTimesForSessions(timesOfDay);
 
     setDraft({
-      icon: template.icon || 'SproutIcon',
+      icon: template.icon || 'SparklesIcon',
       name: template.name,
       description: template.description || '',
       color: template.color || 'purple',
@@ -261,10 +256,6 @@ export default function CreateScreen() {
   };
 
   const bgColor = Colors[currentTheme].background;
-  const textColor = isDark ? '#ECEDEE' : '#11181C';
-  const subtextColor = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)';
-  const bottomBarBg = isDark ? '#191A1D' : '#FFFFFF';
-  const bottomBorderColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)';
 
   const isNextDisabled = stage === 1 && !draft.name.trim();
 
@@ -274,7 +265,6 @@ export default function CreateScreen() {
         className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* SCREEN 1: TEMPLATE DISCOVERY */}
         {stage === 'templates' ? (
           <TemplatePickerScreen
             onSelectTemplate={handleSelectTemplate}
@@ -283,7 +273,6 @@ export default function CreateScreen() {
             accentColor={accentColor}
           />
         ) : (
-          /* MULTI-STEP CREATION WIZARD */
           <View className="flex-1">
             <ScrollView
               className="flex-1"
@@ -291,7 +280,6 @@ export default function CreateScreen() {
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="always"
             >
-              {/* Progress & Heading */}
               <StepProgressHeader
                 currentStep={typeof stage === 'number' ? stage : 1}
                 totalSteps={totalSteps}
@@ -308,11 +296,15 @@ export default function CreateScreen() {
                 accentColor={accentColor}
               />
 
-              {/* STEP 1: IDENTITY */}
               {stage === 1 && (
                 <StepIdentity
                   icon={draft.icon}
-                  onChangeIcon={(icon) => setDraft((d) => ({ ...d, icon }))}
+                  onChangeIcon={(icon, color) => {
+                    setDraft((d) => ({ ...d, icon, ...(color ? { color } : {}) }));
+                    if (color) {
+                      setActiveColor(color);
+                    }
+                  }}
                   name={draft.name}
                   onChangeName={(name) => setDraft((d) => ({ ...d, name }))}
                   description={draft.description}
@@ -327,7 +319,6 @@ export default function CreateScreen() {
                 />
               )}
 
-              {/* STEP 2: SCHEDULE */}
               {stage === 2 && (
                 <StepSchedule
                   timesOfDay={draft.times_of_day}
@@ -355,7 +346,6 @@ export default function CreateScreen() {
                 />
               )}
 
-              {/* STEP 3: GOAL */}
               {stage === 3 && (
                 <StepGoal
                   completionType={draft.completion_type}
@@ -378,7 +368,6 @@ export default function CreateScreen() {
                 />
               )}
 
-              {/* STEP 4: REMINDER (Shows inline summary when notify is false) */}
               {stage === 4 && (
                 <StepReminder
                   notify={draft.notify}
@@ -408,7 +397,6 @@ export default function CreateScreen() {
                 />
               )}
 
-              {/* STEP 5: DEDICATED REVIEW SCREEN (Only when reminders are enabled) */}
               {stage === 5 && (
                 <StepSummary
                   icon={draft.icon}
@@ -432,7 +420,6 @@ export default function CreateScreen() {
               )}
             </ScrollView>
 
-            {/* Bottom Action Navigation Bar */}
             <View
               style={{
                 paddingBottom: insets.bottom > 0 ? insets.bottom + 8 : 16,
@@ -442,7 +429,6 @@ export default function CreateScreen() {
               }}
               className="flex-row items-center justify-between px-5 pt-3.5 shadow-md shadow-black/5"
             >
-              {/* Back / Cancel */}
               <Button
                 title={stage === 1 ? 'Cancel' : 'Back'}
                 variant="ghost"

@@ -151,7 +151,6 @@ export async function handleSync(mutation: MutationRecord): Promise<void> {
         };
       };
 
-      // 1. Upsert habit entry
       const { error: entryError } = await supabase.from('habit_entries').upsert({
         id: data.entry_id,
         habit_id: data.habit_id,
@@ -167,7 +166,6 @@ export async function handleSync(mutation: MutationRecord): Promise<void> {
 
       if (entryError) throw entryError;
 
-      // 2. Update habit summary stats if provided
       if (data.habit_stats) {
         const updateObj: Record<string, any> = {
           total_points: data.habit_stats.total_points,

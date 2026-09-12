@@ -12,7 +12,10 @@ const availableWidth = width - PADDING - (GAP_SIZE * (WEEKS_TO_SHOW - 1));
 const SQUARE_SIZE = Math.floor(availableWidth / WEEKS_TO_SHOW);
 
 const formatDate = (date: Date) => {
-    return date.toISOString().split('T')[0];
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
 };
 
 interface HeatmapDateEntry {
@@ -30,7 +33,6 @@ export default function Heatmap({ completedDates = [], onDayPress }: HeatmapProp
     const colorScheme = useColorScheme();
     const isDark = colorScheme === 'dark';
 
-    // Build a lookup map for quick access
     const dateStatusMap = useMemo(() => {
         const map = new Map<string, string>();
         for (const entry of completedDates) {
@@ -90,7 +92,6 @@ export default function Heatmap({ completedDates = [], onDayPress }: HeatmapProp
                         {week.map((day) => {
                             const isCompleted = day.status === 'Completed';
                             const isSkipped = day.status === 'Skipped';
-                            const isActive = isCompleted || isSkipped;
 
                             let bgColor: string;
                             let borderColor: string;
@@ -131,7 +132,6 @@ export default function Heatmap({ completedDates = [], onDayPress }: HeatmapProp
                 ))}
             </View>
 
-            {/* Legend */}
             <View className="flex-row justify-end items-center px-4 mt-3 gap-2">
                 <Text className="text-xs font-pmedium opacity-50 dark:text-neutral-400">Missed</Text>
                 <View style={{ width: SQUARE_SIZE * 0.75, height: SQUARE_SIZE * 0.75 }} className="rounded-sm bg-neutral-200 dark:bg-neutral-800 opacity-40" />

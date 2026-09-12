@@ -10,7 +10,6 @@ import Animated, {
     useSharedValue,
     withDelay,
     withSequence,
-    withSpring,
     withTiming
 } from 'react-native-reanimated';
 
@@ -87,8 +86,6 @@ export function HabitCard({ habit, onPress, onTrack, onUntrack, onTimerPress, co
         }
 
         if (completedToday) {
-            setMicroCopyText(COMPLETION_MESSAGES[Math.floor(Math.random() * COMPLETION_MESSAGES.length)]);
-
             tickScale.value = 0;
             tickScale.value = withSequence(
                 withTiming(1.25, { duration: 220, easing: Easing.out(Easing.ease) }),
@@ -110,7 +107,7 @@ export function HabitCard({ habit, onPress, onTrack, onUntrack, onTimerPress, co
             ringOpacity.value = 0;
             microCopyOpacity.value = 0;
         }
-    }, [completedToday]);
+    }, [completedToday, cardOpacity, microCopyOpacity, ringOpacity, ringScale, strikeProgress, tickScale]);
 
     const strikeStyle = useAnimatedStyle(() => ({
         width: `${strikeProgress.value * 100}%`,
@@ -143,6 +140,7 @@ export function HabitCard({ habit, onPress, onTrack, onUntrack, onTimerPress, co
     }));
 
     const handleComplete = () => {
+        setMicroCopyText(COMPLETION_MESSAGES[Math.floor(Math.random() * COMPLETION_MESSAGES.length)]);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         onTrack();
     };

@@ -23,7 +23,6 @@ export async function pullFromCloud(userId: string, isInternal = false): Promise
   }
 
   try {
-    // 1. Fetch remote habits
     const { data: remoteHabits, error: habitsError } = await supabase
       .from('habits')
       .select('*')
@@ -34,7 +33,6 @@ export async function pullFromCloud(userId: string, isInternal = false): Promise
       return { success: false };
     }
 
-    // 2. Fetch remote habit entries
     const { data: remoteEntries, error: entriesError } = await supabase
       .from('habit_entries')
       .select('*')
@@ -49,7 +47,6 @@ export async function pullFromCloud(userId: string, isInternal = false): Promise
       const db = await getDb();
       try {
         await db.withTransactionAsync(async () => {
-          // Upsert habits into local SQLite
           for (const habit of remoteHabits || []) {
             await db.runAsync(
               `INSERT OR REPLACE INTO habits (
@@ -95,7 +92,6 @@ export async function pullFromCloud(userId: string, isInternal = false): Promise
             );
           }
 
-          // Upsert habit entries into local SQLite
           for (const entry of remoteEntries || []) {
             await db.runAsync(
               `INSERT OR REPLACE INTO habit_entries (
@@ -159,11 +155,9 @@ export async function pushAllToCloud(userId: string, isInternal = false): Promis
   try {
     const db = await getDb();
     
-    // 1. Assign local SQLite guest records to the authenticated user ID
     await db.runAsync(`UPDATE habits SET user_id = ? WHERE user_id IS NULL OR user_id != ?`, [userId, userId]);
     await db.runAsync(`UPDATE habit_entries SET user_id = ? WHERE user_id IS NULL OR user_id != ?`, [userId, userId]);
 
-    // 2. Fetch the updated local habits and entries for this user
     const localHabits = (await db.getAllAsync<Habit>(`SELECT * FROM habits WHERE user_id = ?`, [userId])) || [];
     const localEntries = (await db.getAllAsync<HabitEntry>(`SELECT * FROM habit_entries WHERE user_id = ?`, [userId])) || [];
 

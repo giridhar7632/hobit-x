@@ -12,9 +12,7 @@ import { initDatabase } from '@/utils/database';
 import { requestNotificationPermissions } from '@/utils/notifications';
 import * as Notifications from 'expo-notifications';
 import * as SplashScreen from "expo-splash-screen";
-import { MeridianProvider } from 'meridian-lite';
-
-import { MutationRecord } from 'meridian-lite';
+import { MeridianProvider, MutationRecord } from 'meridian-lite';
 import { useEffect, useState } from 'react';
 import { Platform } from "react-native";
 

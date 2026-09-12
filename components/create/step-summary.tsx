@@ -70,7 +70,6 @@ export function StepSummary({
   const textColor = isDark ? '#ECEDEE' : '#11181C';
   const colorDef = HABIT_COLORS[color] || HABIT_COLORS.purple;
 
-  // Format schedule text
   const frequencyLabel =
     frequency === 'daily'
       ? 'Every day'
@@ -80,7 +79,6 @@ export function StepSummary({
 
   const timesOfDayLabel = formatTimesOfDay(timesOfDay || timeOfDay || 'anytime');
 
-  // Format goal text
   const goalSummary =
     completionType === 'time'
       ? `${plannedMinutes || 20} minutes duration`
@@ -88,7 +86,6 @@ export function StepSummary({
         ? `${targetValue || 10} ${targetUnit || 'units'} target`
         : 'Daily check-off';
 
-  // Format notify times
   const currentNotifyTimes: Date[] = React.useMemo(() => {
     if (notifyTimes && notifyTimes.length > 0) return notifyTimes;
     if (notifyTime) return [notifyTime];
@@ -105,7 +102,6 @@ export function StepSummary({
 
   return (
     <View className="px-5 gap-3">
-      {/* 1. HERO HABIT CARD */}
       <View
         className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#1F2023] shadow-sm shadow-black/5"
       >
@@ -164,9 +160,7 @@ export function StepSummary({
         </View>
       </View>
 
-      {/* 2. DETAILED BREAKDOWN ITEMS */}
       <View className="gap-2">
-        {/* Schedule Row */}
         <TouchableOpacity
           activeOpacity={0.75}
           onPress={() => {
@@ -198,7 +192,6 @@ export function StepSummary({
           <ChevronIcon direction="right" size={16} color={isDark ? '#9CA3AF' : '#6B7280'} />
         </TouchableOpacity>
 
-        {/* Goal / Target Row */}
         <TouchableOpacity
           activeOpacity={0.75}
           onPress={() => {
@@ -236,7 +229,6 @@ export function StepSummary({
           <ChevronIcon direction="right" size={16} color={isDark ? '#9CA3AF' : '#6B7280'} />
         </TouchableOpacity>
 
-        {/* Reminder Row */}
         <TouchableOpacity
           activeOpacity={0.75}
           onPress={() => {
@@ -291,7 +283,6 @@ export function StepSummary({
         </TouchableOpacity>
       </View>
 
-      {/* 3. ENCOURAGING FOOTER NOTE */}
       <View
         className="flex-row items-center px-3.5 py-2.5 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] gap-2 bg-black/[0.02] dark:bg-white/[0.03]"
       >

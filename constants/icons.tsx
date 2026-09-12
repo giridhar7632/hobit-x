@@ -1,6 +1,6 @@
 import * as React from "react";
-import { StyleProp, Text, ViewStyle } from "react-native";
-import Svg, { Circle, Path } from "react-native-svg";
+import { StyleProp, ViewStyle } from "react-native";
+import Svg, { Circle, Path, Rect } from "react-native-svg";
 
 export interface IconProps {
 	color?: string;
@@ -242,6 +242,35 @@ export const MoonIcon = ({ color = "#000000", size = 24, style }: IconProps) => 
 		<Path fill={color} d="M22.16 12.08c0 5.567-4.513 10.08-10.08 10.08S2 17.647 2 12.08 6.513 2 12.08 2a9.4 9.4 0 0 1 2.2.25 6.17 6.17 0 1 0 7.63 7.63c.17.721.254 1.46.25 2.2" />
 	</Svg>
 );
+export const LogoIcon = ({ color = "#000000", size = 24, style }: IconProps) => (
+	<Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+		<Path
+			fillRule="evenodd"
+			clipRule="evenodd"
+			d="M15.42 4.65C15.42 5.06421 15.0842 5.4 14.67 5.4H7.24V5.49C7.23453 6.45422 6.45422 7.23453 5.49 7.24H3.81C2.84577 7.23453 2.06546 6.45422 2.06 5.49V3.81C2.06546 2.84577 2.84577 2.06546 3.81 2.06H5.49C6.45422 2.06546 7.23453 2.84577 7.24 3.81V3.9H14.67C15.0842 3.9 15.42 4.23578 15.42 4.65ZM5.49 5.74C5.62807 5.74 5.74 5.62807 5.74 5.49V3.81C5.74 3.67193 5.62807 3.56 5.49 3.56H3.81C3.67411 3.56513 3.56513 3.67411 3.56 3.81V5.49C3.56 5.62807 3.67193 5.74 3.81 5.74H5.49Z"
+			fill={color}
+		/>
+		<Path
+			fillRule="evenodd"
+			clipRule="evenodd"
+			d="M18.51 2.06H20.19C21.1542 2.06546 21.9345 2.84577 21.94 3.81V5.49C21.9345 6.45422 21.1542 7.23453 20.19 7.24H20.1V14.67C20.1 15.0842 19.7642 15.42 19.35 15.42C18.9358 15.42 18.6 15.0842 18.6 14.67V7.24H18.51C17.5458 7.23453 16.7655 6.45422 16.76 5.49V3.81C16.7655 2.84577 17.5458 2.06546 18.51 2.06ZM20.19 5.74C20.3281 5.74 20.44 5.62807 20.44 5.49V3.81C20.4349 3.67411 20.3259 3.56513 20.19 3.56H18.51C18.3719 3.56 18.26 3.67193 18.26 3.81V5.49C18.26 5.62807 18.3719 5.74 18.51 5.74H20.19Z"
+			fill={color}
+		/>
+		<Path
+			fillRule="evenodd"
+			clipRule="evenodd"
+			d="M5.4 16.76H5.49C6.45422 16.7655 7.23453 17.5458 7.24 18.51V20.19C7.23453 21.1542 6.45422 21.9345 5.49 21.94H3.81C2.84577 21.9345 2.06546 21.1542 2.06 20.19V18.51C2.06546 17.5458 2.84577 16.7655 3.81 16.76H3.9V9.32999C3.9 8.91577 4.23578 8.57999 4.65 8.57999C5.06421 8.57999 5.4 8.91577 5.4 9.32999V16.76ZM5.49 20.44C5.62807 20.44 5.74 20.3281 5.74 20.19V18.51C5.74 18.3719 5.62807 18.26 5.49 18.26H3.81C3.67193 18.26 3.56 18.3719 3.56 18.51V20.19C3.56513 20.3259 3.67411 20.4349 3.81 20.44H5.49Z"
+			fill={color}
+		/>
+		<Path
+			fillRule="evenodd"
+			clipRule="evenodd"
+			d="M18.51 16.76H20.19C21.1542 16.7655 21.9346 17.5458 21.94 18.51V20.19C21.9346 21.1542 21.1542 21.9345 20.19 21.94H18.51C17.5458 21.9345 16.7655 21.1542 16.76 20.19V20.1H9.33002C8.9158 20.1 8.58002 19.7642 8.58002 19.35C8.58002 18.9358 8.9158 18.6 9.33002 18.6H16.76V18.51C16.7655 17.5458 17.5458 16.7655 18.51 16.76ZM20.19 20.44C20.3259 20.4349 20.4349 20.3259 20.44 20.19V18.51C20.44 18.3719 20.3281 18.26 20.19 18.26H18.51C18.3719 18.26 18.26 18.3719 18.26 18.51V20.19C18.26 20.3281 18.3719 20.44 18.51 20.44H20.19Z"
+			fill={color}
+		/>
+	</Svg>
+);
+
 export const MugIcon = ({ color = "#000000", size = 24, style }: IconProps) => (
 	<Svg width={size} height={size} fill="none" viewBox="0 0 24 24" style={style}>
 		<Path fill={color} fillRule="evenodd" d="M7 4h11.82a2.63 2.63 0 0 1 2.5 2.75v4a2.63 2.63 0 0 1-2.5 2.75h-1.43v2a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V8a4 4 0 0 1 4-4m-.46 10.91a.8.8 0 0 0 .53.22.8.8 0 0 0 .53-.22l5.62-5.61a.75.75 0 0 0-1.06-1.06l-5.62 5.61a.75.75 0 0 0 0 1.06m6.68-1.16-1.15 1.11a.73.73 0 0 1-.52.21.78.78 0 0 1-.54-.23.75.75 0 0 1 0-1.06l1.15-1.03a.75.75 0 0 1 1.06 0 .75.75 0 0 1 0 1m5.6-1.75a1.15 1.15 0 0 0 1-1.25v-4a1.15 1.15 0 0 0-1-1.25h-2.33a4 4 0 0 1 .9 2.5v4z" clipRule="evenodd" />
@@ -261,56 +290,202 @@ export const SunIcon = ({ color = "#000000", size = 24, style }: IconProps) => (
 	</Svg>
 );
 
-// ─── Icon Name → Component Map ────────────────────────────────────────────────
-// Maps icon name strings (stored in DB / templates) to their SVG components.
-// The special string "🌱" renders the sprout emoji (the only allowed emoji).
-// Unknown strings fall back to DefaultHabitIcon.
+// newly added ones:
+
+export const BasketIcon = ({
+	color = '#000000',
+	size = 24,
+	style
+}: IconProps) => <Svg width={24} height={24} fill="none" viewBox="0 0 24 24" style={style}><Path fill={color} fillRule="evenodd" d="m20.68 14.4.6-4.14-.04-.04a3.18 3.18 0 0 0-3.13-3.64H7.68l-.21-.69a3.19 3.19 0 0 0-3-2.27h-1a.75.75 0 1 0 0 1.5h1a1.68 1.68 0 0 1 1.61 1.2l2.53 8.53a3.2 3.2 0 0 0 3.05 2.27h5.87a3.2 3.2 0 0 0 3.15-2.72m-9.25 3.98a1 1 0 1 0 0 2 1 1 0 0 0 0-2m6 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2" clipRule="evenodd" /></Svg>;
+export const BrushIcon = ({
+	color = '#000000',
+	size = 24,
+	style
+}: IconProps) => <Svg width={24} height={24} fill="none" viewBox="0 0 24 24" style={style}><Path fill={color} fillRule="evenodd" d="M19.11 1.41a3 3 0 0 1 2.1.87 3 3 0 0 1 .25 4.02l-7.66 9.36-.1.11a4.15 4.15 0 0 1-3 1.23 4.4 4.4 0 0 1-1.28-.23c.3.56.458 1.185.46 1.82a4 4 0 0 1-4 4h-2.5a1.5 1.5 0 0 1-1.5-1.5v-2.5a4 4 0 0 1 4-4c.38.003.758.063 1.12.18a4.13 4.13 0 0 1 .74-4.92l.12-.1 9.36-7.66a3 3 0 0 1 1.89-.68M11 13.6l3-3a.75.75 0 0 0-1.06-1.06l-3 3a.75.75 0 0 0 .53 1.28.7.7 0 0 0 .53-.22" clipRule="evenodd" /></Svg>;
+export const CameraIcon = ({
+	color = '#000000',
+	size = 24,
+	style
+}: IconProps) => <Svg width={24} height={24} fill="none" viewBox="0 0 24 24" style={style}><Circle cx={12.43} cy={12.78} r={2.5} fill={color} /><Path fill={color} fillRule="evenodd" d="M17.94 5H7.06A4.05 4.05 0 0 0 3 9.05v6.9A4.05 4.05 0 0 0 7.06 20h10.88A4.05 4.05 0 0 0 22 15.95v-6.9A4.05 4.05 0 0 0 17.94 5m-5.51 11.78a4 4 0 1 1 0-8 4 4 0 0 1 0 8m5.5-7a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5z" clipRule="evenodd" /></Svg>;
+export const ChipIcon = ({
+	color = '#000000',
+	size = 24,
+	style
+}: IconProps) => <Svg width={24} height={24} fill="none" viewBox="0 0 24 24" style={style}><Path fill={color} fillRule="evenodd" d="M19.818 13.246h3.136a.784.784 0 1 1 0 1.568h-3.136v.261a4.18 4.18 0 0 1-4.182 4.182h-.261v3.137a.784.784 0 1 1-1.568 0v-3.137h-2.614v3.137a.784.784 0 1 1-1.568 0v-3.137h-.261a4.18 4.18 0 0 1-4.182-4.182v-.26H2.045a.784.784 0 0 1 0-1.57h3.137v-2.613H2.045a.784.784 0 0 1 0-1.568h3.137v-.261A4.18 4.18 0 0 1 9.364 4.62h.261V1.485a.784.784 0 0 1 1.568 0V4.62h2.614V1.485a.784.784 0 0 1 1.568 0V4.62h.261a4.18 4.18 0 0 1 4.182 4.182v.261h3.136a.784.784 0 1 1 0 1.568h-3.136zm-3.749 2.262c.393-.392.613-.923.613-1.478V9.848a2.09 2.09 0 0 0-2.091-2.09h-4.182a2.09 2.09 0 0 0-2.09 2.09v4.182a2.09 2.09 0 0 0 2.09 2.09h4.182c.554 0 1.086-.22 1.478-.612" clipRule="evenodd" /><Rect width={6.273} height={6.273} x={9.364} y={8.803} fill={color} rx={1} /></Svg>;
+export const ClipboardIcon = ({
+	color = '#000000',
+	size = 24,
+	style
+}: IconProps) => <Svg width={24} height={24} fill="none" viewBox="0 0 24 24" style={style}><Path fill={color} fillRule="evenodd" d="M15.44 3.69v-.17c0-.84-.681-1.52-1.52-1.52H9.38c-.84 0-1.52.68-1.52 1.52v.14A4.21 4.21 0 0 0 4 7.88v10.64a4.22 4.22 0 0 0 4.23 4.22h6.85a4.22 4.22 0 0 0 4.23-4.22V7.88a4.22 4.22 0 0 0-3.87-4.19m-6.062-.17h4.56v1.19h-4.56zm2.323 5.62H8.58a.75.75 0 1 0 0 1.5h3.12a.75.75 0 1 0 0-1.5m2.19 7.55H8.58a.75.75 0 0 1 0-1.5h5.31a.75.75 0 0 1 0 1.5m-5.31-2.93h6.14a.75.75 0 0 0 0-1.5H8.58a.75.75 0 0 0 0 1.5" clipRule="evenodd" /></Svg>;
+export const AlarmIcon = ({
+	color = '#000000',
+	size = 24,
+	style
+}: IconProps) => <Svg width={24} height={24} fill="none" viewBox="0 0 24 24" style={style}><Path fill={color} fillRule="evenodd" d="M2.657 13.352a9 9 0 1 1 18 0 9 9 0 0 1-18 0m9 4.75a.75.75 0 0 0 .75-.75v-4.41a.75.75 0 0 0-.22-.53l-2.88-2.87a.74.74 0 0 0-1.06 0 .75.75 0 0 0 0 1.06l2.66 2.65v4.1c0 .414.336.75.75.75" clipRule="evenodd" /><Path fill={color} d="M21.187 5.852a11.86 11.86 0 0 0-4.76-3.77.74.74 0 0 0-1 .38.75.75 0 0 0 .39 1 10.5 10.5 0 0 1 4.16 3.3.75.75 0 0 0 1.05.15.75.75 0 0 0 .16-1.06M3.327 6.752a10.5 10.5 0 0 1 4.16-3.3.75.75 0 0 0 .39-1 .74.74 0 0 0-1-.38 11.86 11.86 0 0 0-4.75 3.78.75.75 0 0 0 .15 1 .74.74 0 0 0 .45.15.75.75 0 0 0 .6-.25" /></Svg>;
+export const CommandIcon = ({
+	color = '#000000',
+	size = 24,
+	style
+}: IconProps) => <Svg width={24} height={24} fill="none" viewBox="0 0 24 24" style={style}><Path fill={color} fillRule="evenodd" d="M14.24 2H10a8 8 0 0 0-8 8v4.24a8 8 0 0 0 8 8h4.24a8 8 0 0 0 8-8V10a8 8 0 0 0-8-8m1.32 11.12a2.47 2.47 0 1 1-2.44 2.44v-1h-2v1a2.47 2.47 0 1 1-2.44-2.44h1v-2h-1a2.47 2.47 0 1 1 2.44-2.44v1h2v-1a2.47 2.47 0 1 1 2.44 2.44h-1v2zM7.923 8.68a1 1 0 0 1 .757-.97 1 1 0 0 1 1 .94v1h-1a1 1 0 0 1-.757-.97m-.213 6.88a1 1 0 1 0 1.94 0v-1h-1a1 1 0 0 0-.94 1m8.42-7.945a1 1 0 0 1 .4 1.065 1 1 0 0 1-.94 1h-1v-1a1 1 0 0 1 1.54-1.065m-1.54 7.945a1 1 0 1 0 1-1h-1zm-1.5-4.41h-1.94v1.94h1.94z" clipRule="evenodd" /></Svg>;
+export const CompassIcon = ({
+	color = '#000000',
+	size = 24,
+	style
+}: IconProps) => <Svg width={24} height={24} fill="none" viewBox="0 0 24 24" style={style}><Path fill={color} fillRule="evenodd" d="M14.45 1H9.79A8.79 8.79 0 0 0 1 9.79v4.66a8.79 8.79 0 0 0 8.79 8.79h4.66a8.79 8.79 0 0 0 8.79-8.79V9.79A8.79 8.79 0 0 0 14.45 1m1.867 8.252-1.252 5.066a1.1 1.1 0 0 1-.802.802l-5.01 1.197a1.1 1.1 0 0 1-1.33-1.33l1.252-5.01c.098-.395.407-.704.802-.802l5.01-1.252a1.1 1.1 0 0 1 1.33 1.33M12.12 12.87a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5" clipRule="evenodd" /></Svg>;
+export const DeliveryIcon = ({
+	color = '#000000',
+	size = 24,
+	style
+}: IconProps) => <Svg width={24} height={24} fill="none" viewBox="0 0 24 24" style={style}><Path fill={color} fillRule="evenodd" d="M15.047 17.807a2.32 2.32 0 0 1 2.14-1.45v-.041a2.32 2.32 0 0 1 2.332 2.32 2.32 2.32 0 1 1-4.472-.829m2.893.871a.753.753 0 0 0-.753-.753.763.763 0 0 0-.753.753.753.753 0 0 0 1.506 0M4.182 18.636a2.32 2.32 0 0 1 2.32-2.32 2.31 2.31 0 0 1 2.322 2.32 2.32 2.32 0 1 1-4.642 0m3.02-.235a.75.75 0 0 0-.7-.476v-.041a.753.753 0 0 0-.752.752.753.753 0 1 0 1.451-.235" clipRule="evenodd" /><Path fill={color} fillRule="evenodd" d="M22.383 9.708 21.285 8.61c-.377-.38-.886-.6-1.421-.616h-4.998v-1.39a2.09 2.09 0 0 0-2.09-2.092H4.182A2.09 2.09 0 0 0 2.09 6.603V8.83h8.363a.805.805 0 0 1 .816.795.795.795 0 0 1-.816.773H2.092v8.51h1.317a2 2 0 0 1 0-.23 3.136 3.136 0 1 1 6.21-.042 2 2 0 0 1 0 .23h4.485a2 2 0 0 1 0-.23 3.136 3.136 0 1 1 6.273 0q.008.116 0 .23h.533A2.09 2.09 0 0 0 23 16.776v-5.594a2.1 2.1 0 0 0-.617-1.474m-11.928 3.826H5.227a.784.784 0 0 1-.784-.773c0-.435.35-.789.784-.795h5.227c.435.006.785.36.785.795a.784.784 0 0 1-.785.774m5.676-1.17h5.228a.784.784 0 1 0 0-1.569H16.13a.784.784 0 1 0 0 1.569" clipRule="evenodd" /><Path fill={color} d="M2.09 8.83v1.568h-.334a.784.784 0 0 1-.805-.773.795.795 0 0 1 .805-.795z" /></Svg>;
+export const DocumentIcon = ({
+	color = '#000000',
+	size = 24,
+	style
+}: IconProps) => <Svg width={24} height={24} fill="none" viewBox="0 0 24 24" style={style}><Path fill={color} fillRule="evenodd" d="M14.07 10.24h4.79a.5.5 0 0 1 .5.5v6.92a4 4 0 0 1-4 4h-6.9a4 4 0 0 1-4-4V6.5a4 4 0 0 1 4-4h2.67a.5.5 0 0 1 .5.5v4.78a2.45 2.45 0 0 0 2.44 2.46m-6.01.5a1 1 0 0 0-1 1l.01 1.39a1 1 0 0 0 1 1h1.39a1 1 0 0 0 1-1v-1.39a1 1 0 0 0-1-1zm-.25 4.44h4.43a.75.75 0 0 1 0 1.5H7.81a.75.75 0 0 1 0-1.5m0 4h5.9a.75.75 0 0 0 0-1.5h-5.9a.75.75 0 0 0 0 1.5" clipRule="evenodd" /><Path fill={color} d="M12.68 3.08v4.57c0 .823.667 1.49 1.49 1.49h4.62a.55.55 0 0 0 .39-1l-5.55-5.5a.56.56 0 0 0-.95.44" /></Svg>;
+export const EyeIcon = ({
+	color = '#000000',
+	size = 24,
+	style
+}: IconProps) => <Svg width={24} height={24} fill="none" viewBox="0 0 24 24" style={style}><Path fill={color} fillRule="evenodd" d="m17.028 7.65 4.18 3.34a1.14 1.14 0 0 1 0 1.78l-4.18 3.34a7.55 7.55 0 0 1-9.42 0l-4.18-3.34a1.14 1.14 0 0 1 0-1.78l4.18-3.34a7.55 7.55 0 0 1 9.42 0m-7.01 4.23a2.3 2.3 0 1 0 4.6 0 2.3 2.3 0 0 0-4.6 0" clipRule="evenodd" /></Svg>;
+export const FolderIcon = ({
+	color = '#000000',
+	size = 24,
+	style
+}: IconProps) => <Svg width={24} height={24} fill="none" viewBox="0 0 24 24" style={style}><Path fill={color} d="M21.82 10.267v7.498a3.41 3.41 0 0 1-3.412 3.412H5.412A3.41 3.41 0 0 1 2 17.765V6.412A3.41 3.41 0 0 1 5.412 3h4.57c1.065 0 1.928.863 1.928 1.927a1.927 1.927 0 0 0 1.927 1.896h4.57a3.41 3.41 0 0 1 3.413 3.444" /></Svg>;
+export const ImacIcon = ({
+	color = '#000000',
+	size = 24,
+	style
+}: IconProps) => <Svg width={24} height={24} fill="none" viewBox="0 0 24 24" style={style}><Path fill={color} fillRule="evenodd" d="M18.5 4h-13a3.15 3.15 0 0 0-3 3.27v5.46a3.15 3.15 0 0 0 3 3.27h3.76a12 12 0 0 1-.48 1.88l-.34.94A.86.86 0 0 0 9.15 20h5.71a.85.85 0 0 0 .7-1.18l-.33-.94c-.22-.61-.38-1.24-.48-1.88h3.75a3.15 3.15 0 0 0 3-3.27V7.27a3.15 3.15 0 0 0-3-3.27m-7.07 10.08a.75.75 0 1 1 1.5 0 .75.75 0 0 1-1.5 0M5 12.47h14v.03a.75.75 0 0 0 0-1.5H5a.75.75 0 1 0 0 1.47" clipRule="evenodd" /></Svg>;
+export const JoystickIcon = ({
+	color = '#000000',
+	size = 24,
+	style
+}: IconProps) => <Svg width={24} height={24} fill="none" viewBox="0 0 24 24" style={style}><Path fill={color} fillRule="evenodd" d="M12.75 7.4H20a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H4a3 3 0 0 1-3-3v-6a3 3 0 0 1 3-3h7.25V5.35c0-.967.784-1.75 1.75-1.75a.25.25 0 0 0 .25-.25.75.75 0 0 1 1.5 0A1.75 1.75 0 0 1 13 5.1a.25.25 0 0 0-.25.25zm-5 6.75H9a.75.75 0 0 0 0-1.5H7.75V11.4a.75.75 0 0 0-1.5 0v1.25H5a.75.75 0 0 0 0 1.5h1.25v1.25a.75.75 0 0 0 1.5 0zM16 10.4a1 1 0 1 1 0 2 1 1 0 0 1 0-2m-3 3a1 1 0 1 0 2 0 1 1 0 0 0-2 0m3 3a1 1 0 1 1 0-2 1 1 0 0 1 0 2m1-3a1 1 0 1 0 2 0 1 1 0 0 0-2 0" clipRule="evenodd" /></Svg>;
+export const KeyboardIcon = ({
+	color = '#000000',
+	size = 24,
+	style
+}: IconProps) => <Svg width={24} height={24} fill="none" viewBox="0 0 24 24" style={style}><Path fill={color} fillRule="evenodd" d="M5 4h15a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3m9.49 3a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-1 5a1 1 0 1 1 2 0 1 1 0 0 1-2 0m-3-5a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-1 5a1 1 0 1 1 2 0 1 1 0 0 1-2 0m-3 1a1 1 0 1 0 0-2 1 1 0 0 0 0 2m1-5a1 1 0 1 1-2 0 1 1 0 0 1 2 0m8.5 9a1 1 0 0 0 1-1h.04a1 1 0 0 0-1-1H8.95a1 1 0 1 0 0 2zm3.5-5a1 1 0 1 1-2 0 1 1 0 0 1 2 0m-1-3a1 1 0 1 0 0-2 1 1 0 0 0 0 2" clipRule="evenodd" /></Svg>;
+export const LocationIcon = ({
+	color = '#000000',
+	size = 24,
+	style
+}: IconProps) => <Svg width={24} height={24} fill="none" viewBox="0 0 24 24" style={style}><Path fill={color} fillRule="evenodd" d="M12 2a6.27 6.27 0 0 0-.75 12.5v4.3a.75.75 0 0 0 1.5 0v-4.3A6.27 6.27 0 0 0 12 2m-.65 3.47a2.09 2.09 0 0 0-2.09 2.08.75.75 0 0 1-1.5 0 3.59 3.59 0 0 1 3.59-3.58.75.75 0 0 1 0 1.5m4.47 10.32a.76.76 0 0 1 1-.33A3.42 3.42 0 0 1 19 18.38c0 2.21-3 3.88-7 3.88s-7-1.67-7-3.88a3.42 3.42 0 0 1 2.18-2.87.751.751 0 0 1 .68 1.34c-.88.45-1.38 1.01-1.38 1.53 0 1.08 2.37 2.32 5.53 2.32s5.52-1.25 5.52-2.38c0-.53-.5-1.08-1.38-1.53a.75.75 0 0 1-.33-1" clipRule="evenodd" /></Svg>;
+export const MusicNoteIcon = ({
+	color = '#000000',
+	size = 24,
+	style
+}: IconProps) => <Svg width={24} height={24} fill="none" viewBox="0 0 24 24" style={style}><Path fill={color} d="M19.75 6.3A2.84 2.84 0 0 0 18.44 4a3.93 3.93 0 0 0-3.59-.36L10.3 5.41a3 3 0 0 0-2 2.7v7.32a2.7 2.7 0 0 0-1.3-.32 2.79 2.79 0 1 0 2.79 2.78 1 1 0 0 0 0-.16V8.11a1.52 1.52 0 0 1 1.07-1.31L15.4 5a2.44 2.44 0 0 1 2.2.22c.385.232.628.641.65 1.09v7.27a2.74 2.74 0 0 0-1.3-.34 2.79 2.79 0 1 0 2.77 2.93.7.7 0 0 0 0-.14z" /></Svg>;
+export const PhoneIcon = ({
+	color = '#000000',
+	size = 24,
+	style
+}: IconProps) => <Svg width={24} height={24} fill="none" viewBox="0 0 24 24" style={style}><Path fill={color} fillRule="evenodd" d="M8.362 2h8.276A2.32 2.32 0 0 1 19 4.286v16.012a2.33 2.33 0 0 1-2.362 2.286H8.362A2.33 2.33 0 0 1 6 20.298V4.286A2.33 2.33 0 0 1 8.362 2m2.513 3.25h3.25a.813.813 0 0 0 0-1.625h-3.25a.813.813 0 0 0 0 1.625" clipRule="evenodd" /></Svg>;
+export const PointIcon = ({
+	color = '#000000',
+	size = 24,
+	style
+}: IconProps) => <Svg width={24} height={24} fill="none" viewBox="0 0 24 24" style={style}><Path fill={color} fillRule="evenodd" d="M19.41 6.39a3.88 3.88 0 0 1 .08 5.41l.15.16a1 1 0 0 1 .18 1.16l-2.85 5.66a1 1 0 0 1-.7.53L5.78 21.44h-.2a1 1 0 0 1-.98-1.19L6.7 9.62a1 1 0 0 1 .53-.7l5.61-2.83a1 1 0 0 1 1.16.18v.05a3.88 3.88 0 0 1 5.41.07m-1.32 4a1.92 1.92 0 0 0-.16-2.51 1.89 1.89 0 0 0-2.5-.15zm-2.69 7.04L8.66 18.8l2-2q.356.115.73.12a2.37 2.37 0 0 0 1.68-.7A2.38 2.38 0 1 0 9 14.55c0 .308.057.614.17.9l-2 2 1.37-6.93 4.5-2.29.21.21 4.1 4.09.3.3zm-4.29-3.15a.39.39 0 0 0 0 .54.35.35 0 0 0 .27.11.35.35 0 0 0 .26-.11.38.38 0 0 0-.26-.65.4.4 0 0 0-.27.11" clipRule="evenodd" /><Path fill={color} d="M9.51 4.3a1 1 0 0 0-1-1h-4a1 1 0 1 0 0 2h4a1 1 0 0 0 1-1" /></Svg>;
+export const ShieldIcon = ({
+	color = '#000000',
+	size = 24,
+	style
+}: IconProps) => <Svg width={24} height={24} fill="none" viewBox="0 0 24 24" style={style}><Path fill={color} fillRule="evenodd" d="m22.107 12.79-1.69-8.14A3.33 3.33 0 0 0 17.157 2H7.107a3.33 3.33 0 0 0-3.31 2.65l-1.69 8.14a2.17 2.17 0 0 0 .79 2.43l7.93 5.76a2.16 2.16 0 0 0 2.56 0l7.93-5.76a2.17 2.17 0 0 0 .79-2.43M8.937 9l2.11-2.11a.75.75 0 0 1 1.06 0 .74.74 0 0 1 0 1.06l-2.11 2.11a.7.7 0 0 1-.53.22.75.75 0 0 1-.53-1.28m.54 4.79 6.32-6.36v.04a.75.75 0 1 0-1.06-1.06l-6.32 6.32a.74.74 0 0 0 0 1.06.7.7 0 0 0 .53.22c.2.001.39-.078.53-.22" clipRule="evenodd" /></Svg>;
+export const TrendDownIcon = ({
+	color = '#000000',
+	size = 24,
+	style
+}: IconProps) => <Svg width={24} height={24} fill="none" viewBox="0 0 24 24" style={style}><Path fill={color} fillRule="evenodd" d="M6 2h13a4 4 0 0 1 4 4v13a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4m12 14.12a.75.75 0 0 0 .75-.75l-.04-3a.75.75 0 0 0-1.5 0v1.52l-3.92-3.92a1.36 1.36 0 0 0-1.92 0l-2 2L6.9 9.5a.75.75 0 0 0-1.06 1l2.61 2.56a1.36 1.36 0 0 0 1.92 0l2-2 3.56 3.56H15a.75.75 0 0 0 0 1.5z" clipRule="evenodd" /></Svg>;
+export const TrendUpIcon = ({
+	color = '#000000',
+	size = 24,
+	style
+}: IconProps) => <Svg width={24} height={24} fill="none" viewBox="0 0 24 24" style={style}><Path fill={color} fillRule="evenodd" d="M6 1h13a4 4 0 0 1 4 4v13a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V5a4 4 0 0 1 4-4m12 11.75a.75.75 0 0 0 .75-.75V8.96a.76.76 0 0 0-.75-.75h-3a.75.75 0 0 0 0 1.5h.89l-3.56 3.56-2-2a1.36 1.36 0 0 0-1.92 0l-2.57 2.57A.75.75 0 0 0 6.9 14.9l2.51-2.4 2 2a1.36 1.36 0 0 0 1.92 0l3.92-3.95V12c0 .414.336.75.75.75" clipRule="evenodd" /></Svg>;
+export const WatchIcon = ({
+	color = '#000000',
+	size = 24,
+	style
+}: IconProps) => <Svg width={24} height={24} fill="none" viewBox="0 0 24 24" style={style}><Path fill={color} fillRule="evenodd" d="M17.62 9.67v.47a.75.75 0 0 1 .75.75v2a.75.75 0 0 1-.75.75v.46a3.76 3.76 0 0 1-2 3.32v3a2.22 2.22 0 0 1-2.22 2.22H9.85a2.23 2.23 0 0 1-2.23-2.22v-3a3.78 3.78 0 0 1-2-3.32V9.67a3.76 3.76 0 0 1 2-3.31V3.61a2.23 2.23 0 0 1 2.23-2.22h3.55a2.22 2.22 0 0 1 2.22 2.22v2.74a3.76 3.76 0 0 1 2 3.32M13.4 3.39H9.85a.23.23 0 0 0-.23.22v2.28h4V3.61a.22.22 0 0 0-.22-.22M9.26 10.2a.75.75 0 0 1 1.06-1.06L12.15 11a.7.7 0 0 1 .22.53v1.39a.75.75 0 0 1-1.5 0v-1.11zm.59 10.41h3.55a.22.22 0 0 0 .22-.22v-2.5h-4v2.5a.23.23 0 0 0 .23.22" clipRule="evenodd" /></Svg>;
+export const WifiIcon = ({
+	color = '#000000',
+	size = 24,
+	style
+}: IconProps) => <Svg width={24} height={24} fill="none" viewBox="0 0 24 24" style={style}><Path fill={color} fillRule="evenodd" d="M14.24 2H10a8 8 0 0 0-8 8v4.24a8 8 0 0 0 8 8h4.24a8 8 0 0 0 8-8V10a8 8 0 0 0-8-8m-.74 14.36a1.38 1.38 0 1 1-2.75 0 1.39 1.39 0 0 1 1.37-1.37 1.39 1.39 0 0 1 1.37 1.32zM14.97 15a.73.73 0 0 0 .6-.3.74.74 0 0 0-.15-1.06 5.57 5.57 0 0 0-6.61 0 .754.754 0 0 0 .9 1.21 4 4 0 0 1 4.81 0 .8.8 0 0 0 .45.15m2.32-2.45a.75.75 0 0 1-1.05.14 6.7 6.7 0 0 0-4.1-1.4 6.82 6.82 0 0 0-4.12 1.41.76.76 0 0 1-1.05-.14.75.75 0 0 1 .14-1 8.34 8.34 0 0 1 5-1.72 8.2 8.2 0 0 1 5 1.71.74.74 0 0 1 .18 1m1.1-1.84a.73.73 0 0 0 .6-.29.75.75 0 0 0-.09-1.05 11 11 0 0 0-13.46 0 .76.76 0 0 0-.14 1.06.75.75 0 0 0 1 .13 9.47 9.47 0 0 1 11.64 0 .74.74 0 0 0 .45.15" clipRule="evenodd" /></Svg>;
 
 const ICON_MAP: Record<string, React.ComponentType<IconProps>> = {
-	ActivityIcon: ActivityIcon,
-	BookIcon: BookIcon,
-	HeartIcon: HeartIcon,
-	MugIcon: MugIcon,
-	FlameIcon: FlameIcon,
-	StarIcon: StarIcon,
-	LampIcon: LampIcon,
-	LightningIcon: LightningIcon,
-	MoonIcon: MoonIcon,
-	SunIcon: SunIcon,
-	SproutIcon: SproutIcon,
-	ClockIcon: ClockIcon,
-	BellDisabledIcon: BellDisabledIcon,
-	SparklesIcon: SparklesIcon,
-	CalendarIcon: CalendarIcon,
-	TimerIcon: TimerIcon,
-	TickIcon: TickIcon,
-	EditIcon: EditIcon,
-	DefaultHabitIcon: DefaultHabitIcon,
+	ActivityIcon,
+	AlarmIcon,
+	BasketIcon,
+	BellDisabledIcon,
+	BellIcon,
+	BinIcon,
+	BookIcon,
+	BrushIcon,
+	CalendarIcon,
+	CameraIcon,
+	CancelIcon,
+	CardViewIcon,
+	ChipIcon,
+	ClipboardIcon,
+	ClockIcon,
+	CloudSyncIcon,
+	CommandIcon,
+	CompassIcon,
+	DefaultHabitIcon,
+	DeliveryIcon,
+	DocumentIcon,
+	EditIcon,
+	EyeIcon,
+	FlameIcon,
+	FolderIcon,
+	GridViewIcon,
+	HeartIcon,
+	HomeIcon,
+	ImacIcon,
+	JoystickIcon,
+	KeyboardIcon,
+	LampIcon,
+	LightningIcon,
+	ListViewIcon,
+	LocationIcon,
+	LogoIcon,
+	MoonIcon,
+	MugIcon,
+	MusicNoteIcon,
+	PhoneIcon,
+	PlusFilledIcon,
+	PointIcon,
+	SearchIcon,
+	ShieldIcon,
+	SkipIcon,
+	SparklesIcon,
+	SproutIcon,
+	StarIcon,
+	SunIcon,
+	SunsetIcon,
+	TickIcon,
+	TimerIcon,
+	TrendDownIcon,
+	TrendUpIcon,
+	UserIcon,
+	WatchIcon,
+	WifiIcon,
 };
 
-/**
- * Renders a habit icon given its stored name.
- * - "🌱" → renders the sprout emoji (the ONLY allowed emoji).
- * - Any recognised icon name → renders the corresponding SVG icon.
- * - Fallback → DefaultHabitIcon.
- */
 export function renderHabitIcon(
 	iconName: string | null | undefined,
 	color: string = "#1C1C1E",
 	size: number = 24
 ): React.ReactNode {
-	if (!iconName || iconName === "🌱" || iconName === "SproutIcon") {
-		return <SproutIcon color={color} size={size} />;
+	if (!iconName || iconName === "🌱") {
+		return <SparklesIcon color={color} size={size} />;
 	}
 	const IconComponent = ICON_MAP[iconName];
 	if (IconComponent) {
 		return <IconComponent color={color} size={size} />;
 	}
-	// Unknown name — fallback
 	return <DefaultHabitIcon color={color} size={size} />;
 }
 
-/**
- * Returns the list of all available icon names (for pickers).
- */
 export const ALL_ICON_NAMES = Object.keys(ICON_MAP) as (keyof typeof ICON_MAP)[];

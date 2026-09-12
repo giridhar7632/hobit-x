@@ -40,19 +40,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const configured = isSupabaseConfigured();
 
-  // Load cached session & guest mode from local disk (works 100% offline)
   useEffect(() => {
     let isMounted = true;
 
     async function initializeAuth() {
       try {
-        // 1. Check if user previously chose guest/offline mode
         const savedGuest = await AsyncStorage.getItem(GUEST_STORAGE_KEY);
         if (savedGuest === 'true' && isMounted) {
           setIsGuest(true);
         }
 
-        // 2. If Supabase configured, read persisted session from AsyncStorage
         if (configured) {
           const { data, error } = await supabase.auth.getSession();
           if (!error && data?.session && isMounted) {
@@ -72,7 +69,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initializeAuth();
 
-    // 3. Listen to auth changes when online
     if (configured) {
       const {
         data: { subscription },
@@ -84,7 +80,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setIsGuest(false);
           await AsyncStorage.removeItem(GUEST_STORAGE_KEY).catch(() => {});
           
-          // Only trigger data migration and sync on explicit SIGNED_IN events to prevent infinite loops
           if (_event === 'SIGNED_IN') {
             (async () => {
               try {

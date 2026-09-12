@@ -53,7 +53,6 @@ export function HabitCardView({
         const cardBorder = isWhiteText ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.08)';
         const dividerColor = isWhiteText ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.08)';
 
-        // Notification formatted string
         const notifyTimeStr = (() => {
           if (!habit.notify || !habit.notify_time) return null;
           const times = parseNotifyTimes(habit.notify_time);
@@ -78,7 +77,6 @@ export function HabitCardView({
             ]}
             className="rounded-[24px] border px-4 py-6 shadow-sm shadow-black/5"
           >
-            {/* Top row: Icon + Name + Completion */}
             <View className="flex-row items-center gap-3.5">
               <View
                 style={{ backgroundColor: iconWrapBg }}
@@ -123,7 +121,6 @@ export function HabitCardView({
               />
             </View>
 
-            {/* Bottom Row: Metadata Badges & Timer Button */}
             <View
               style={{ borderTopColor: dividerColor }}
               className="flex-row items-center justify-between mt-4 pt-3 border-t"

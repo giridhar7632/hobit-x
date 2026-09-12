@@ -3,11 +3,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { StyleProp, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import Animated, {
   Easing,
+  SharedValue,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
   withSequence,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
@@ -67,10 +67,6 @@ export function CompletionIndicator({
     }
 
     if (isCompleted) {
-      setMicroCopyText(
-        CELEBRATION_MESSAGES[Math.floor(Math.random() * CELEBRATION_MESSAGES.length)]
-      );
-
       tickScale.value = withSequence(
         withTiming(1.18, { duration: 140, easing: Easing.out(Easing.quad) }),
         withTiming(1, { duration: 120, easing: Easing.out(Easing.quad) })
@@ -91,7 +87,7 @@ export function CompletionIndicator({
       ringOpacity.value = 0;
       microCopyOpacity.value = 0;
     }
-  }, [isCompleted]);
+  }, [isCompleted, microCopyOpacity, ringOpacity, ringScale, tickScale]);
 
   const tickAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: tickScale.value }],
@@ -118,6 +114,9 @@ export function CompletionIndicator({
         onUntrack();
       }
     } else {
+      setMicroCopyText(
+        CELEBRATION_MESSAGES[Math.floor(Math.random() * CELEBRATION_MESSAGES.length)]
+      );
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onTrack();
     }
@@ -150,6 +149,14 @@ export function CompletionIndicator({
     ? 'rgba(255,255,255,0.08)'
     : 'rgba(0,0,0,0.05)';
 
+  const handlePressIn = (scale: SharedValue<number>) => {
+    scale.value = withTiming(0.92, { duration: 90, easing: Easing.out(Easing.quad) });
+  };
+
+  const handlePressOut = (scale: SharedValue<number>) => {
+    scale.value = withTiming(1, { duration: 120, easing: Easing.out(Easing.quad) });
+  };
+
   return (
     <View style={[{ alignItems: 'center', justifyContent: 'center', overflow: 'visible', zIndex: 9999 }, style]}>
       {/* Burst ring */}
@@ -170,12 +177,8 @@ export function CompletionIndicator({
       {/* Main interactive button */}
       <TouchableOpacity
         activeOpacity={0.85}
-        onPressIn={() => {
-          pressScale.value = withTiming(0.92, { duration: 90, easing: Easing.out(Easing.quad) });
-        }}
-        onPressOut={() => {
-          pressScale.value = withTiming(1, { duration: 120, easing: Easing.out(Easing.quad) });
-        }}
+        onPressIn={() => handlePressIn(pressScale)}
+        onPressOut={() => handlePressOut(pressScale)}
         onPress={handlePress}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >

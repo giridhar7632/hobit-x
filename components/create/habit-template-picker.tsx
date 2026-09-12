@@ -37,7 +37,12 @@ export function HabitTemplatePicker({
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  const textColor = isDark ? '#ECEDEE' : '#11181C';
+  const chipBgActive = isDark ? '#FFFFFF' : '#11181C';
+  const chipTextActive = isDark ? '#11181C' : '#FFFFFF';
+  const chipBgInactive = isDark ? '#222326' : '#F3F4F6';
+  const chipTextInactive = isDark ? '#A1A1AA' : '#71717A';
+  const countTextActive = isDark ? 'rgba(17, 24, 28, 0.75)' : 'rgba(255, 255, 255, 0.8)';
+  const countTextInactive = isDark ? '#71717A' : '#9CA3AF';
 
   // Fetch existing habits to avoid showing already created ones
   const { data: habits } = useQuery({
@@ -69,7 +74,6 @@ export function HabitTemplatePicker({
 
   return (
     <View className="w-full">
-      {/* 1. HERO TOP ACTION: CREATE CUSTOM HABIT */}
       {showCustomOption && (
         <>
           <TouchableOpacity
@@ -99,7 +103,6 @@ export function HabitTemplatePicker({
             <ChevronIcon direction="right" size={18} color="#4655E0" />
           </TouchableOpacity>
 
-          {/* 2. SUBTLE SECTION DIVIDER */}
           <View className="flex-row items-center mb-4">
             <View className="flex-1 h-[1px] bg-black/5 dark:bg-white/10" />
             <Text className="px-3 text-[11px] font-psemibold tracking-wider uppercase text-neutral-400 dark:text-neutral-500">
@@ -110,7 +113,6 @@ export function HabitTemplatePicker({
         </>
       )}
 
-      {/* 3. HORIZONTAL CATEGORY SELECTOR PILLS */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -123,47 +125,35 @@ export function HabitTemplatePicker({
           return (
             <TouchableOpacity
               key={cat}
-              activeOpacity={0.75}
+              activeOpacity={0.7}
               onPress={() => {
                 Haptics.selectionAsync();
                 setSelectedCategory(cat);
               }}
               style={{
-                backgroundColor: isSelected
-                  ? isDark
-                    ? 'rgba(70, 85, 224, 0.25)'
-                    : 'rgba(70, 85, 224, 0.12)'
-                  : isDark
-                    ? 'rgba(255,255,255,0.06)'
-                    : 'rgba(0,0,0,0.04)',
-                borderColor: isSelected ? '#4655E0' : 'transparent',
+                backgroundColor: isSelected ? chipBgActive : chipBgInactive,
               }}
-              className="px-4 py-2.5 rounded-full border items-center justify-center flex-row gap-1.5"
+              className="px-4 py-2 rounded-full border border-black/[0.04] dark:border-white/[0.04] items-center justify-center flex-row gap-1.5"
             >
               <Text
-                style={{ color: isSelected ? '#4655E0' : textColor }}
-                className={`text-xs ${isSelected ? 'font-pbold' : 'font-pmedium'}`}
+                style={{ color: isSelected ? chipTextActive : chipTextInactive }}
+                className="font-pbold text-[13px]"
               >
                 {cat}
               </Text>
               <Text
                 style={{
-                  color: isSelected
-                    ? '#4655E0'
-                    : isDark
-                      ? '#9BA1A6'
-                      : '#687076',
+                  color: isSelected ? countTextActive : countTextInactive,
                 }}
-                className="text-[10px] font-psemibold opacity-75"
+                className="text-[11px] font-psemibold"
               >
-                ({count})
+                {count}
               </Text>
             </TouchableOpacity>
           );
         })}
       </ScrollView>
 
-      {/* 4. TEMPLATES LIST */}
       <View className="gap-3">
         {activeTemplates.length > 0 ? (
           activeTemplates.map((template) => {

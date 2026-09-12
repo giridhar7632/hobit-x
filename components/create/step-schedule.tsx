@@ -118,7 +118,6 @@ export function StepSchedule({
 
   return (
     <View className="px-5 gap-6">
-      {/* TIME OF DAY */}
       <View className="gap-2.5">
         <View className="flex-row justify-between items-center mb-1">
           <Text className="font-pbold text-xs tracking-wider uppercase text-neutral-400 dark:text-neutral-500 pl-1">
@@ -185,7 +184,6 @@ export function StepSchedule({
         </View>
       </View>
 
-      {/* FREQUENCY SELECTOR */}
       <View className="gap-2.5">
         <Text className="font-pbold text-xs tracking-wider uppercase text-neutral-400 dark:text-neutral-500 pl-1">
           FREQUENCY
@@ -202,7 +200,6 @@ export function StepSchedule({
           <ChevronIcon direction="right" size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
         </TouchableOpacity>
 
-        {/* PROGRESSIVE DISCLOSURE: Specific Days */}
         {frequency === 'weekly' && (
           <View className="mt-2.5 gap-2.5 px-0.5">
             <Text className="font-pmedium text-xs text-neutral-400 dark:text-neutral-500">
@@ -241,7 +238,6 @@ export function StepSchedule({
           </View>
         )}
 
-        {/* PROGRESSIVE DISCLOSURE: Every X Days */}
         {frequency === 'interval' && (
           <View className="mt-2.5 gap-2.5 px-0.5">
             <View className="flex-row items-center justify-between py-2">
@@ -284,7 +280,6 @@ export function StepSchedule({
         )}
       </View>
 
-      {/* Frequency Options Modal */}
       <Modal
         visible={isFreqPickerOpen}
         transparent

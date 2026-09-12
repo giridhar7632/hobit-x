@@ -86,7 +86,6 @@ export default function HabitScreen() {
   const isDark = currentTheme === 'dark';
   const { setActiveColor } = useAppTheme();
 
-  // Backdate modal state
   const [backdateModalVisible, setBackdateModalVisible] = useState(false);
   const [pendingBackdate, setPendingBackdate] = useState<{ dateStr: string; displayDate: string } | null>(null);
 
@@ -180,13 +179,12 @@ export default function HabitScreen() {
       if (habit?.color) {
         setActiveColor(habit.color);
       }
-    }, [habit?.color, setActiveColor])
+    }, [habit, setActiveColor])
   );
 
   const parsedNotifyTimes = useMemo(() => parseNotifyTimes(habit?.notify_time), [habit?.notify_time]);
   const totalDailyTarget = useMemo(() => getHabitTotalReminders(habit), [habit]);
 
-  // Track today
   const handleTrackToday = async () => {
     if (!habit) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -209,14 +207,13 @@ export default function HabitScreen() {
     await mutateOutbox('track_habit', trackedResult);
   };
 
-  // Untrack today
   const handleUntrackToday = async () => {
     if (!habit) return;
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       const result = await untrackHabitToday(habit.id);
       if (result) {
-        const newNotificationIds = await refreshHabitNotifications(habit, 0, false);
+        await refreshHabitNotifications(habit, 0, false);
         invalidateAll();
         await mutateOutbox('delete_entry', result);
       }
@@ -226,7 +223,6 @@ export default function HabitScreen() {
     }
   };
 
-  // Heatmap square pressed
   const handleHeatmapDatePress = (dateStr: string, status: string | null, displayDate: string) => {
     const today = new Date().toISOString().split('T')[0];
     if (dateStr > today) return;
@@ -347,12 +343,10 @@ export default function HabitScreen() {
 
   return (
     <View className="flex-1" style={{ backgroundColor: heroBg }}>
-      {/* ── HERO SECTION ── */}
       <View
         className="h-[30%] min-h-[200px] justify-center items-center relative"
         style={{ paddingTop: insets.top }}
       >
-        {/* Back */}
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={() => {
@@ -372,7 +366,6 @@ export default function HabitScreen() {
           <ChevronIcon direction="left" size={20} color={textColor} />
         </TouchableOpacity>
 
-        {/* Delete */}
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={() => onDeleteHabit(habitId)}
@@ -388,7 +381,6 @@ export default function HabitScreen() {
           <BinIcon size={18} color="#EF4444" />
         </TouchableOpacity>
 
-        {/* Concentric icon rings */}
         <View className="items-center justify-center">
           <View
             className="w-[132px] h-[132px] rounded-full border-2 items-center justify-center"
@@ -409,7 +401,6 @@ export default function HabitScreen() {
         </View>
       </View>
 
-      {/* ── CONTENT CARD ── */}
       <View
         className="flex-1 rounded-t-[32px] -mt-7 overflow-hidden"
         style={{
@@ -423,7 +414,6 @@ export default function HabitScreen() {
           contentContainerStyle={{ paddingBottom: bottomPad + 88 }}
           showsVerticalScrollIndicator={false}
         >
-          {/* ── HEADER ── */}
           <View className="flex-row items-start gap-3">
             <View className="flex-1 gap-1">
               <Text
@@ -457,7 +447,6 @@ export default function HabitScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* ── STREAK TILE ── */}
           <View
             className="flex-row items-center p-4 rounded-[22px] border gap-4 shadow-sm"
             style={{
@@ -505,7 +494,6 @@ export default function HabitScreen() {
             </View>
           </View>
 
-          {/* ── ACTIVITY HEATMAP ── */}
           <View className="gap-3">
             <View className="flex-row items-center justify-between">
               <Text className="font-pbold text-base tracking-[-0.3px]" style={{ color: textColor }}>Activity</Text>
@@ -522,7 +510,6 @@ export default function HabitScreen() {
             )}
           </View>
 
-          {/* ── COMPACT SETTINGS CARD ── */}
           <TouchableOpacity
             activeOpacity={0.75}
             onPress={() => {
@@ -586,7 +573,6 @@ export default function HabitScreen() {
             </View>
           </TouchableOpacity>
 
-          {/* ── HISTORY LOGS ── */}
           <View className="gap-3">
             <Text className="font-pbold text-base tracking-[-0.3px]" style={{ color: textColor }}>History</Text>
 
@@ -643,7 +629,6 @@ export default function HabitScreen() {
           </View>
         </ScrollView>
 
-        {/* ── FLOATING TRACK BUTTON ── */}
         <View
           className="absolute bottom-0 left-0 right-0 pt-3 px-5 border-t"
           style={{
@@ -683,7 +668,6 @@ export default function HabitScreen() {
         </View>
       </View>
 
-      {/* ── BACKDATE MODAL ── */}
       <Modal
         visible={backdateModalVisible}
         transparent
@@ -704,7 +688,6 @@ export default function HabitScreen() {
                 shadowColor: '#000', shadowOpacity: 0.18, shadowOffset: { width: 0, height: -4 }, shadowRadius: 20, elevation: 20
               }}
             >
-              {/* Icon */}
               <View
                 className="w-[60px] h-[60px] rounded-[20px] items-center justify-center mb-1"
                 style={{ backgroundColor: `${accentColor}18` }}
@@ -723,7 +706,7 @@ export default function HabitScreen() {
                 <Text className="font-pbold" style={{ color: textColor }}>
                   Note:{' '}
                 </Text>
-                Your current streak won't change.
+                Your current streak won&apos;t change.
               </Text>
 
               <Button

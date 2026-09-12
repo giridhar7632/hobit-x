@@ -34,7 +34,6 @@ export function TemplatePickerScreen({
       contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 }}
       showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
       <View className="mb-5">
         {onBack && (
           <TouchableOpacity
@@ -46,14 +45,13 @@ export function TemplatePickerScreen({
           </TouchableOpacity>
         )}
         <Text className="text-3xl leading-9 font-pbold tracking-tight text-neutral-900 dark:text-neutral-100 mb-2">
-          Let's build a new habit
+          Let&apos;s build a new habit
         </Text>
         <Text className="text-sm leading-5 font-pregular text-neutral-500 dark:text-neutral-400 max-w-[320px]">
           Start with your own goal or pick from our curated rituals.
         </Text>
       </View>
 
-      {/* Reusable Template Picker */}
       <HabitTemplatePicker
         onSelectTemplate={onSelectTemplate}
         onSelectCustom={onSelectCustom}

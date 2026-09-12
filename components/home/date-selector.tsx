@@ -59,14 +59,12 @@ export function DateSelector({
 
   const todayISO = useMemo(() => formatDateISO(today), [today]);
 
-  // Current displayed Monday based on weekOffset
   const currentMonday = useMemo(() => {
     const mon = getMonday(today);
     mon.setDate(mon.getDate() + weekOffset * 7);
     return mon;
   }, [today, weekOffset]);
 
-  // 7 days of this week (Mon to Sun)
   const weekDays: DayItem[] = useMemo(() => {
     const days: DayItem[] = [];
     for (let i = 0; i < 7; i++) {
@@ -88,7 +86,6 @@ export function DateSelector({
     return days;
   }, [currentMonday, todayISO]);
 
-  // Header Title e.g. "This Week (Sep 8 - 14)" or "Aug 31 - Sep 6"
   const weekLabel = useMemo(() => {
     if (weekOffset === 0) return 'This Week';
     if (weekOffset === -1) return 'Last Week';
@@ -123,7 +120,6 @@ export function DateSelector({
 
   return (
     <View className="my-2.5 px-5">
-      {/* Week Navigation Header */}
       <View className="flex-row items-center justify-between mb-2 px-1">
         <View className="flex-row items-center gap-2">
           <Text className="text-xs font-pbold tracking-wider uppercase text-neutral-400 dark:text-neutral-500">
@@ -162,7 +158,6 @@ export function DateSelector({
         </View>
       </View>
 
-      {/* 7 Days Row */}
       <View className="flex-row justify-between items-center">
         {weekDays.map((item) => {
           const isSelected = item.dateISO === selectedDate;

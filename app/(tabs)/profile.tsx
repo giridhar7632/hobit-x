@@ -29,7 +29,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Premium locked-in brand color
 const BRAND_PURPLE = '#6366F1';
 
 export default function ProfileScreen() {
@@ -49,7 +48,6 @@ export default function ProfileScreen() {
 
   const habitsQueryKey = useMemo(() => ['habits'], []);
 
-  // Fetch local habits
   const { data: habits = [] } = useQuery({
     queryKey: habitsQueryKey,
     queryFn: getHabits,
@@ -57,7 +55,6 @@ export default function ProfileScreen() {
 
   const userId = user?.id ?? null;
 
-  // Calculate quick metrics
   const totalHabits = habits.length;
   const bestStreak = useMemo(() => {
     if (!habits.length) return 0;
@@ -116,7 +113,6 @@ export default function ProfileScreen() {
       await refreshOutbox();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => { });
     } catch (err: any) {
-      // Replaced jarring Alert with smooth inline messaging & haptic error
       setSyncMessage(err.message || 'Sync failed. Please try again.');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => { });
     } finally {
@@ -126,7 +122,6 @@ export default function ProfileScreen() {
 
   const handleSignOut = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
-    // Keep Alert here because it is a destructive action requiring confirmation
     Alert.alert(
       'Sign Out',
       'Are you sure you want to sign out? Your habits on this device will remain saved.',
@@ -156,7 +151,6 @@ export default function ProfileScreen() {
     'Guest User';
   const userEmail = user?.email || 'Local Account';
 
-  // Premium UI Theme Variables
   const cardBg = isDark ? '#1C1C1E' : '#FFFFFF';
   const cardBorder = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
   const mutedText = isDark ? '#8E8E93' : '#6B7280';
@@ -176,7 +170,6 @@ export default function ProfileScreen() {
           paddingBottom: 110,
         }}
       >
-        {/* Header Title */}
         <View className="mb-6 mt-2">
           <ThemedText className="text-3xl font-pbold tracking-tight">Your Profile</ThemedText>
         </View>

@@ -23,7 +23,22 @@ export default function DebugNotificationsScreen() {
     };
 
     useEffect(() => {
-        fetchNotifications();
+        let isMounted = true;
+        const load = async () => {
+            setIsRefreshing(true);
+            try {
+                const notifs = await Notifications.getAllScheduledNotificationsAsync();
+                if (isMounted) setScheduled(notifs);
+            } catch (error) {
+                console.error("Failed to fetch notifications:", error);
+            } finally {
+                if (isMounted) setIsRefreshing(false);
+            }
+        };
+        load();
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
     const handleCancelAll = async () => {
@@ -49,12 +64,10 @@ export default function DebugNotificationsScreen() {
         fetchNotifications();
     };
 
-    // Safely format the trigger so we can read when it will fire
     const formatTrigger = (trigger: any) => {
         if (!trigger) return "Unknown";
         
         try {
-            // Handle Timestamp / Date triggers
             if (trigger.type === 'date' || (trigger.value && typeof trigger.value === 'number')) {
                 const dateValue = trigger.value || trigger.date;
                 if (dateValue) {
@@ -62,14 +75,12 @@ export default function DebugNotificationsScreen() {
                 }
             }
 
-            // Handle Daily triggers
             if (trigger.type === 'daily' || (trigger.hour !== undefined && trigger.minute !== undefined && trigger.type !== 'calendar')) {
                 const h = trigger.hour?.toString().padStart(2, '0') || '00';
                 const m = trigger.minute?.toString().padStart(2, '0') || '00';
                 return `Daily at ${h}:${m}`;
             }
 
-            // Handle Calendar triggers (iOS usually)
             if (trigger.type === 'calendar' && trigger.dateComponents) {
                 const { year, month, day, hour, minute } = trigger.dateComponents;
                 const datePart = [year, month, day].filter(Boolean).join('-');
@@ -82,18 +93,17 @@ export default function DebugNotificationsScreen() {
                 if (timePart) return `Daily at ${timePart}`;
             }
 
-            // Handle TimeInterval triggers
             if (trigger.type === 'timeInterval' && trigger.seconds) {
                 if (trigger.repeats) {
                     return `Every ${Math.round(trigger.seconds)} seconds`;
                 } else {
-                    const approximateDate = new Date(Date.now() + trigger.seconds * 1000);
-                    const relativeStr = formatRelative(approximateDate, new Date());
+                    const nowDate = new Date();
+                    const approximateDate = new Date(nowDate.getTime() + trigger.seconds * 1000);
+                    const relativeStr = formatRelative(approximateDate, nowDate);
                     return relativeStr.charAt(0).toUpperCase() + relativeStr.slice(1);
                 }
             }
-        } catch (e) {
-            // Fallback to JSON
+        } catch {
         }
 
         return JSON.stringify(trigger, null, 2);

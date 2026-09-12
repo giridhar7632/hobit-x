@@ -58,21 +58,12 @@ export function StepGoal({
 
   const textColor = isDark ? '#ECEDEE' : '#11181C';
 
-  const [customUnitMode, setCustomUnitMode] = useState(
-    Boolean(targetUnit && !UNIT_SUGGESTIONS.includes(targetUnit))
-  );
-
-  React.useEffect(() => {
-    if (targetUnit && !UNIT_SUGGESTIONS.includes(targetUnit)) {
-      setCustomUnitMode(true);
-    }
-  }, [targetUnit]);
+  const [customUnitMode, setCustomUnitMode] = useState(false);
+  const isCustomUnit = customUnitMode || Boolean(targetUnit && !UNIT_SUGGESTIONS.includes(targetUnit));
 
   return (
     <View className="px-5 gap-5">
-      {/* 3 Completion Type Cards */}
       <View className="gap-3">
-        {/* Card 1: Just complete it */}
         <TouchableOpacity
           activeOpacity={0.75}
           onPress={() => {
@@ -121,7 +112,6 @@ export function StepGoal({
           </View>
         </TouchableOpacity>
 
-        {/* Card 2: Track time */}
         <TouchableOpacity
           activeOpacity={0.75}
           onPress={() => {
@@ -171,7 +161,6 @@ export function StepGoal({
           </View>
         </TouchableOpacity>
 
-        {/* Card 3: Track quantity */}
         <TouchableOpacity
           activeOpacity={0.75}
           onPress={() => {
@@ -227,17 +216,15 @@ export function StepGoal({
         </TouchableOpacity>
       </View>
 
-      {/* DYNAMIC CONFIGURATION: Check */}
       {completionType === 'check' && (
         <View className="flex-row items-center p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] gap-2.5 bg-black/[0.02] dark:bg-white/[0.03]">
           <TickIcon color={accentColor} size={18}></TickIcon>
           <Text className="font-pmedium text-sm flex-1 text-neutral-500 dark:text-neutral-400">
-            Great! Simply check it off when you're done.
+            Great! Simply check it off when you&apos;re done.
           </Text>
         </View>
       )}
 
-      {/* DYNAMIC CONFIGURATION: Time */}
       {completionType === 'time' && (
         <View className="gap-2.5 mt-1">
           <Text className="font-pbold text-xs tracking-wider uppercase text-neutral-400 dark:text-neutral-500 pl-1">
@@ -262,7 +249,6 @@ export function StepGoal({
             </Text>
           </View>
 
-          {/* Quick Suggestions Chips */}
           <View className="flex-row flex-wrap gap-2 mt-1">
             {TIME_SUGGESTIONS.map((s) => {
               const isSelected = Number(plannedMinutes) === s.value;
@@ -297,7 +283,6 @@ export function StepGoal({
         </View>
       )}
 
-      {/* DYNAMIC CONFIGURATION: Quantity */}
       {completionType === 'quantity' && (
         <View className="gap-2.5 mt-1">
           <Text className="font-pbold text-xs tracking-wider uppercase text-neutral-400 dark:text-neutral-500 pl-1">
@@ -322,10 +307,9 @@ export function StepGoal({
             </Text>
           </View>
 
-          {/* Unit Suggestions Chips */}
           <View className="flex-row flex-wrap gap-2 mt-1">
             {UNIT_SUGGESTIONS.map((unit) => {
-              const isSelected = targetUnit === unit && !customUnitMode;
+              const isSelected = targetUnit === unit && !isCustomUnit;
               return (
                 <TouchableOpacity
                   key={unit}
@@ -362,26 +346,25 @@ export function StepGoal({
                 setCustomUnitMode(true);
               }}
               style={{
-                backgroundColor: customUnitMode
+                backgroundColor: isCustomUnit
                   ? accentColor
                   : isDark
                     ? 'rgba(255,255,255,0.06)'
                     : 'rgba(0,0,0,0.04)',
-                borderColor: customUnitMode ? accentColor : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
+                borderColor: isCustomUnit ? accentColor : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
               }}
               className="px-3.5 py-2 rounded-xl border"
             >
               <Text
-                style={{ color: customUnitMode ? getContrastTextColor(accentColor) : textColor }}
+                style={{ color: isCustomUnit ? getContrastTextColor(accentColor) : textColor }}
                 className="font-psemibold text-xs"
               >
-                Custom...
+                custom
               </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Custom Unit Input */}
-          {customUnitMode && (
+          {isCustomUnit && (
             <TextInput
               value={targetUnit}
               onChangeText={onChangeTargetUnit}

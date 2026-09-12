@@ -61,7 +61,6 @@ export function HabitGridView({
             ]}
             className="rounded-[22px] border p-3.5 min-h-[146px] justify-between shadow-sm shadow-black/5"
           >
-            {/* Top Row: Icon + Indicator */}
             <View className="flex-row items-center justify-between">
               <View
                 style={{ backgroundColor: tileBg }}
@@ -81,7 +80,6 @@ export function HabitGridView({
               />
             </View>
 
-            {/* Middle: Habit Name */}
             <View className="my-2.5">
               <Text
                 numberOfLines={2}
@@ -107,7 +105,6 @@ export function HabitGridView({
               ) : null}
             </View>
 
-            {/* Bottom Row: Badges / Timer Action */}
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center gap-2">
                 {habit.planned_time_minutes ? (

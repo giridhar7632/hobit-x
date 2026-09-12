@@ -2,9 +2,8 @@ import * as Haptics from 'expo-haptics';
 import React, { useMemo, useState } from 'react';
 import {
   Text,
-  TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 
 import { StepSummary } from '@/components/create/step-summary';
@@ -53,7 +52,7 @@ export function StepReminder({
   onChangeReminderMessage,
   name,
   accentColor = '#4655E0',
-  icon = 'SproutIcon',
+  icon = 'SparklesIcon',
   description,
   color = 'purple',
   timeOfDay,
@@ -142,7 +141,6 @@ export function StepReminder({
 
   return (
     <View className="px-5 gap-5">
-      {/* 1. ENABLE REMINDERS TOGGLE CARD */}
       <View
         style={{
           borderColor: notify ? `${accentColor}50` : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
@@ -172,10 +170,8 @@ export function StepReminder({
         />
       </View>
 
-      {/* 2. DYNAMIC CONFIGURATION (Shown when notify is true) */}
       {notify ? (
         <View className="gap-5">
-          {/* Section: Reminder Times */}
           <View className="gap-2.5">
             <View className="flex-row items-center justify-between px-1">
               <Text className="font-pbold text-xs tracking-wider uppercase text-neutral-400 dark:text-neutral-500">
@@ -244,7 +240,6 @@ export function StepReminder({
             </View>
           </View>
 
-          {/* Section: Custom / Dynamic Notification Message */}
           <View className="gap-2.5">
             <FormInput
               label="NOTIFICATION MESSAGE"
@@ -261,9 +256,7 @@ export function StepReminder({
               }
             />
 
-            {/* Quick Suggestions Chips */}
             <View className="flex-row flex-wrap gap-2 mt-1">
-              {/* Dynamic / Auto Option */}
               <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={() => {
@@ -333,7 +326,6 @@ export function StepReminder({
           </View>
         </View>
       ) : (
-        /* 3. INLINE SUMMARY CARD (Shown on Step 4 when notify is false) */
         <View className="-mx-5">
           <StepSummary
             icon={icon}
@@ -353,12 +345,11 @@ export function StepReminder({
             notifyTimes={currentNotifyTimes}
             reminderMessage=""
             accentColor={accentColor}
-            onJumpToStep={onJumpToStep || (() => {})}
+            onJumpToStep={onJumpToStep || (() => { })}
           />
         </View>
       )}
 
-      {/* Time Picker Modal */}
       <CustomTimePicker
         visible={isTimePickerVisible}
         onClose={() => {

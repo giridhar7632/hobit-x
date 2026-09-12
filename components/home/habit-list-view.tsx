@@ -81,7 +81,6 @@ export function HabitListView({
 
         return (
           <View key={section.key} className="mb-6">
-            {/* Section Header */}
             <View className="flex-row items-center gap-1.5 mb-2.5 px-1">
               <SectionIcon
                 size={14}
@@ -95,7 +94,6 @@ export function HabitListView({
               </Text>
             </View>
 
-            {/* Habit Rows Card Group */}
             <View className="rounded-[20px] border border-black/[0.04] dark:border-white/[0.06] bg-white dark:bg-[#1C1D20] shadow-sm shadow-black/5 overflow-visible">
               {sectionHabits.map((habit, idx) => {
                 const colorDef = getHabitColor(habit.color);
@@ -113,7 +111,6 @@ export function HabitListView({
                     } ${idx === sectionHabits.length - 1 ? 'rounded-b-[20px]' : 'border-b border-black/[0.05] dark:border-white/[0.06]'}`}
                     style={completed ? { opacity: 0.65 } : undefined}
                   >
-                    {/* Icon Square */}
                     <View
                       style={{
                         backgroundColor: isDark
@@ -125,7 +122,6 @@ export function HabitListView({
                       {renderHabitIcon(habit.icon, '#1C1C1E', 18)}
                     </View>
 
-                    {/* Content */}
                     <View className="flex-1">
                       <Text
                         numberOfLines={1}
@@ -136,7 +132,6 @@ export function HabitListView({
                         {habit.name}
                       </Text>
 
-                      {/* Badges / Subtitle */}
                       <View className="flex-row items-center gap-2.5 mt-0.5">
                         {habit.planned_time_minutes ? (
                           <View className="flex-row items-center gap-1">
@@ -158,7 +153,6 @@ export function HabitListView({
                       </View>
                     </View>
 
-                    {/* Actions: Timer Button + Completion Indicator */}
                     <View className="flex-row items-center gap-2 overflow-visible z-[9999]">
                       {habit.planned_time_minutes && !completed ? (
                         <TouchableOpacity

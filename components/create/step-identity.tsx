@@ -8,13 +8,13 @@ import {
 
 import { IconPickerModal } from '@/components/create/icon-picker-modal';
 import FormInput from '@/components/ui/form-input';
-import { HABIT_COLORS, PASTEL_PALETTE } from '@/constants/habit-colors';
+import { getContrastTextColor, HABIT_COLORS, PASTEL_PALETTE } from '@/constants/habit-colors';
 import { renderHabitIcon } from '@/constants/icons';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 interface StepIdentityProps {
   icon: string;
-  onChangeIcon: (icon: string) => void;
+  onChangeIcon: (icon: string, color?: string) => void;
   name: string;
   onChangeName: (name: string) => void;
   description: string;
@@ -41,7 +41,6 @@ export function StepIdentity({
 
   return (
     <View className="px-5 gap-5">
-      {/* Top Center Icon Selector */}
       <View className="items-center my-1.5 gap-2">
         <TouchableOpacity
           activeOpacity={0.8}
@@ -57,7 +56,7 @@ export function StepIdentity({
           }}
           className="w-[88px] h-[88px] rounded-[26px] border-[1.5px] items-center justify-center shadow-sm shadow-black/5"
         >
-          {renderHabitIcon(icon || 'SproutIcon', '#1C1C1E', 44)}
+          {renderHabitIcon(icon || 'SparklesIcon', getContrastTextColor(selectedTheme.hex), 44)}
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -74,7 +73,6 @@ export function StepIdentity({
         </TouchableOpacity>
       </View>
 
-      {/* Habit Name */}
       <FormInput
         label="Habit name"
         required
@@ -86,7 +84,6 @@ export function StepIdentity({
         maxLength={60}
       />
 
-      {/* Description */}
       <FormInput
         label="Description"
         value={description}
@@ -99,7 +96,6 @@ export function StepIdentity({
         helperText="Optional"
       />
 
-      {/* Colour Swatches */}
       <View className="gap-2">
         <Text className="font-pbold text-sm text-neutral-900 dark:text-neutral-100 mb-1">
           Colour
@@ -128,14 +124,19 @@ export function StepIdentity({
         </View>
       </View>
 
-      {/* Dedicated Icon Picker Modal */}
       <IconPickerModal
         visible={isIconPickerOpen}
         selectedIcon={icon}
         accentColor={selectedTheme.accent}
-        onSelectIcon={onChangeIcon}
+        onSelectIcon={(selectedIconName, selectedColor) => {
+          onChangeIcon(selectedIconName, selectedColor);
+          if (selectedColor) {
+            onChangeColor(selectedColor);
+          }
+        }}
         onClose={() => setIsIconPickerOpen(false)}
       />
     </View>
   );
 }
+

@@ -17,7 +17,6 @@ import {
   ChevronIcon,
   ClockIcon,
   FlameIcon,
-  SkipIcon,
   TickIcon,
   renderHabitIcon
 } from '@/constants/icons';
@@ -74,7 +73,6 @@ export default function CalendarScreen() {
   const today = useMemo(() => new Date(), []);
   const todayISO = useMemo(() => getTodayISO(), []);
 
-  // Earliest allowable month: 3 months prior to today
   const minDate = useMemo(() => {
     const d = new Date(today.getFullYear(), today.getMonth() - 3, 1);
     return d;
@@ -89,7 +87,6 @@ export default function CalendarScreen() {
     Record<string, { completedCount: number; totalScheduled: number; pointsEarned: number }>
   >({});
   const [dayDetails, setDayDetails] = useState<DayHabitDetail[]>([]);
-  const [isLoadingMonth, setIsLoadingMonth] = useState(false);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
   const currentYear = currentMonthDate.getFullYear();
@@ -124,32 +121,6 @@ export default function CalendarScreen() {
     setSelectedDate(todayISO);
   };
 
-  // Load monthly overview data
-  const loadMonthOverview = useCallback(async () => {
-    setIsLoadingMonth(true);
-    try {
-      const startOfMonth = formatISODate(currentYear, currentMonthIndex, 1);
-      const daysInMonth = new Date(currentYear, currentMonthIndex + 1, 0).getDate();
-      const endOfMonth = formatISODate(currentYear, currentMonthIndex, daysInMonth);
-
-      const data = await getCalendarMonthData(startOfMonth, endOfMonth);
-      const map: Record<string, { completedCount: number; totalScheduled: number; pointsEarned: number }> = {};
-      data.forEach((item) => {
-        map[item.date] = {
-          completedCount: item.completedCount,
-          totalScheduled: item.totalScheduled,
-          pointsEarned: item.pointsEarned,
-        };
-      });
-      setMonthData(map);
-    } catch (e) {
-      console.error('Error loading month overview:', e);
-    } finally {
-      setIsLoadingMonth(false);
-    }
-  }, [currentYear, currentMonthIndex]);
-
-  // Load details for selected day
   const loadDayDetails = useCallback(async (dateISO: string) => {
     setIsLoadingDetails(true);
     try {
@@ -164,25 +135,60 @@ export default function CalendarScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadMonthOverview();
-      loadDayDetails(selectedDate);
-    }, [loadMonthOverview, loadDayDetails, selectedDate])
+      let isMounted = true;
+
+      const fetchAll = async () => {
+        setIsLoadingDetails(true);
+        try {
+          const startOfMonth = formatISODate(currentYear, currentMonthIndex, 1);
+          const daysInMonth = new Date(currentYear, currentMonthIndex + 1, 0).getDate();
+          const endOfMonth = formatISODate(currentYear, currentMonthIndex, daysInMonth);
+
+          const [overviewData, details] = await Promise.all([
+            getCalendarMonthData(startOfMonth, endOfMonth),
+            getHabitsWithEntriesForDate(selectedDate),
+          ]);
+
+          if (!isMounted) return;
+
+          const map: Record<string, { completedCount: number; totalScheduled: number; pointsEarned: number }> = {};
+          overviewData.forEach((item) => {
+            map[item.date] = {
+              completedCount: item.completedCount,
+              totalScheduled: item.totalScheduled,
+              pointsEarned: item.pointsEarned,
+            };
+          });
+          setMonthData(map);
+          setDayDetails(details);
+        } catch (e) {
+          console.error('Error loading calendar data:', e);
+        } finally {
+          if (isMounted) {
+            setIsLoadingDetails(false);
+          }
+        }
+      };
+
+      fetchAll();
+
+      return () => {
+        isMounted = false;
+      };
+    }, [currentYear, currentMonthIndex, selectedDate])
   );
 
-  // Month grid days builder (Monday to Sunday)
   const calendarDays = useMemo(() => {
     const daysInMonth = new Date(currentYear, currentMonthIndex + 1, 0).getDate();
     const firstDayOfWeek = new Date(currentYear, currentMonthIndex, 1).getDay();
-    // Monday as 0, Sunday as 6
     const offset = (firstDayOfWeek + 6) % 7;
 
-    const days: Array<{
+    const days: {
       dayNumber: number;
       dateISO: string;
       isCurrentMonth: boolean;
-    }> = [];
+    }[] = [];
 
-    // Leading padding from previous month
     const prevMonthDays = new Date(currentYear, currentMonthIndex, 0).getDate();
     for (let i = offset - 1; i >= 0; i--) {
       const dayNum = prevMonthDays - i;
@@ -195,7 +201,6 @@ export default function CalendarScreen() {
       });
     }
 
-    // Days in current month
     for (let d = 1; d <= daysInMonth; d++) {
       days.push({
         dayNumber: d,
@@ -204,7 +209,6 @@ export default function CalendarScreen() {
       });
     }
 
-    // Trailing padding to fill complete rows of 7
     const remaining = (7 - (days.length % 7)) % 7;
     for (let i = 1; i <= remaining; i++) {
       const nextMonth = currentMonthIndex === 11 ? 0 : currentMonthIndex + 1;
@@ -219,7 +223,6 @@ export default function CalendarScreen() {
     return days;
   }, [currentYear, currentMonthIndex]);
 
-  // Selected date formatted for display
   const formattedSelectedDate = useMemo(() => {
     const [y, m, d] = selectedDate.split('-').map(Number);
     const dateObj = new Date(y, m - 1, d);
@@ -231,7 +234,6 @@ export default function CalendarScreen() {
     });
   }, [selectedDate]);
 
-  // Stats for selected day
   const selectedDayStats = useMemo(() => {
     const total = dayDetails.length;
     const completed = dayDetails.filter((d) => d.isCompleted).length;
@@ -257,7 +259,6 @@ export default function CalendarScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <View style={styles.header}>
           <View>
             <Text
@@ -268,14 +269,6 @@ export default function CalendarScreen() {
             >
               Activity
             </Text>
-            {/* <Text
-              style={[
-                styles.subtitle,
-                { color: isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)' },
-              ]}
-            >
-              Review your habits and completion streaks
-            </Text> */}
           </View>
 
           {(!isTodayInView || selectedDate !== todayISO) && (
@@ -302,7 +295,6 @@ export default function CalendarScreen() {
           )}
         </View>
 
-        {/* Month Navigator */}
         <View
           style={[
             styles.calendarCard,
@@ -357,7 +349,6 @@ export default function CalendarScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Weekday Header */}
           <View style={styles.weekdayRow}>
             {WEEKDAY_NAMES.map((w, idx) => (
               <Text
@@ -375,7 +366,6 @@ export default function CalendarScreen() {
             ))}
           </View>
 
-          {/* Month Grid */}
           <View style={styles.gridContainer}>
             {calendarDays.map((item, index) => {
               const isSelected = item.dateISO === selectedDate;
@@ -440,7 +430,6 @@ export default function CalendarScreen() {
                       {item.dayNumber}
                     </Text>
 
-                    {/* Completion Indicators */}
                     <View style={styles.indicatorContainer}>
                       {item.isCurrentMonth && !isFutureDate && totalSched > 0 ? (
                         <View
@@ -470,7 +459,6 @@ export default function CalendarScreen() {
           </View>
         </View>
 
-        {/* Selected Day Habit Status Details */}
         <View style={styles.detailsSection}>
           <View style={styles.detailsHeaderRow}>
             <View style={styles.detailsHeaderLeft}>
@@ -516,7 +504,6 @@ export default function CalendarScreen() {
             )}
           </View>
 
-          {/* List of Habits for selected day */}
           {isLoadingDetails ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator color={activeColor.accent} size="small" />
@@ -574,7 +561,6 @@ export default function CalendarScreen() {
                     }`}
                     style={isCompleted ? { opacity: 0.65 } : undefined}
                   >
-                    {/* Icon Square */}
                     <View
                       style={{
                         backgroundColor: isDark
@@ -586,7 +572,6 @@ export default function CalendarScreen() {
                       {renderHabitIcon(item.habit.icon, '#1C1C1E', 18)}
                     </View>
 
-                    {/* Content */}
                     <View className="flex-1">
                       <Text
                         numberOfLines={1}
@@ -597,7 +582,6 @@ export default function CalendarScreen() {
                         {item.habit.name}
                       </Text>
 
-                      {/* Badges / Subtitle */}
                       <View className="flex-row items-center gap-2.5 mt-0.5">
                         {item.totalTimeMinutes > 0 ? (
                           <View className="flex-row items-center gap-1">
@@ -629,13 +613,12 @@ export default function CalendarScreen() {
                             numberOfLines={1}
                             className="font-pregular text-xs text-neutral-400 dark:text-neutral-500 flex-1 italic"
                           >
-                            "{note}"
+                            {`"${note}"`}
                           </Text>
                         ) : null}
                       </View>
                     </View>
 
-                    {/* Right Status Indicator */}
                     <View className="flex-row items-center gap-2 overflow-visible">
                       {isCompleted ? (
                         <View
@@ -858,71 +841,5 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
     fontSize: 13,
     textAlign: 'center',
-  },
-  habitList: {
-    gap: 10,
-  },
-  habitCard: {
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOpacity: 0.03,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  habitCardContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  habitIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  habitTextWrap: {
-    flex: 1,
-    paddingRight: 8,
-  },
-  habitName: {
-    fontFamily: FONTS.bold,
-    fontSize: 15,
-    letterSpacing: -0.2,
-  },
-  habitDesc: {
-    fontFamily: FONTS.regular,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  statusBadgeWrap: {
-    alignItems: 'flex-end',
-  },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  statusPillText: {
-    fontFamily: FONTS.bold,
-    fontSize: 12,
-  },
-  noteBox: {
-    marginTop: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  noteText: {
-    fontFamily: FONTS.italic,
-    fontSize: 12,
   },
 });

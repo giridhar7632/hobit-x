@@ -1,5 +1,5 @@
 import * as Haptics from 'expo-haptics';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { FONTS } from '@/constants/fonts';
@@ -18,21 +18,12 @@ export function DurationSelector({ value, onChange, accentColor }: DurationSelec
     const numericValue = Number(value) || 0;
     const isPreset = PRESET_DURATIONS.includes(numericValue);
 
-    const [customText, setCustomText] = useState(
-        isPreset ? '' : (numericValue > 0 ? String(numericValue) : '')
-    );
+    const [customText, setCustomText] = useState('');
 
-    useEffect(() => {
-        if (isPreset) {
-            setCustomText('');
-        } else if (numericValue > 0) {
-            setCustomText(String(numericValue));
-        } else {
-            setCustomText('');
-        }
-    }, [value, isPreset, numericValue]);
+    const displayCustomText = isPreset ? '' : (customText || (numericValue > 0 ? String(numericValue) : ''));
 
     const handleSelect = (duration: number) => {
+        setCustomText('');
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         onChange(duration);
     };
@@ -73,8 +64,8 @@ export function DurationSelector({ value, onChange, accentColor }: DurationSelec
                             className="font-pmedium text-base"
                             style={{
                                 color: isSelected
-                                    ? '#ffffff'
-                                    : (isDark ? '#d4d4d4' : '#525252'),
+                                ? '#ffffff'
+                                : (isDark ? '#d4d4d4' : '#525252'),
                             }}
                         >
                             {duration >= 60
@@ -85,7 +76,6 @@ export function DurationSelector({ value, onChange, accentColor }: DurationSelec
                 );
             })}
 
-            {/* Custom Input Chip */}
             <View
                 className="flex-row items-center px-4 py-2.5 rounded-xl border"
                 style={{
@@ -103,7 +93,7 @@ export function DurationSelector({ value, onChange, accentColor }: DurationSelec
                     keyboardType="numeric"
                     placeholder="Custom"
                     placeholderTextColor={isDark ? '#666666' : '#999999'}
-                    value={customText}
+                    value={displayCustomText}
                     onChangeText={handleCustomChange}
                     style={{
                         color: isDark ? '#ffffff' : '#171717',

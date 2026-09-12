@@ -635,7 +635,10 @@ export async function getCalendarMonthData(startDateISO: string, endDateISO: str
     const dayMap: Record<string, { completedCount: number; totalScheduled: number; pointsEarned: number }> = {};
 
     for (let cur = new Date(start); cur <= end; cur.setDate(cur.getDate() + 1)) {
-      const iso = cur.toISOString().split('T')[0];
+      const y = cur.getFullYear();
+      const m = String(cur.getMonth() + 1).padStart(2, '0');
+      const d = String(cur.getDate()).padStart(2, '0');
+      const iso = `${y}-${m}-${d}`;
       const scheduledOnDay = (habits || []).filter(h => isHabitScheduledForDate(h, iso));
       dayMap[iso] = {
         completedCount: 0,

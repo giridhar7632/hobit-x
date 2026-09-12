@@ -1,6 +1,6 @@
 import { CustomAlert as Alert } from '@/utils/custom-alert';
 import * as Haptics from 'expo-haptics';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, AppStateStatus, Dimensions, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Line } from 'react-native-svg';
 
@@ -131,13 +131,119 @@ export function HabitTimerScreen({ habit, onClose }: HabitTimerProps) {
     const plannedNotificationIdRef = useRef<string | null>(null);
     const overtimeNotificationIdRef = useRef<string | null>(null);
     const doubleNotificationIdRef = useRef<string | null>(null);
+    const secondsElapsedRef = useRef(secondsElapsed);
+
+    useEffect(() => {
+        secondsElapsedRef.current = secondsElapsed;
+    }, [secondsElapsed]);
 
     const isPaused = !isActive && secondsElapsed > 0;
 
+    const queryClient = useQueryClient();
+    const { mutate: mutateOutbox } = useMeridianMutation({
+        invalidateKeys: [["habits"], ["habit_entries", habit.id], ["habit-dates", habit.id]],
+    });
+
+    const cancelTimerNotification = useCallback(async () => {
+        if (plannedNotificationIdRef.current) {
+            await cancelScheduledNotification(plannedNotificationIdRef.current);
+            plannedNotificationIdRef.current = null;
+        }
+        if (overtimeNotificationIdRef.current) {
+            await cancelScheduledNotification(overtimeNotificationIdRef.current);
+            overtimeNotificationIdRef.current = null;
+        }
+        if (doubleNotificationIdRef.current) {
+            await cancelScheduledNotification(doubleNotificationIdRef.current);
+            doubleNotificationIdRef.current = null;
+        }
+    }, []);
+
+    const scheduleNotification = useCallback(async (elapsed: number) => {
+        await cancelTimerNotification();
+
+        if (elapsed < targetSeconds) {
+            const timeToPlanned = targetSeconds - elapsed;
+            plannedNotificationIdRef.current = await scheduleTimerNotification(
+                habit.name,
+                timeToPlanned,
+                "Timer Complete!",
+                `Great job focusing on ${habit.name}.`
+            );
+        }
+
+        const overtimeSeconds = Math.round(targetSeconds * 1.30);
+        if (elapsed < overtimeSeconds) {
+            const timeToOvertime = overtimeSeconds - elapsed;
+            overtimeNotificationIdRef.current = await scheduleTimerNotification(
+                habit.name,
+                timeToOvertime,
+                "Are you still tracking?",
+                `Open the app to continue tracking ${habit.name}, otherwise progress will be saved at the 30% overtime mark.`
+            );
+        }
+
+        const doubleSeconds = Math.round(targetSeconds * 2.0);
+        if (elapsed < doubleSeconds) {
+            const timeToDouble = doubleSeconds - elapsed;
+            doubleNotificationIdRef.current = await scheduleTimerNotification(
+                habit.name,
+                timeToDouble,
+                "Timer Limit Reached",
+                `Your ${habit.name} session reached its limit and has been saved.`
+            );
+        }
+    }, [cancelTimerNotification, habit.name, targetSeconds]);
+
+    const handleSaveAtTime = useCallback(async (
+        seconds: number,
+        status: 'Completed' | 'Missed' | 'Skipped' | 'Partial',
+        alertTitle?: string,
+        alertMessage?: string
+    ) => {
+        const actualMinutes = Math.max(1, Math.round(seconds / 60));
+        try {
+            const totalMinutesToday = (habit.today_tracked_minutes || 0) + actualMinutes;
+            const isDone = status === 'Completed';
+            const newNotificationIds = await refreshHabitNotifications(habit, totalMinutesToday, isDone);
+
+            const trackedResult = await trackHabit({
+                habit_id: habit.id,
+                entry_date: new Date().toISOString(),
+                status,
+                actual_time_minutes: actualMinutes,
+                notification_ids: JSON.stringify(newNotificationIds),
+            });
+
+            queryClient.invalidateQueries({ queryKey: ["habits"] });
+            queryClient.invalidateQueries({ queryKey: ["habit_entries", habit.id] });
+            queryClient.invalidateQueries({ queryKey: ["habit-dates", habit.id] });
+
+            await mutateOutbox("track_habit", trackedResult);
+
+            if (status === 'Completed') {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
+
+            if (alertTitle && alertMessage) {
+                Alert.alert(alertTitle, alertMessage);
+            }
+        } catch (e: any) {
+            console.error('Track error:', e);
+            Alert.alert("Error logging habit:", e.message);
+        }
+        onClose();
+    }, [habit, mutateOutbox, onClose, queryClient]);
+
+    const handleSave = useCallback(async (status: 'Completed' | 'Missed' | 'Skipped' | 'Partial') => {
+        await handleSaveAtTime(secondsElapsed, status);
+    }, [handleSaveAtTime, secondsElapsed]);
+
     useEffect(() => {
         if (isActive) {
-            startTimeRef.current = Date.now() - secondsElapsed * 1000;
-            scheduleNotification(secondsElapsed);
+            const initialOffset = secondsElapsedRef.current;
+            startTimeRef.current = Date.now() - initialOffset * 1000;
+            scheduleNotification(initialOffset);
 
             intervalRef.current = setInterval(() => {
                 if (startTimeRef.current === null) return;
@@ -198,7 +304,7 @@ export function HabitTimerScreen({ habit, onClose }: HabitTimerProps) {
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
-    }, [isActive, overtimePromptShown]);
+    }, [isActive, overtimePromptShown, cancelTimerNotification, habit.name, handleSaveAtTime, scheduleNotification, targetSeconds]);
 
     useEffect(() => {
         const handleAppStateChange = (nextAppState: AppStateStatus) => {
@@ -227,7 +333,7 @@ export function HabitTimerScreen({ habit, onClose }: HabitTimerProps) {
         return () => {
             subscription.remove();
         };
-    }, [isActive, targetSeconds, habit.name]);
+    }, [isActive, targetSeconds, habit.name, handleSaveAtTime]);
 
     const toggleTimer = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -261,116 +367,6 @@ export function HabitTimerScreen({ habit, onClose }: HabitTimerProps) {
                 },
             ],
         );
-    };
-
-    const handleComplete = async () => {
-        await handleSave('Completed');
-    };
-
-    const queryClient = useQueryClient();
-    const { mutate: mutateOutbox } = useMeridianMutation({
-        invalidateKeys: [["habits"], ["habit_entries", habit.id], ["habit-dates", habit.id]],
-    });
-
-    const handleSaveAtTime = async (
-        seconds: number,
-        status: 'Completed' | 'Missed' | 'Skipped' | 'Partial',
-        alertTitle?: string,
-        alertMessage?: string
-    ) => {
-        const actualMinutes = Math.max(1, Math.round(seconds / 60));
-        try {
-            const totalMinutesToday = (habit.today_tracked_minutes || 0) + actualMinutes;
-            const isDone = status === 'Completed';
-            const newNotificationIds = await refreshHabitNotifications(habit, totalMinutesToday, isDone);
-
-            // 1. Optimistic write to local SQLite database
-            const trackedResult = await trackHabit({
-                habit_id: habit.id,
-                entry_date: new Date().toISOString(),
-                status,
-                actual_time_minutes: actualMinutes,
-                notification_ids: JSON.stringify(newNotificationIds),
-            });
-
-            // 2. Invalidate local query cache
-            queryClient.invalidateQueries({ queryKey: ["habits"] });
-            queryClient.invalidateQueries({ queryKey: ["habit_entries", habit.id] });
-            queryClient.invalidateQueries({ queryKey: ["habit-dates", habit.id] });
-
-            // 3. Enqueue to Meridian Lite outbox for sync
-            await mutateOutbox("track_habit", trackedResult);
-
-            if (status === 'Completed') {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            }
-
-            if (alertTitle && alertMessage) {
-                Alert.alert(alertTitle, alertMessage);
-            }
-        } catch (e: any) {
-            console.error('Track error:', e);
-            Alert.alert("Error logging habit:", e.message);
-        }
-        onClose();
-    };
-
-    const handleSave = async (status: 'Completed' | 'Missed' | 'Skipped' | 'Partial') => {
-        await handleSaveAtTime(secondsElapsed, status);
-    };
-
-    const scheduleNotification = async (elapsed: number) => {
-        await cancelTimerNotification();
-
-        // 1. Notification for planned time complete
-        if (elapsed < targetSeconds) {
-            const timeToPlanned = targetSeconds - elapsed;
-            plannedNotificationIdRef.current = await scheduleTimerNotification(
-                habit.name,
-                timeToPlanned,
-                "Timer Complete!",
-                `Great job focusing on ${habit.name}.`
-            );
-        }
-
-        // 2. Notification for 30% overtime
-        const overtimeSeconds = Math.round(targetSeconds * 1.30);
-        if (elapsed < overtimeSeconds) {
-            const timeToOvertime = overtimeSeconds - elapsed;
-            overtimeNotificationIdRef.current = await scheduleTimerNotification(
-                habit.name,
-                timeToOvertime,
-                "Are you still tracking?",
-                `Open the app to continue tracking ${habit.name}, otherwise progress will be saved at the 30% overtime mark.`
-            );
-        }
-
-        // 3. Notification for twice the planned time
-        const doubleSeconds = Math.round(targetSeconds * 2.0);
-        if (elapsed < doubleSeconds) {
-            const timeToDouble = doubleSeconds - elapsed;
-            doubleNotificationIdRef.current = await scheduleTimerNotification(
-                habit.name,
-                timeToDouble,
-                "Timer Limit Reached",
-                `Your ${habit.name} session reached its limit and has been saved.`
-            );
-        }
-    };
-
-    const cancelTimerNotification = async () => {
-        if (plannedNotificationIdRef.current) {
-            await cancelScheduledNotification(plannedNotificationIdRef.current);
-            plannedNotificationIdRef.current = null;
-        }
-        if (overtimeNotificationIdRef.current) {
-            await cancelScheduledNotification(overtimeNotificationIdRef.current);
-            overtimeNotificationIdRef.current = null;
-        }
-        if (doubleNotificationIdRef.current) {
-            await cancelScheduledNotification(doubleNotificationIdRef.current);
-            doubleNotificationIdRef.current = null;
-        }
     };
 
     const isOvertime = secondsElapsed > targetSeconds;

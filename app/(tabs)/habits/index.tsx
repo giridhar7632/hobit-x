@@ -80,7 +80,16 @@ export default function HabitsScreen() {
   const [showFirstHint, setShowFirstHint] = useState(false);
   const hasSyncedNotifications = useRef(false);
 
-  // Check if first-time track hint has been dismissed
+  const timerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerTimeoutRef.current) {
+        clearTimeout(timerTimeoutRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     hasDismissedFirstHint().then((dismissed) => {
       if (!dismissed) {
@@ -89,7 +98,6 @@ export default function HabitsScreen() {
     });
   }, []);
 
-  // Load persisted view mode on mount
   useEffect(() => {
     (async () => {
       try {
@@ -121,7 +129,6 @@ export default function HabitsScreen() {
     queryFn: getHabits,
   });
 
-  // Background notification sync
   useEffect(() => {
     if (habits && !hasSyncedNotifications.current) {
       hasSyncedNotifications.current = true;
@@ -226,7 +233,8 @@ export default function HabitsScreen() {
 
   const handleCloseTimer = () => {
     setIsTimerVisible(false);
-    setTimeout(() => {
+    if (timerTimeoutRef.current) clearTimeout(timerTimeoutRef.current);
+    timerTimeoutRef.current = setTimeout(() => {
       setTimerHabit(null);
     }, 400);
   };
@@ -237,13 +245,11 @@ export default function HabitsScreen() {
     return count >= total;
   };
 
-  // Filter habits for the selected date
   const scheduledHabits = useMemo(() => {
     if (!habits) return [];
     return habits.filter((h) => isHabitScheduledForDate(h, selectedDate));
   }, [habits, selectedDate]);
 
-  // Sort: incomplete first, then completed
   const sortedHabits = useMemo(() => {
     return scheduledHabits.slice().sort((a, b) => {
       const aDone = isFullyCompletedToday(a) ? 1 : 0;
@@ -255,11 +261,8 @@ export default function HabitsScreen() {
     });
   }, [scheduledHabits]);
 
-  const completedCount = scheduledHabits.filter(isFullyCompletedToday).length;
   const totalCount = scheduledHabits.length;
-  const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
-  // Derive user name for greeting
   const displayName = useMemo(() => {
     if (!user) return undefined;
     const fullName = user.user_metadata?.full_name || user.user_metadata?.name;
@@ -280,7 +283,6 @@ export default function HabitsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header: Greeting & + New Habit */}
         <View style={styles.header}>
           <View style={styles.headerTextWrap}>
             <Text
@@ -327,67 +329,12 @@ export default function HabitsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Date Selector Strip */}
         <DateSelector
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
           tintColor={themeColors.tint}
         />
 
-        {/* Daily Progress Summary Bar */}
-        {/*totalCount > 0 && (
-          <View
-            style={[
-              styles.progressCard,
-              {
-                backgroundColor: currentTheme === 'dark' ? '#1E1F22' : '#FFFFFF',
-                borderColor: currentTheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-              },
-            ]}
-          >
-            <View style={styles.progressTextRow}>
-              <Text
-                style={[
-                  styles.progressLabel,
-                  { color: currentTheme === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' },
-                ]}
-              >
-                Daily Goal
-              </Text>
-              <Text
-                style={[
-                  styles.progressValue,
-                  { color: currentTheme === 'dark' ? '#ECEDEE' : '#11181C' },
-                ]}
-              >
-                {completedCount} of {totalCount} completed
-              </Text>
-            </View>
-
-            <View
-              style={[
-                styles.progressTrack,
-                {
-                  backgroundColor: currentTheme === 'dark'
-                    ? 'rgba(255,255,255,0.08)'
-                    : 'rgba(0,0,0,0.05)',
-                },
-              ]}
-            >
-              <View
-                style={[
-                  styles.progressBar,
-                  {
-                    width: `${progressPercent}%`,
-                    backgroundColor: themeColors.tint,
-                  },
-                ]}
-              />
-            </View>
-          </View>
-        )*/}
-
-        {/* First-time Track Hint Banner */}
         {showFirstHint && totalCount > 0 && (
           <View
             style={[
@@ -405,7 +352,7 @@ export default function HabitsScreen() {
                   { color: currentTheme === 'dark' ? '#93C5FD' : '#0284C7' },
                 ]}
               >
-                💡 Tap the circle when you're done
+                Tap the circle when you&apos;re done
               </Text>
               <Text
                 style={[
@@ -437,7 +384,6 @@ export default function HabitsScreen() {
           </View>
         )}
 
-        {/* Habits Section Header (Title & View Switcher) */}
         {totalCount > 0 && !isLoading && !isError && (
           <View style={styles.sectionHeaderRow}>
             <View style={styles.sectionTitleWrap}>
@@ -467,7 +413,6 @@ export default function HabitsScreen() {
           </View>
         )}
 
-        {/* Main Habits Content Area */}
         <View style={styles.habitsArea}>
           {isLoading ? (
             <View style={styles.centerContainer}>
@@ -547,7 +492,6 @@ export default function HabitsScreen() {
           )}
         </View>
 
-        {/* Timer Modal */}
         <Modal
           visible={isTimerVisible}
           animationType="slide"

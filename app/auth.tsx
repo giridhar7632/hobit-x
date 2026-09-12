@@ -59,7 +59,6 @@ export default function AuthScreen() {
       style={{ backgroundColor: Colors[currentTheme].background }}
       className="flex-1 relative"
     >
-      {/* Background Path Illustration */}
       <View
         pointerEvents="none"
         className="w-full absolute left-0 right-0 items-center"
@@ -76,7 +75,6 @@ export default function AuthScreen() {
         />
       </View>
 
-      {/* Centered Hero Section */}
       <View className="flex-1 justify-center items-center px-6 z-10">
         <Image
           source={require('@/assets/images/logo.png')}
@@ -96,10 +94,8 @@ export default function AuthScreen() {
         </Text>
       </View>
 
-      {/* Accessible Bottom Actions */}
       <View className="px-8 pb-10 z-10 w-full items-center">
         <View className="w-full max-w-[360px] gap-3">
-          {/* Google Sign In Button */}
           <Button
             title="Continue with Google"
             variant="outline"
@@ -111,7 +107,6 @@ export default function AuthScreen() {
             className="w-full"
           />
 
-          {/* Guest / Skip Option */}
           <Button
             title="Skip for now · Start tracking"
             variant="ghost"

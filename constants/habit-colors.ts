@@ -110,7 +110,7 @@ export function getHabitColor(colorName?: string | null): HabitColorDef {
 
 export function getContrastTextColor(colorHexOrName?: string | null): string {
     if (!colorHexOrName) return '#FFFFFF';
-    const darkColors = ['#4655E0', 'purple', '#ff7979', 'red', '#1C1C1E', '#11181C', '#000000', '#27272a', '#1F2023'];
+    const darkColors = ['#4655E0', 'purple', '#1C1C1E', '#11181C', '#000000', '#27272a', '#1F2023'];
     if (darkColors.includes(colorHexOrName)) return '#FFFFFF';
     return '#1C1C1E';
 }

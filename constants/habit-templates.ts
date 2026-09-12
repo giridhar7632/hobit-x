@@ -3,7 +3,7 @@ import { TimeOfDay } from '@/utils/notifications';
 export interface HabitTemplate {
   id: string;
   category: 'Popular' | 'Mind & Focus' | 'Learning' | 'Health & Wellness';
-  icon: string; // SVG icon name (from renderHabitIcon) or '🌱'
+  icon: string;
   name: string;
   description: string;
   color: string;
@@ -52,7 +52,7 @@ export const HABIT_TEMPLATES: HabitTemplate[] = [
     id: 'exercise',
     category: 'Popular',
     icon: 'ActivityIcon',
-    name: 'Exercise',
+    name: 'Exercise & Workout',
     description: 'Move your body for 30 minutes',
     color: 'green',
     time_of_day: 'morning',
@@ -63,12 +63,26 @@ export const HABIT_TEMPLATES: HabitTemplate[] = [
     target_unit: 'minutes',
     reminder_message: 'Time to get active and energized!',
   },
+  {
+    id: 'daily_walk',
+    category: 'Popular',
+    icon: 'WatchIcon',
+    name: 'Daily steps & walk',
+    description: 'Hit 8,000 steps today',
+    color: 'cyan',
+    time_of_day: 'anytime',
+    frequency: 'daily',
+    completion_type: 'quantity',
+    target_value: 8000,
+    target_unit: 'steps',
+    reminder_message: 'Time for a walk to reach your step goal!',
+  },
 
   // MIND & FOCUS
   {
     id: 'meditate',
     category: 'Mind & Focus',
-    icon: 'LampIcon', // TODO: replace with a dedicated meditate/focus icon when available
+    icon: 'LampIcon',
     name: 'Meditate',
     description: 'Take 10 minutes for yourself',
     color: 'cyan',
@@ -83,7 +97,7 @@ export const HABIT_TEMPLATES: HabitTemplate[] = [
   {
     id: 'journal',
     category: 'Mind & Focus',
-    icon: 'EditIcon', // TODO: replace with NotebookIcon / JournalIcon when added
+    icon: 'EditIcon',
     name: 'Journal',
     description: 'Reflect on your day',
     color: 'yellow',
@@ -95,7 +109,7 @@ export const HABIT_TEMPLATES: HabitTemplate[] = [
   {
     id: 'screen_time',
     category: 'Mind & Focus',
-    icon: 'BellDisabledIcon', // digital detox / no-phone
+    icon: 'BellDisabledIcon',
     name: 'Reduce screen time',
     description: 'Spend less time scrolling',
     color: 'pink',
@@ -104,12 +118,27 @@ export const HABIT_TEMPLATES: HabitTemplate[] = [
     completion_type: 'check',
     reminder_message: 'Unplug and unwind for the night.',
   },
+  {
+    id: 'deep_focus',
+    category: 'Mind & Focus',
+    icon: 'ClockIcon',
+    name: 'Deep focus block',
+    description: '45 mins distraction-free work',
+    color: 'orange',
+    time_of_day: 'morning',
+    frequency: 'daily',
+    completion_type: 'time',
+    planned_time_minutes: 45,
+    target_value: 45,
+    target_unit: 'minutes',
+    reminder_message: 'Start your focused work session now.',
+  },
 
   // LEARNING
   {
     id: 'coding',
     category: 'Learning',
-    icon: 'LightningIcon', // TODO: replace with iMac/CodeIcon when added
+    icon: 'KeyboardIcon',
     name: 'Practice coding',
     description: 'Improve your programming skills',
     color: 'orange',
@@ -124,7 +153,7 @@ export const HABIT_TEMPLATES: HabitTemplate[] = [
   {
     id: 'language',
     category: 'Learning',
-    icon: 'BookIcon', // TODO: replace with SpeakerIcon / LanguageIcon when added
+    icon: 'BookIcon',
     name: 'Learn a language',
     description: 'Practice every day',
     color: 'blue',
@@ -139,8 +168,8 @@ export const HABIT_TEMPLATES: HabitTemplate[] = [
   {
     id: 'study',
     category: 'Learning',
-    icon: 'BookIcon',
-    name: 'Study',
+    icon: 'DocumentIcon',
+    name: 'Study & research',
     description: 'Make time to learn',
     color: 'green',
     time_of_day: 'afternoon',
@@ -151,15 +180,45 @@ export const HABIT_TEMPLATES: HabitTemplate[] = [
     target_unit: 'minutes',
     reminder_message: 'Focus session: make time to learn.',
   },
+  {
+    id: 'creativity',
+    category: 'Learning',
+    icon: 'BrushIcon',
+    name: 'Creative art & design',
+    description: 'Draw, paint or design',
+    color: 'orange',
+    time_of_day: 'evening',
+    frequency: 'daily',
+    completion_type: 'time',
+    planned_time_minutes: 20,
+    target_value: 20,
+    target_unit: 'minutes',
+    reminder_message: 'Time to express your creativity today!',
+  },
+  {
+    id: 'music',
+    category: 'Learning',
+    icon: 'MusicNoteIcon',
+    name: 'Practice instrument',
+    description: 'Play music for 20 minutes',
+    color: 'pink',
+    time_of_day: 'afternoon',
+    frequency: 'daily',
+    completion_type: 'time',
+    planned_time_minutes: 20,
+    target_value: 20,
+    target_unit: 'minutes',
+    reminder_message: 'Time to play your instrument and practice music!',
+  },
 
   // HEALTH & WELLNESS
   {
     id: 'vitamins',
     category: 'Health & Wellness',
-    icon: 'HeartIcon', // TODO: replace with PillIcon when added
+    icon: 'ShieldIcon',
     name: 'Take vitamins',
     description: 'Daily supplements and health',
-    color: 'pink',
+    color: 'blue',
     time_of_day: 'morning',
     frequency: 'daily',
     completion_type: 'check',
@@ -171,7 +230,7 @@ export const HABIT_TEMPLATES: HabitTemplate[] = [
     icon: 'MoonIcon',
     name: 'Sleep well',
     description: 'Get 8 hours of restful sleep',
-    color: 'blue',
+    color: 'orange',
     time_of_day: 'evening',
     frequency: 'daily',
     completion_type: 'time',
@@ -183,7 +242,7 @@ export const HABIT_TEMPLATES: HabitTemplate[] = [
   {
     id: 'skincare',
     category: 'Health & Wellness',
-    icon: 'StarIcon', // TODO: replace with SkinCare / SparklesIcon or a dedicated care icon
+    icon: 'SparklesIcon',
     name: 'Skincare routine',
     description: 'Morning & evening self-care',
     color: 'pink',
@@ -191,6 +250,30 @@ export const HABIT_TEMPLATES: HabitTemplate[] = [
     frequency: 'daily',
     completion_type: 'check',
     reminder_message: 'Time for your refreshing skincare routine!',
+  },
+  {
+    id: 'early_wake',
+    category: 'Health & Wellness',
+    icon: 'AlarmIcon',
+    name: 'Wake up early',
+    description: 'Start your morning with focus',
+    color: 'red',
+    time_of_day: 'morning',
+    frequency: 'daily',
+    completion_type: 'check',
+    reminder_message: 'Good morning! Time to start the day.',
+  },
+  {
+    id: 'healthy_meals',
+    category: 'Health & Wellness',
+    icon: 'BasketIcon',
+    name: 'Eat clean / Meal prep',
+    description: 'Healthy and wholesome nutrition',
+    color: 'green',
+    time_of_day: 'anytime',
+    frequency: 'daily',
+    completion_type: 'check',
+    reminder_message: 'Time to enjoy a healthy meal!',
   },
 ];
 
@@ -200,3 +283,4 @@ export const TEMPLATE_CATEGORIES = [
   'Learning',
   'Health & Wellness',
 ] as const;
+
