@@ -1,11 +1,11 @@
 import { Tabs } from 'expo-router';
 
-import { MacDockTabBar } from '@/components/ui/mac-dock-tab-bar';
+import { BottomNavBar } from '@/components/ui/bottom-nav-bar';
 
 export default function TabLayout() {
 	return (
 		<Tabs
-			tabBar={(props) => <MacDockTabBar {...props} />}
+			tabBar={(props) => <BottomNavBar {...props} />}
 			screenOptions={{
 				headerShown: false,
 			}}>

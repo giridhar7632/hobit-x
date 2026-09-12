@@ -171,9 +171,9 @@ export default function ProfileScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: 24, // Increased outer padding for a breathable layout
+          paddingHorizontal: 24,
           paddingTop: 16,
-          paddingBottom: 180,
+          paddingBottom: 110,
         }}
       >
         {/* Header Title */}
