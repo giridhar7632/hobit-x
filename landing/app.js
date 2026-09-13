@@ -170,4 +170,64 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   }
+
+  // 5. Hero Floating Snippets Responsive Parallax (Low Damping, No Bobbing Loops)
+  const heroStage = document.getElementById('hero-visual-stage');
+  const snippets = document.querySelectorAll('.hero-snippet');
+
+  if (heroStage && snippets.length > 0) {
+    let mouseX = 0;
+    let mouseY = 0;
+    let currentX = 0;
+    let currentY = 0;
+    let isTracking = false;
+    let rafId = null;
+
+    const onMouseMove = (e) => {
+      if (window.innerWidth <= 640) return; // Skip parallax on small mobile screens
+      const rect = heroStage.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      mouseX = (e.clientX - centerX);
+      mouseY = (e.clientY - centerY);
+
+      if (!isTracking) {
+        isTracking = true;
+        animateSnippets();
+      }
+    };
+
+    const onMouseLeave = () => {
+      mouseX = 0;
+      mouseY = 0;
+      isTracking = false;
+    };
+
+    function animateSnippets() {
+      // Low damping factor (0.22) provides immediate, crisp cursor tracking without sluggish delay or spring oscillation
+      currentX += (mouseX - currentX) * 0.22;
+      currentY += (mouseY - currentY) * 0.22;
+
+      snippets.forEach(snippet => {
+        const factor = parseFloat(snippet.getAttribute('data-parallax') || '0.03');
+        const tx = (currentX * factor).toFixed(2);
+        const ty = (currentY * factor).toFixed(2);
+        snippet.style.transform = `translate3d(${tx}px, ${ty}px, 0)`;
+      });
+
+      // Keep running while tracking or until returning within sub-pixel distance of origin
+      if (isTracking || Math.abs(currentX) > 0.05 || Math.abs(currentY) > 0.05) {
+        rafId = requestAnimationFrame(animateSnippets);
+      } else {
+        snippets.forEach(snippet => {
+          snippet.style.transform = 'translate3d(0, 0, 0)';
+        });
+        rafId = null;
+      }
+    }
+
+    heroStage.addEventListener('mousemove', onMouseMove, { passive: true });
+    heroStage.addEventListener('mouseleave', onMouseLeave, { passive: true });
+  }
 });
+

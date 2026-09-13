@@ -609,32 +609,68 @@ button {
   transform: rotate(3deg) translateY(4px) translateX(6px);
 }
 
-/* Hero Snippets (Stationary, Clean, No Always-Active Bobbing) */
+/* Hero Floating App Snippets (Authentic Hobit Components, Low Damping, No Bobbing Loops) */
 .hero-snippet {
   position: absolute;
   z-index: 10;
   border-radius: 20px;
-  padding: 12px 18px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  box-shadow: 0 16px 36px -6px rgba(18, 22, 40, 0.12), 0 4px 12px rgba(18, 22, 40, 0.06);
+  box-shadow: 0 16px 36px -6px rgba(18, 22, 40, 0.14), 0 4px 12px rgba(18, 22, 40, 0.06);
   border: 1px solid var(--border-medium);
   background: var(--bg-surface);
-  transition: transform 200ms ease, box-shadow 200ms ease;
   user-select: none;
   cursor: default;
+  transition: transform 120ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 200ms ease;
+  will-change: transform;
 }
 
 .hero-snippet:hover {
-  transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 20px 44px -6px rgba(18, 22, 40, 0.18);
+  transform: translateY(-4px) scale(1.02) !important;
+  box-shadow: 0 24px 48px -8px rgba(18, 22, 40, 0.22);
+}
+
+/* Micro celebration badge floating over snippet */
+.snippet-micro-badge {
+  position: absolute;
+  top: -11px;
+  right: 18px;
+  background: #000000;
+  color: #FFFFFF;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  z-index: 2;
+  white-space: nowrap;
+}
+
+.snippet-badge-celebrate {
+  background: #10b981;
+  color: #FFFFFF;
+}
+
+/* Snippet 1: Authentic Hobit Habit Card (Top Left) */
+.app-snippet-card {
+  top: 7%;
+  left: 0%;
+  width: 275px;
+  padding: 14px 16px;
+  background: #f7cd63; /* Hobit Habit Yellow */
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.snippet-card-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
 }
 
 .snippet-icon-wrap {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -642,8 +678,13 @@ button {
 }
 
 .snippet-icon-wrap svg {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
+}
+
+.snippet-text-wrap {
+  flex: 1;
+  min-width: 0;
 }
 
 .snippet-title {
@@ -651,104 +692,291 @@ button {
   font-weight: 700;
   line-height: 1.25;
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-snippet-card .snippet-title {
+  color: #000000;
+}
+
+.snippet-badges-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.snippet-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.snippet-check-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 150ms ease;
+}
+
+.snippet-check-btn:hover {
+  transform: scale(1.08);
+}
+
+/* Snippet 2: Authentic Active Timer Card (Top Right) */
+.app-snippet-timer {
+  top: 9%;
+  right: 0%;
+  width: 270px;
+  padding: 14px 16px;
+  background: var(--bg-surface);
+}
+
+.snippet-timer-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
 }
 
 .snippet-desc {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   line-height: 1.3;
   color: var(--text-secondary);
   font-weight: 500;
+  margin-top: 1px;
 }
 
-.snippet-dot {
-  width: 7px;
-  height: 7px;
+.snippet-timer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid var(--border-subtle);
+  gap: 8px;
+}
+
+.snippet-timer-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(16, 185, 129, 0.08);
+  padding: 3px 8px;
+  border-radius: 8px;
+}
+
+.snippet-dot-pulse {
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: #10b981;
   display: inline-block;
 }
 
-/* Snippet 1: Mini Habit Card (Top Left) */
-.hero-snippet-card {
-  top: 10%;
-  left: 2%;
-  background: #f7cd63; /* Hobit Habit Yellow */
-  border-color: rgba(0, 0, 0, 0.08);
+.snippet-timer-counter {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #059669;
 }
 
-.hero-snippet-card .snippet-icon-wrap {
-  background: rgba(0, 0, 0, 0.08);
+[data-theme="dark"] .snippet-timer-counter {
+  color: #34d399;
 }
 
-.hero-snippet-card .snippet-title {
-  color: #000000;
+.snippet-timer-btns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.hero-snippet-card .snippet-desc {
-  color: rgba(0, 0, 0, 0.65);
+.snippet-mini-btn {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 120ms ease;
 }
 
-/* Snippet 2: Active Timer (Top Right) */
-.hero-snippet-timer {
-  top: 12%;
-  right: 2%;
+.snippet-mini-btn:hover {
+  background: var(--border-medium);
+  color: var(--text-primary);
 }
 
-.hero-snippet-timer .snippet-icon-wrap {
-  background: #aae8e7; /* Hobit Habit Cyan */
+.snippet-btn-stop {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
 }
 
-/* Snippet 3: Streak Badge (Bottom Left) */
-.hero-snippet-streak {
-  bottom: 12%;
-  left: 4%;
+.snippet-btn-stop:hover {
+  background: rgba(239, 68, 68, 0.18);
+  color: #dc2626;
 }
 
-.hero-snippet-streak .snippet-icon-wrap {
-  background: #f7cd63; /* Hobit Habit Yellow */
+/* Snippet 3: Authentic Date Selector Strip (Bottom Left) */
+.app-snippet-dates {
+  bottom: 8%;
+  left: 1%;
+  width: 250px;
+  padding: 13px 15px;
+  background: var(--bg-surface);
 }
 
-/* Snippet 4: Habit Completed (Bottom Right) */
-.hero-snippet-complete {
-  bottom: 14%;
-  right: 4%;
+.snippet-dates-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 9px;
+}
+
+.snippet-dates-label {
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.snippet-dates-tag {
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: #4655E0;
+  background: rgba(70, 85, 224, 0.1);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.snippet-dates-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.snippet-date-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 5px 6px;
+  border-radius: 10px;
+  flex: 1;
+  border: 1px solid transparent;
+  transition: background 150ms ease;
+}
+
+.date-name {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  line-height: 1;
+  margin-bottom: 3px;
+}
+
+.date-num {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+
+.snippet-date-col.date-selected {
+  background: #4655E0;
+  color: #FFFFFF;
+  box-shadow: 0 4px 10px rgba(70, 85, 224, 0.3);
+}
+
+.snippet-date-col.date-selected .date-name,
+.snippet-date-col.date-selected .date-num {
+  color: #FFFFFF;
+}
+
+.date-indicator-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  margin-top: 3px;
+}
+
+/* Snippet 4: Authentic Habit Completed Celebration Card (Bottom Right) */
+.app-snippet-complete {
+  bottom: 10%;
+  right: 1%;
+  width: 275px;
+  padding: 14px 16px;
   background: #b8eb6c; /* Hobit Habit Green */
   border-color: rgba(0, 0, 0, 0.08);
 }
 
-.hero-snippet-complete .snippet-icon-wrap {
-  background: rgba(0, 0, 0, 0.08);
-}
-
-.hero-snippet-complete .snippet-title {
+.snippet-completed-title {
   color: #000000;
+  text-decoration: line-through;
+  opacity: 0.85;
 }
 
-.hero-snippet-complete .snippet-desc {
+.snippet-completed-desc {
   color: rgba(0, 0, 0, 0.65);
 }
 
-@media (max-width: 1100px) {
-  .hero-snippet-card { left: 0%; top: 4%; }
-  .hero-snippet-timer { right: 0%; top: 6%; }
-  .hero-snippet-streak { left: 1%; bottom: 6%; }
-  .hero-snippet-complete { right: 1%; bottom: 8%; }
+.snippet-check-completed {
+  background: rgba(0, 0, 0, 0.12);
 }
 
-@media (max-width: 960px) {
+/* Responsive Snippet Adaptations */
+@media (max-width: 1200px) {
+  .app-snippet-card { left: -10px; top: 4%; }
+  .app-snippet-timer { right: -10px; top: 6%; }
+  .app-snippet-dates { left: -5px; bottom: 5%; }
+  .app-snippet-complete { right: -5px; bottom: 7%; }
+}
+
+@media (max-width: 980px) {
   .screen-flank-left,
   .screen-flank-right {
     display: none;
   }
   .screen-center {
-    width: 290px;
+    width: 300px;
     transform: none;
   }
-  .hero-snippet {
+  .app-snippet-timer,
+  .app-snippet-dates {
     display: none;
+  }
+  .app-snippet-card {
+    left: 4%;
+    top: 4%;
+    width: 240px;
+  }
+  .app-snippet-complete {
+    right: 4%;
+    bottom: 6%;
+    width: 240px;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-visual-stage {
+    flex-direction: column;
+  }
+  .app-snippet-card,
+  .app-snippet-complete {
+    position: static;
+    margin: 12px auto 0 auto;
+    width: 100%;
+    max-width: 310px;
+    transform: none !important;
   }
 }
 
