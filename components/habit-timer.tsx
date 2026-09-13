@@ -2,7 +2,7 @@ import { CustomAlert as Alert } from '@/utils/custom-alert';
 import * as Haptics from 'expo-haptics';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, AppStateStatus, Dimensions, Text, TouchableOpacity, View } from 'react-native';
-import Svg, { Line } from 'react-native-svg';
+import Svg, { Circle, Line } from 'react-native-svg';
 
 import { HABIT_COLORS } from '@/constants/habit-colors';
 import { BellIcon } from '@/constants/icons';
@@ -20,7 +20,7 @@ const TICK_OUTER_RADIUS = RING_SIZE / 2;
 const TICK_INNER_RADIUS = TICK_OUTER_RADIUS - 8;
 const DANGER_COLOR = '#ef4444';
 
-function formatDurationLabel(totalSeconds: number) {
+export function formatDurationLabel(totalSeconds: number) {
     const h = Math.floor(totalSeconds / 3600);
     const m = Math.floor((totalSeconds % 3600) / 60);
     const s = totalSeconds % 60;
@@ -35,7 +35,7 @@ function formatDurationLabel(totalSeconds: number) {
     return `${s} s`;
 }
 
-function formatCountdown(remainingSeconds: number) {
+export function formatCountdown(remainingSeconds: number) {
     const h = Math.floor(remainingSeconds / 3600);
     const m = Math.floor((remainingSeconds % 3600) / 60);
     const s = remainingSeconds % 60;
@@ -47,7 +47,7 @@ function formatCountdown(remainingSeconds: number) {
     return `${paddedM}:${paddedS}`;
 }
 
-function formatEndTime(remainingSeconds: number) {
+export function formatEndTime(remainingSeconds: number) {
     const end = new Date(Date.now() + remainingSeconds * 1000);
     return end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
 }
@@ -59,7 +59,50 @@ interface TickRingProps {
     isDark: boolean;
 }
 
-function TickRing({ progress, accentColor, isPaused, isDark }: TickRingProps) {
+export function SmoothProgressRing({
+    size = 148,
+    strokeWidth = 5,
+    progress,
+    color,
+    trackColor,
+}: {
+    size?: number;
+    strokeWidth?: number;
+    progress: number;
+    color: string;
+    trackColor: string;
+}) {
+    const center = size / 2;
+    const radius = (size - strokeWidth) / 2;
+    const circumference = 2 * Math.PI * radius;
+    const strokeDashoffset = circumference * (1 - Math.min(Math.max(progress, 0), 1));
+
+    return (
+        <Svg width={size} height={size} style={{ transform: [{ rotate: '-90deg' }] }}>
+            <Circle
+                cx={center}
+                cy={center}
+                r={radius}
+                stroke={trackColor}
+                strokeWidth={strokeWidth}
+                fill="none"
+            />
+            <Circle
+                cx={center}
+                cy={center}
+                r={radius}
+                stroke={color}
+                strokeWidth={strokeWidth}
+                strokeDasharray={`${circumference} ${circumference}`}
+                strokeDashoffset={strokeDashoffset}
+                strokeLinecap="round"
+                fill="none"
+            />
+        </Svg>
+    );
+}
+
+export function TickRing({ progress, accentColor, isPaused, isDark }: TickRingProps) {
     const activeTicks = Math.ceil(progress * TICK_COUNT);
 
     const ticks = useMemo(() => {

@@ -242,6 +242,25 @@ export const MoonIcon = ({ color = "#000000", size = 24, style }: IconProps) => 
 		<Path fill={color} d="M22.16 12.08c0 5.567-4.513 10.08-10.08 10.08S2 17.647 2 12.08 6.513 2 12.08 2a9.4 9.4 0 0 1 2.2.25 6.17 6.17 0 1 0 7.63 7.63c.17.721.254 1.46.25 2.2" />
 	</Svg>
 );
+
+export const PlayIcon = ({ color = "#000000", size = 24, style }: IconProps) => (
+	<Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+		<Path d="M7 4.5V19.5L19 12L7 4.5Z" fill={color} />
+	</Svg>
+);
+
+export const PauseIcon = ({ color = "#000000", size = 24, style }: IconProps) => (
+	<Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+		<Rect x="6" y="5" width="4" height="14" rx="1.5" fill={color} />
+		<Rect x="14" y="5" width="4" height="14" rx="1.5" fill={color} />
+	</Svg>
+);
+
+export const StopIcon = ({ color = "#000000", size = 24, style }: IconProps) => (
+	<Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+		<Rect x="5" y="5" width="14" height="14" rx="2.5" fill={color} />
+	</Svg>
+);
 export const LogoIcon = ({ color = "#000000", size = 24, style }: IconProps) => (
 	<Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
 		<Path

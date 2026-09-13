@@ -5,7 +5,6 @@ import { useMeridianMutation, useQuery, useQueryClient } from 'meridian-lite';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,8 +15,6 @@ import {
 import { dismissFirstHint, hasDismissedFirstHint } from '@/utils/onboarding';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { CustomAlertProvider } from '@/components/custom-alert-provider';
-import { HabitTimerScreen } from '@/components/habit-timer';
 import { DateSelector } from '@/components/home/date-selector';
 import { HabitCardView } from '@/components/home/habit-card-view';
 import { HabitGridView } from '@/components/home/habit-grid-view';
@@ -75,20 +72,8 @@ export default function HabitsScreen() {
 
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedDate, setSelectedDate] = useState<string>(getTodayISO());
-  const [timerHabit, setTimerHabit] = useState<any>(null);
-  const [isTimerVisible, setIsTimerVisible] = useState(false);
   const [showFirstHint, setShowFirstHint] = useState(false);
   const hasSyncedNotifications = useRef(false);
-
-  const timerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (timerTimeoutRef.current) {
-        clearTimeout(timerTimeoutRef.current);
-      }
-    };
-  }, []);
 
   useEffect(() => {
     hasDismissedFirstHint().then((dismissed) => {
@@ -224,19 +209,6 @@ export default function HabitsScreen() {
     } catch (error) {
       console.error('Error untracking habit:', error);
     }
-  };
-
-  const handleOpenTimer = (habit: any) => {
-    setTimerHabit(habit);
-    setIsTimerVisible(true);
-  };
-
-  const handleCloseTimer = () => {
-    setIsTimerVisible(false);
-    if (timerTimeoutRef.current) clearTimeout(timerTimeoutRef.current);
-    timerTimeoutRef.current = setTimeout(() => {
-      setTimerHabit(null);
-    }, 400);
   };
 
   const isFullyCompletedToday = (habit: any) => {
@@ -462,7 +434,7 @@ export default function HabitsScreen() {
                   onPressHabit={(h) => router.push(`/habits/${h.id}`)}
                   onTrackHabit={handleQuickTrack}
                   onUntrackHabit={handleUntrack}
-                  onTimerPress={handleOpenTimer}
+                  onTimerPress={() => {}}
                   isFullyCompleted={isFullyCompletedToday}
                 />
               )}
@@ -473,7 +445,7 @@ export default function HabitsScreen() {
                   onPressHabit={(h) => router.push(`/habits/${h.id}`)}
                   onTrackHabit={handleQuickTrack}
                   onUntrackHabit={handleUntrack}
-                  onTimerPress={handleOpenTimer}
+                  onTimerPress={() => {}}
                   isFullyCompleted={isFullyCompletedToday}
                 />
               )}
@@ -484,7 +456,7 @@ export default function HabitsScreen() {
                   onPressHabit={(h) => router.push(`/habits/${h.id}`)}
                   onTrackHabit={handleQuickTrack}
                   onUntrackHabit={handleUntrack}
-                  onTimerPress={handleOpenTimer}
+                  onTimerPress={() => {}}
                   isFullyCompleted={isFullyCompletedToday}
                 />
               )}
@@ -492,20 +464,6 @@ export default function HabitsScreen() {
           )}
         </View>
 
-        <Modal
-          visible={isTimerVisible}
-          animationType="slide"
-          presentationStyle="pageSheet"
-          onRequestClose={handleCloseTimer}
-        >
-          {timerHabit && (
-            <CustomAlertProvider
-              overrideTheme={HABIT_COLORS[timerHabit.color] || HABIT_COLORS.purple}
-            >
-              <HabitTimerScreen habit={timerHabit} onClose={handleCloseTimer} />
-            </CustomAlertProvider>
-          )}
-        </Modal>
       </ScrollView>
     </SafeAreaView>
   );

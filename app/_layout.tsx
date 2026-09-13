@@ -6,6 +6,7 @@ import '../global.css';
 import { CustomAlertProvider } from '@/components/custom-alert-provider';
 import { AuthProvider } from '@/context/auth-context';
 import { ThemeProvider } from '@/context/theme-context';
+import { TimerProvider } from '@/context/timer-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { APP_NAME, databaseMigrations, handleSync } from '@/lib/meridian';
 import { initDatabase } from '@/utils/database';
@@ -97,16 +98,18 @@ export default function RootLayout() {
         onDeadLetter={onDeadLetter}
       >
         <ThemeProvider>
-          <CustomAlertProvider>
-            <Stack>
-              <Stack.Screen name="index" options={{ headerShown: false }} />
-              <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
-              <Stack.Screen name="auth" options={{ headerShown: false }} />
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="+not-found" options={{ headerShown: false }} />
-            </Stack>
-          </CustomAlertProvider>
-          <StatusBar style={colorScheme === "light" ? "dark" : "light"} />
+          <TimerProvider>
+            <CustomAlertProvider>
+              <Stack>
+                <Stack.Screen name="index" options={{ headerShown: false }} />
+                <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
+                <Stack.Screen name="auth" options={{ headerShown: false }} />
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="+not-found" options={{ headerShown: false }} />
+              </Stack>
+            </CustomAlertProvider>
+            <StatusBar style={colorScheme === "light" ? "dark" : "light"} />
+          </TimerProvider>
         </ThemeProvider>
       </MeridianProvider>
     </AuthProvider>

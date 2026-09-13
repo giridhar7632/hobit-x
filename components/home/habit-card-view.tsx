@@ -4,15 +4,24 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeOut,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { CompletionIndicator } from '@/components/home/completion-indicator';
+import { useTimer } from '@/context/timer-context';
 import { getContrastTextColor, getHabitColor } from '@/constants/habit-colors';
 import {
   BellIcon,
   ClockIcon,
   FlameIcon,
   renderHabitIcon,
-  TimerIcon,
 } from '@/constants/icons';
 import { getHabitTotalReminders, parseNotifyTimes } from '@/utils/notifications';
 import { Habit } from '@/utils/types';
@@ -26,6 +35,31 @@ interface HabitCardViewProps {
   isFullyCompleted: (habit: Habit) => boolean;
 }
 
+function ActiveDot({ color }: { color: string }) {
+  const scale = useSharedValue(1);
+  React.useEffect(() => {
+    scale.value = withRepeat(
+      withTiming(1.4, { duration: 900, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
+    );
+  }, [scale]);
+  const style = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+  return (
+    <Animated.View style={[{ width: 7, height: 7, borderRadius: 4, backgroundColor: color }, style]} />
+  );
+}
+
+function formatActiveMinutes(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  if (s === 0) return `${m} min`;
+  return `${m}m ${s}s`;
+}
+
 export function HabitCardView({
   habits,
   onPressHabit,
@@ -34,13 +68,25 @@ export function HabitCardView({
   onTimerPress,
   isFullyCompleted,
 }: HabitCardViewProps) {
+  const { habit: activeHabit, secondsElapsed, isRunning, startTimer, pauseTimer, resumeTimer, cancelTimer } = useTimer();
+
+  const sortedHabits = React.useMemo(() => {
+    if (!activeHabit) return habits;
+    return [...habits].sort((a, b) => {
+      if (a.id === activeHabit.id) return -1;
+      if (b.id === activeHabit.id) return 1;
+      return 0;
+    });
+  }, [habits, activeHabit]);
+
   return (
     <View className="px-5 gap-3.5">
-      {habits.map((habit) => {
+      {sortedHabits.map((habit) => {
         const colorDef = getHabitColor(habit.color);
         const completed = isFullyCompleted(habit);
         const totalReminders = getHabitTotalReminders(habit);
         const completedCount = habit.today_completed_count || 0;
+        const isThisActive = activeHabit?.id === habit.id;
 
         const cardBg = colorDef.hex;
         const contrastColor = getContrastTextColor(colorDef.hex);
@@ -52,6 +98,7 @@ export function HabitCardView({
         const timerBg = isWhiteText ? 'rgba(255, 255, 255, 0.28)' : 'rgba(0, 0, 0, 0.12)';
         const cardBorder = isWhiteText ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.08)';
         const dividerColor = isWhiteText ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.08)';
+        const activeGlow = isWhiteText ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.06)';
 
         const notifyTimeStr = (() => {
           if (!habit.notify || !habit.notify_time) return null;
@@ -71,7 +118,8 @@ export function HabitCardView({
             style={[
               {
                 backgroundColor: cardBg,
-                borderColor: cardBorder,
+                borderColor: isThisActive ? contrastColor : cardBorder,
+                borderWidth: isThisActive ? 1.5 : 1,
               },
               completed && { opacity: 0.65 },
             ]}
@@ -121,71 +169,113 @@ export function HabitCardView({
               />
             </View>
 
-            <View
-              style={{ borderTopColor: dividerColor }}
-              className="flex-row items-center justify-between mt-4 pt-3 border-t"
-            >
-              <View className="flex-row items-center flex-wrap gap-2">
-                {habit.planned_time_minutes ? (
-                  <View
-                    style={{ backgroundColor: badgeBg }}
-                    className="flex-row items-center gap-1.5 px-2.5 py-1 rounded-[10px]"
-                  >
-                    <ClockIcon size={12} color={contrastColor} />
-                    <Text
-                      style={{ color: contrastColor }}
-                      className="font-psemibold text-[11px]"
-                    >
-                      {habit.planned_time_minutes} min
-                    </Text>
-                  </View>
-                ) : null}
+            {/* Active timer bar */}
+            {isThisActive ? (
+              <Animated.View
+                entering={FadeIn.duration(200)}
+                exiting={FadeOut.duration(150)}
+                className="mt-4 pt-3 border-t flex-row items-center gap-3"
+                style={{ borderTopColor: dividerColor }}
+              >
+                <View style={{ backgroundColor: activeGlow }} className="flex-1 flex-row items-center gap-2 px-3 py-2 rounded-[12px]">
+                  {isRunning
+                    ? <ActiveDot color={contrastColor} />
+                    : <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: contrastColor, opacity: 0.4 }} />
+                  }
+                  <Text className="font-psemibold text-xs flex-1" style={{ color: contrastColor }}>
+                    Active · {formatActiveMinutes(secondsElapsed)}
+                  </Text>
+                </View>
 
-                {habit.current_streak > 0 ? (
-                  <View
-                    style={{ backgroundColor: badgeBg }}
-                    className="flex-row items-center gap-1.5 px-2.5 py-1 rounded-[10px]"
-                  >
-                    <FlameIcon size={12} color={contrastColor} />
-                    <Text
-                      style={{ color: contrastColor }}
-                      className="font-psemibold text-[11px]"
-                    >
-                      {habit.current_streak}
-                    </Text>
-                  </View>
-                ) : null}
-
-                {notifyTimeStr ? (
-                  <View
-                    style={{ backgroundColor: badgeBg }}
-                    className="flex-row items-center gap-1.5 px-2.5 py-1 rounded-[10px]"
-                  >
-                    <BellIcon size={12} color={contrastColor} />
-                    <Text
-                      style={{ color: contrastColor }}
-                      className="font-psemibold text-[11px]"
-                    >
-                      {notifyTimeStr}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-
-              {habit.planned_time_minutes && !completed ? (
                 <TouchableOpacity
                   activeOpacity={0.7}
-                  onPress={(e) => {
-                    e.stopPropagation?.();
-                    onTimerPress(habit);
-                  }}
+                  onPress={(e) => { e.stopPropagation?.(); isRunning ? pauseTimer() : resumeTimer(); }}
                   style={{ backgroundColor: timerBg }}
-                  className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-xl"
+                  className="px-3 py-2 rounded-[12px] items-center justify-center"
                 >
-                  <TimerIcon size={16} color={contrastColor} />
+                  <Text className="font-psemibold text-xs" style={{ color: contrastColor }}>
+                    {isRunning ? 'Pause' : 'Resume'}
+                  </Text>
                 </TouchableOpacity>
-              ) : null}
-            </View>
+
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={(e) => { e.stopPropagation?.(); cancelTimer(); }}
+                  style={{ backgroundColor: 'rgba(239,68,68,0.15)' }}
+                  className="px-3 py-2 rounded-[12px] items-center justify-center"
+                >
+                  <Text className="font-psemibold text-xs" style={{ color: '#ef4444' }}>Stop</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            ) : (
+              <View
+                style={{ borderTopColor: dividerColor }}
+                className="flex-row items-center justify-between mt-4 pt-3 border-t"
+              >
+                <View className="flex-row items-center flex-wrap gap-2">
+                  {habit.planned_time_minutes ? (
+                    <View
+                      style={{ backgroundColor: badgeBg }}
+                      className="flex-row items-center gap-1.5 px-2.5 py-1 rounded-[10px]"
+                    >
+                      <ClockIcon size={12} color={contrastColor} />
+                      <Text
+                        style={{ color: contrastColor }}
+                        className="font-psemibold text-[11px]"
+                      >
+                        {habit.planned_time_minutes} min
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {habit.current_streak > 0 ? (
+                    <View
+                      style={{ backgroundColor: badgeBg }}
+                      className="flex-row items-center gap-1.5 px-2.5 py-1 rounded-[10px]"
+                    >
+                      <FlameIcon size={12} color={contrastColor} />
+                      <Text
+                        style={{ color: contrastColor }}
+                        className="font-psemibold text-[11px]"
+                      >
+                        {habit.current_streak}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {notifyTimeStr ? (
+                    <View
+                      style={{ backgroundColor: badgeBg }}
+                      className="flex-row items-center gap-1.5 px-2.5 py-1 rounded-[10px]"
+                    >
+                      <BellIcon size={12} color={contrastColor} />
+                      <Text
+                        style={{ color: contrastColor }}
+                        className="font-psemibold text-[11px]"
+                      >
+                        {notifyTimeStr}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                {habit.planned_time_minutes && !completed && !activeHabit ? (
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={(e) => {
+                      e.stopPropagation?.();
+                      startTimer(habit);
+                    }}
+                    style={{ backgroundColor: timerBg }}
+                    className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-xl"
+                  >
+                    <Text className="font-psemibold text-[12px]" style={{ color: contrastColor }}>
+                      Start
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            )}
           </TouchableOpacity>
         );
       })}

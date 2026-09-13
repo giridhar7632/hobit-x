@@ -15,10 +15,16 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import {
+  formatCountdown,
+  formatDurationLabel,
+  formatEndTime,
+  SmoothProgressRing,
+} from '@/components/habit-timer';
 import Heatmap from '@/components/heat-map';
 import { ThemedText } from '@/components/themed-text';
 import Button from '@/components/ui/button';
-import { getHabitColor } from '@/constants/habit-colors';
+import { getContrastTextColor, getHabitColor, getReadableAccentColor } from '@/constants/habit-colors';
 import {
   BellDisabledIcon,
   BellIcon,
@@ -36,6 +42,7 @@ import {
 import { STREAK_MESSAGES } from '@/constants/messages';
 import { Colors } from '@/constants/theme';
 import { useAppTheme } from '@/context/theme-context';
+import { useTimer } from '@/context/timer-context';
 import {
   deleteEntry,
   deleteHabit,
@@ -85,6 +92,15 @@ export default function HabitScreen() {
   const currentTheme = colorScheme === 'dark' ? 'dark' : 'light';
   const isDark = currentTheme === 'dark';
   const { setActiveColor } = useAppTheme();
+  const {
+    habit: activeTimerHabit,
+    secondsElapsed,
+    isRunning,
+    pauseTimer,
+    resumeTimer,
+    saveTimer,
+    cancelTimer,
+  } = useTimer();
 
   const [backdateModalVisible, setBackdateModalVisible] = useState(false);
   const [pendingBackdate, setPendingBackdate] = useState<{ dateStr: string; displayDate: string } | null>(null);
@@ -308,6 +324,7 @@ export default function HabitScreen() {
 
   const colorDef = getHabitColor(habit.color);
   const accentColor = colorDef.accent;
+  const readableAccent = getReadableAccentColor(habit.color, isDark);
   const heroBg = isDark ? colorDef.pastelBgDark : colorDef.pastelBg;
   const contentBg = isDark ? '#18191B' : '#FFFFFF';
   const textColor = isDark ? '#ECEDEE' : '#11181C';
@@ -341,11 +358,28 @@ export default function HabitScreen() {
 
   const bottomPad = insets.bottom > 0 ? insets.bottom + 12 : 20;
 
+  // Is the active timer for this habit?
+  const isTimerActive = activeTimerHabit?.id === habitId;
+  const targetSeconds = (habit.planned_time_minutes || 10) * 60;
+  const isOvertime = secondsElapsed > targetSeconds;
+  const remainingSeconds = Math.max(targetSeconds - secondsElapsed, 0);
+  const timerProgress = isOvertime ? 1.0 : remainingSeconds / targetSeconds;
+  const countdownLabel = isOvertime
+    ? `+${formatCountdown(secondsElapsed - targetSeconds)}`
+    : formatCountdown(remainingSeconds);
+  const endTimeLabel = isOvertime ? 'Overtime' : formatEndTime(remainingSeconds);
+  const originalDurationLabel = formatDurationLabel(targetSeconds);
+  const DANGER_COLOR = '#ef4444';
+
   return (
     <View className="flex-1" style={{ backgroundColor: heroBg }}>
       <View
-        className="h-[30%] min-h-[200px] justify-center items-center relative"
-        style={{ paddingTop: insets.top }}
+        className="justify-center items-center relative"
+        style={{
+          paddingTop: insets.top,
+          paddingBottom: isTimerActive ? 32 : 28,
+          minHeight: 250,
+        }}
       >
         <TouchableOpacity
           activeOpacity={0.8}
@@ -360,7 +394,10 @@ export default function HabitScreen() {
             top: insets.top + (Platform.OS === 'ios' ? 8 : 16),
             backgroundColor: isDark ? 'rgba(30,30,35,0.85)' : '#FFFFFF',
             elevation: 3,
-            shadowColor: '#000000', shadowOpacity: 0.08, shadowOffset: { width: 0, height: 3 }, shadowRadius: 8
+            shadowColor: '#000000',
+            shadowOpacity: 0.08,
+            shadowOffset: { width: 0, height: 3 },
+            shadowRadius: 8,
           }}
         >
           <ChevronIcon direction="left" size={20} color={textColor} />
@@ -375,30 +412,126 @@ export default function HabitScreen() {
             top: insets.top + (Platform.OS === 'ios' ? 8 : 16),
             backgroundColor: isDark ? 'rgba(30,30,35,0.85)' : '#FFFFFF',
             elevation: 3,
-            shadowColor: '#000000', shadowOpacity: 0.08, shadowOffset: { width: 0, height: 3 }, shadowRadius: 8
+            shadowColor: '#000000',
+            shadowOpacity: 0.08,
+            shadowOffset: { width: 0, height: 3 },
+            shadowRadius: 8,
           }}
         >
           <BinIcon size={18} color="#EF4444" />
         </TouchableOpacity>
 
-        <View className="items-center justify-center">
-          <View
-            className="w-[132px] h-[132px] rounded-full border-2 items-center justify-center"
-            style={{ borderColor: `${accentColor}30` }}
-          >
-            <View
-              className="w-24 h-24 rounded-full border-[1.5px] items-center justify-center"
+        {isTimerActive ? (
+          <View className="items-center justify-center mt-2">
+            <View style={{ width: 148, height: 148 }} className="items-center justify-center">
+              <SmoothProgressRing
+                size={148}
+                strokeWidth={5}
+                progress={timerProgress}
+                color={isOvertime ? DANGER_COLOR : accentColor}
+                trackColor={isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'}
+              />
+              <View
+                style={{
+                  width: 128,
+                  height: 128,
+                  backgroundColor: isDark ? '#232428' : '#FFFFFF',
+                  elevation: 3,
+                  shadowColor: '#000000',
+                  shadowOpacity: 0.06,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowRadius: 10,
+                }}
+                className="rounded-full items-center justify-center absolute"
+              >
+                <Text
+                  className="font-pmedium text-[11px] mb-0.5"
+                  style={{ color: isOvertime ? DANGER_COLOR : mutedColor }}
+                >
+                  {isOvertime ? 'OVERTIME' : originalDurationLabel}
+                </Text>
+
+                <Text
+                  className="font-pbold tracking-tight"
+                  style={{
+                    fontSize: remainingSeconds >= 3600 ? 24 : 30,
+                    color: isOvertime ? DANGER_COLOR : textColor,
+                  }}
+                >
+                  {countdownLabel}
+                </Text>
+
+                <Text
+                  className="font-pmedium text-[11px] mt-0.5"
+                  style={{ color: mutedColor }}
+                >
+                  {endTimeLabel}
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.75}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                if (isRunning) pauseTimer();
+                else resumeTimer();
+              }}
+              className="flex-row items-center gap-1.5 px-4 py-1.5 rounded-full mt-3 shadow-sm"
               style={{
                 backgroundColor: isDark ? '#232428' : '#FFFFFF',
-                borderColor: `${accentColor}50`,
-                elevation: 3,
-                shadowColor: '#000000', shadowOpacity: 0.06, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10
+                borderWidth: 1,
+                borderColor: isRunning
+                  ? `${readableAccent}40`
+                  : isDark
+                    ? 'rgba(255,255,255,0.15)'
+                    : 'rgba(0,0,0,0.1)',
+                elevation: 2,
+                shadowColor: '#000000',
+                shadowOpacity: 0.05,
+                shadowOffset: { width: 0, height: 2 },
+                shadowRadius: 4,
               }}
             >
-              {renderHabitIcon(habit.icon, accentColor, 46)}
+              <View
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: 4,
+                  backgroundColor: isRunning ? readableAccent : '#9ca3af',
+                }}
+              />
+              <Text
+                className="font-psemibold text-xs"
+                style={{ color: isRunning ? readableAccent : textColor }}
+              >
+                {isRunning ? 'Pause' : 'Resume'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View className="items-center justify-center">
+            <View
+              className="w-[132px] h-[132px] rounded-full border-2 items-center justify-center"
+              style={{ borderColor: `${accentColor}30` }}
+            >
+              <View
+                className="w-24 h-24 rounded-full border-[1.5px] items-center justify-center"
+                style={{
+                  backgroundColor: isDark ? '#232428' : '#FFFFFF',
+                  borderColor: `${accentColor}50`,
+                  elevation: 3,
+                  shadowColor: '#000000',
+                  shadowOpacity: 0.06,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowRadius: 10,
+                }}
+              >
+                {renderHabitIcon(habit.icon, accentColor, 46)}
+              </View>
             </View>
           </View>
-        </View>
+        )}
       </View>
 
       <View
@@ -411,7 +544,7 @@ export default function HabitScreen() {
       >
         <ScrollView
           contentContainerClassName="px-5 pt-6 gap-5"
-          contentContainerStyle={{ paddingBottom: bottomPad + 88 }}
+          contentContainerStyle={{ paddingBottom: bottomPad + (isTimerActive ? 124 : 88) }}
           showsVerticalScrollIndicator={false}
         >
           <View className="flex-row items-start gap-3">
@@ -443,7 +576,7 @@ export default function HabitScreen() {
               className="w-[38px] h-[38px] rounded-full items-center justify-center mt-1"
               style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F2F4F7' }}
             >
-              <EditIcon size={17} color={accentColor} />
+              <EditIcon size={17} color={readableAccent} />
             </TouchableOpacity>
           </View>
 
@@ -460,7 +593,7 @@ export default function HabitScreen() {
                 className="w-[52px] h-[52px] rounded-[18px] items-center justify-center"
                 style={{ backgroundColor: `${accentColor}20` }}
               >
-                <FlameIcon size={26} color={accentColor} />
+                <FlameIcon size={26} color={readableAccent} />
               </View>
 
               <View
@@ -470,7 +603,10 @@ export default function HabitScreen() {
                   borderColor: isDark ? '#232428' : '#F6F8FA',
                 }}
               >
-                <Text className="font-pbold text-white text-[11px]">
+                <Text
+                  className="font-pbold text-[11px]"
+                  style={{ color: getContrastTextColor(accentColor) }}
+                >
                   {habit.current_streak || 0}
                 </Text>
               </View>
@@ -637,34 +773,85 @@ export default function HabitScreen() {
             borderTopColor: borderColor,
           }}
         >
-          <TouchableOpacity
-            activeOpacity={0.88}
-            onPress={isFullyDoneToday ? handleUntrackToday : handleTrackToday}
-            className="flex-row items-center justify-center gap-2.5 py-4 rounded-[18px]"
-            style={{
-              backgroundColor: isFullyDoneToday
-                ? (isDark ? 'rgba(255,255,255,0.08)' : '#F2F4F7')
-                : accentColor,
-            }}
-          >
-            {isFullyDoneToday ? (
-              <>
-                <TickIcon size={18} color={mutedColor} />
-                <Text className="font-pbold text-base tracking-[-0.2px]" style={{ color: mutedColor }}>
-                  Completed today · Undo
+          {isTimerActive ? (
+            <View className="gap-1.5">
+              <TouchableOpacity
+                activeOpacity={0.88}
+                onPress={() => {
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  saveTimer('Completed');
+                }}
+                className="flex-row items-center justify-center gap-2.5 py-4 rounded-[18px]"
+                style={{ backgroundColor: accentColor }}
+              >
+                <TickIcon size={18} color={getContrastTextColor(accentColor)} />
+                <Text
+                  className="font-pbold text-base tracking-[-0.2px]"
+                  style={{ color: getContrastTextColor(accentColor) }}
+                >
+                  Finish & Save · {Math.max(1, Math.round(secondsElapsed / 60))}m
                 </Text>
-              </>
-            ) : (
-              <>
-                <TickIcon size={18} color="#FFFFFF" />
-                <Text className="font-pbold text-base tracking-[-0.2px]" style={{ color: '#FFFFFF' }}>
-                  {(habit.today_completed_count || 0) > 0
-                    ? `Track Again · ${habit.today_completed_count || 0}/${totalDailyTarget} done`
-                    : 'Mark as Done'}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  Alert.alert(
+                    'Discard Session?',
+                    'Are you sure you want to discard this timer session? The time will not be logged.',
+                    [
+                      { text: 'Keep Going', style: 'cancel' },
+                      {
+                        text: 'Discard',
+                        style: 'destructive',
+                        onPress: () => {
+                          cancelTimer();
+                        },
+                      },
+                    ]
+                  );
+                }}
+                className="items-center justify-center py-1.5"
+              >
+                <Text className="font-pmedium text-xs text-red-500">
+                  Discard session
                 </Text>
-              </>
-            )}
-          </TouchableOpacity>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              activeOpacity={0.88}
+              onPress={isFullyDoneToday ? handleUntrackToday : handleTrackToday}
+              className="flex-row items-center justify-center gap-2.5 py-4 rounded-[18px]"
+              style={{
+                backgroundColor: isFullyDoneToday
+                  ? (isDark ? 'rgba(255,255,255,0.08)' : '#F2F4F7')
+                  : accentColor,
+              }}
+            >
+              {isFullyDoneToday ? (
+                <>
+                  <TickIcon size={18} color={mutedColor} />
+                  <Text className="font-pbold text-base tracking-[-0.2px]" style={{ color: mutedColor }}>
+                    Completed today · Undo
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <TickIcon size={18} color={getContrastTextColor(accentColor)} />
+                  <Text
+                    className="font-pbold text-base tracking-[-0.2px]"
+                    style={{ color: getContrastTextColor(accentColor) }}
+                  >
+                    {(habit.today_completed_count || 0) > 0
+                      ? `Track Again · ${habit.today_completed_count || 0}/${totalDailyTarget} done`
+                      : 'Mark as Done'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -692,11 +879,11 @@ export default function HabitScreen() {
                 className="w-[60px] h-[60px] rounded-[20px] items-center justify-center mb-1"
                 style={{ backgroundColor: `${accentColor}18` }}
               >
-                <CalendarIcon size={28} color={accentColor} />
+                <CalendarIcon size={28} color={readableAccent} />
               </View>
 
               <Text className="font-pbold text-xl tracking-[-0.4px]" style={{ color: textColor }}>Log Past Day</Text>
-              <Text className="font-pbold text-[15px]" style={{ color: accentColor }}>
+              <Text className="font-pbold text-[15px]" style={{ color: readableAccent }}>
                 {pendingBackdate ? formatBackdateLabel(pendingBackdate.dateStr) : ''}
               </Text>
 
