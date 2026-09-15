@@ -114,37 +114,73 @@ export async function requestNotificationPermissions() {
     return finalStatus === 'granted';
 }
 
+export async function cancelHabitNotifications(
+    habitId?: string | null,
+    storedNotificationIds?: string[] | string | null
+): Promise<void> {
+    if (Platform.OS === 'web') return;
+
+    // 1. Cancel explicitly stored IDs
+    let oldIds: string[] = [];
+    if (storedNotificationIds) {
+        if (typeof storedNotificationIds === 'string') {
+            try {
+                const parsed = JSON.parse(storedNotificationIds);
+                if (Array.isArray(parsed)) {
+                    oldIds = parsed;
+                } else if (typeof parsed === 'string') {
+                    oldIds = [parsed];
+                }
+            } catch {
+                oldIds = [storedNotificationIds];
+            }
+        } else if (Array.isArray(storedNotificationIds)) {
+            oldIds = storedNotificationIds;
+        }
+    }
+
+    for (const id of oldIds) {
+        if (typeof id === 'string' && id.trim()) {
+            try {
+                await Notifications.cancelScheduledNotificationAsync(id.trim());
+            } catch (cancelError) {
+                // Ignore individual cancellation failures on Android/iOS
+            }
+        }
+    }
+
+    // 2. Query OS scheduler to reconcile and cancel any orphaned/stale notifications
+    // matching this habit ID or legacy 'habit-new-' notifications
+    try {
+        if (typeof Notifications.getAllScheduledNotificationsAsync === 'function') {
+            const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+            const prefix = habitId ? `habit-${habitId}-` : null;
+            for (const item of scheduled) {
+                const ident = item.identifier;
+                if (!ident) continue;
+                if ((prefix && ident.startsWith(prefix)) || ident.startsWith('habit-new-')) {
+                    try {
+                        await Notifications.cancelScheduledNotificationAsync(ident);
+                    } catch {
+                        // Ignore individual cancellation failures
+                    }
+                }
+            }
+        }
+    } catch (err) {
+        console.warn('Error reconciling scheduled notifications from OS:', err);
+    }
+}
+
 export async function refreshHabitNotifications(
     habit: any,
     trackedMinutesToday: number = 0,
     isCompletedToday: boolean = false
 ) {
-
     if (Platform.OS === 'web') return [];
 
-    let oldIds = [];
-    if (habit.notification_ids) {
-        if (typeof habit.notification_ids === 'string') {
-            try {
-                oldIds = JSON.parse(habit.notification_ids);
-            } catch (err) {
-                oldIds = [];
-            }
-        } else if (Array.isArray(habit.notification_ids)) {
-            oldIds = habit.notification_ids;
-        }
-
-        for (const id of oldIds) {
-            if (typeof id === 'string') {
-                try {
-                    await Notifications.cancelScheduledNotificationAsync(id);
-                } catch (cancelError) {
-                    // Ignore individual cancellation failures on Android
-                    console.warn(`Failed to cancel notification ${id}`, cancelError);
-                }
-            }
-        }
-    }
+    // Always reconcile and cancel old / existing scheduled notifications first
+    await cancelHabitNotifications(habit?.id, habit?.notification_ids);
 
     if (!habit.notify || !habit.notify_time) return [];
 
@@ -206,8 +242,15 @@ export async function refreshHabitNotifications(
                 }
             }
 
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const dateKey = `${year}-${month}-${day}`;
+            const habitKey = habit.id || 'temp';
+            const identifier = `habit-${habitKey}-${dateKey}-rem-${reminderIdx}`;
+
             const id = await Notifications.scheduleNotificationAsync({
-                identifier: `habit-${habit.id || 'new'}-day-${i}-rem-${reminderIdx}`,
+                identifier,
                 content: { title, body, sound: true },
                 trigger: {
                     type: Notifications.SchedulableTriggerInputTypes.DATE,

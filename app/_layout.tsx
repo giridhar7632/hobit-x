@@ -22,7 +22,7 @@ function onDeadLetter(mutation: MutationRecord, error: unknown) {
 }
 
 export const unstable_settings = {
-  initialRouteName: '(tabs)',
+  initialRouteName: 'index',
 };
 
 SplashScreen.preventAutoHideAsync();

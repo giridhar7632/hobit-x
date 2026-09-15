@@ -3,7 +3,7 @@ import * as Crypto from 'expo-crypto';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { getDb } from './database';
-import { getHabitTotalReminders } from './notifications';
+import { getHabitTotalReminders, cancelHabitNotifications } from './notifications';
 import { Habit, HabitEntry } from "./types";
 
 export async function getHabits(): Promise<Habit[]> {
@@ -179,24 +179,8 @@ export async function deleteHabit(habitId: string) {
       [habitId]
     );
 
-    if (habit?.notification_ids && Platform.OS !== 'web') {
-      try {
-        const ids = typeof habit.notification_ids === 'string'
-          ? JSON.parse(habit.notification_ids)
-          : habit.notification_ids;
-
-        for (const id of ids) {
-          if (typeof id === 'string') {
-            try {
-              await Notifications.cancelScheduledNotificationAsync(id);
-            } catch (e) {
-              // Ignore individual cancellation failures
-            }
-          }
-        }
-      } catch (e) {
-        console.warn("Error parsing/cancelling notifications during habit delete:", e);
-      }
+    if (Platform.OS !== 'web') {
+      await cancelHabitNotifications(habitId, habit?.notification_ids);
     }
 
     await db.runAsync(`DELETE FROM habit_entries WHERE habit_id = ?`, [habitId]);

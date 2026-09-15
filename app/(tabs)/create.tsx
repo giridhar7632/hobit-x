@@ -1,3 +1,4 @@
+import * as Crypto from 'expo-crypto';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useMeridianMutation, useQueryClient } from 'meridian-lite';
@@ -178,9 +179,11 @@ export default function CreateScreen() {
       );
 
       const formattedTimeOfDay = JSON.stringify(draft.times_of_day);
+      const habitId = Crypto.randomUUID();
 
       const notificationIds = await refreshHabitNotifications(
         {
+          id: habitId,
           name: draft.name,
           notify: draft.notify ? 1 : 0,
           notify_time: formattedNotifyTime,
@@ -192,6 +195,7 @@ export default function CreateScreen() {
       );
 
       const newHabit = await createHabit({
+        id: habitId,
         name: draft.name.trim(),
         description: draft.description.trim() || null,
         color: draft.color,

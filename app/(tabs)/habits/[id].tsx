@@ -51,6 +51,7 @@ import {
   getHabitCompletedDates,
   trackHabit,
   untrackHabitToday,
+  updateHabitNotificationIds,
 } from '@/utils/actions';
 import { CustomAlert as Alert } from '@/utils/custom-alert';
 import { formatTimesOfDay, getHabitTotalReminders, parseNotifyTimes, refreshHabitNotifications } from '@/utils/notifications';
@@ -229,7 +230,11 @@ export default function HabitScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       const result = await untrackHabitToday(habit.id);
       if (result) {
-        await refreshHabitNotifications(habit, 0, false);
+        const newNotificationIds = await refreshHabitNotifications(habit, 0, false);
+        await updateHabitNotificationIds({
+          id: habit.id,
+          notification_ids: JSON.stringify(newNotificationIds),
+        });
         invalidateAll();
         await mutateOutbox('delete_entry', result);
       }
