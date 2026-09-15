@@ -4,7 +4,7 @@
   <p>A simple habit tracker for your daily routines, timers, and streaks. Offline-focused, distraction-free, and private.</p>
      </div>
 
-This is an quantized version of my app [hobit](https://github.com/giridhar7632/hobit). I made this to work offline focusing on privacy.
+This is an premium version of my app [hobit](https://github.com/giridhar7632/hobit). I made this to work offline focusing on privacy.
 
 <!-- <div style="display: flex; flex-wrap: nowrap; gap: 10px; align-items: center; justify-content: space-around;">
   <img src="https://github.com/user-attachments/assets/c6f63ce7-5e0d-495e-ab6e-ff127ba9878d" alt="Screenshot 2" width="180">
