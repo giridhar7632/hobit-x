@@ -1,7 +1,7 @@
 <div align="center">
-      <img src="https://raw.githubusercontent.com/binarybard-dvk/hobit-app/main/assets/images/adaptive-icon.png" width="100px"><br/>
+      <img src="https://raw.githubusercontent.com/giridhar7632/hobit-x/main/assets/images/logo.png" width="150px"><br/>
         <h1>Hobit App</h1>
-  <p>An app to track your bite-sized habits</p>
+  <p>A simple habit tracker for your daily routines, timers, and streaks. Offline-focused, distraction-free, and private.</p>
      </div>
 
 This is an quantized version of my app [hobit](https://github.com/giridhar7632/hobit). I made this to work offline focusing on privacy.
