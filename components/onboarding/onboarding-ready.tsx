@@ -18,7 +18,7 @@ import Button from '@/components/ui/button';
 import { HABIT_COLORS } from '@/constants/habit-colors';
 import { GoogleIcon, renderHabitIcon, TickIcon } from '@/constants/icons';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { formatTimesOfDay } from '@/utils/notifications';
+import { formatHabitSchedule, formatTimesOfDay } from '@/utils/notifications';
 import { OnboardingHabitDraft } from '@/utils/onboarding';
 
 interface OnboardingReadyProps {
@@ -116,12 +116,11 @@ export function OnboardingReady({
     transform: [{ translateY: footerTranslateY.value }],
   }));
 
-  const frequencyLabel =
-    draft.frequency === 'daily'
-      ? 'Every day'
-      : draft.frequency === 'weekly'
-        ? `${draft.target_days.length} days a week`
-        : `Every ${draft.interval} days`;
+  const frequencyLabel = formatHabitSchedule({
+    frequency: draft.frequency,
+    target_days: draft.target_days,
+    interval: draft.interval,
+  });
 
   const timesOfDayLabel = formatTimesOfDay(draft.times_of_day);
 

@@ -19,7 +19,7 @@ import {
   TickIcon,
 } from '@/constants/icons';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { formatTimesOfDay } from '@/utils/notifications';
+import { formatHabitSchedule, formatTimesOfDay } from '@/utils/notifications';
 
 interface StepSummaryProps {
   icon: string;
@@ -70,12 +70,11 @@ export function StepSummary({
   const textColor = isDark ? '#ECEDEE' : '#11181C';
   const colorDef = HABIT_COLORS[color] || HABIT_COLORS.purple;
 
-  const frequencyLabel =
-    frequency === 'daily'
-      ? 'Every day'
-      : frequency === 'weekly'
-        ? `${targetDays.length || 5} days a week`
-        : `Every ${interval || 1} days`;
+  const frequencyLabel = formatHabitSchedule({
+    frequency,
+    target_days: targetDays,
+    interval,
+  });
 
   const timesOfDayLabel = formatTimesOfDay(timesOfDay || timeOfDay || 'anytime');
 

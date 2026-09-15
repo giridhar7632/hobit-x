@@ -57,6 +57,77 @@ export function formatTimesOfDay(tod: any): string {
     return times.map(t => labels[t] || t).join(', ');
 }
 
+export function parseTargetDays(targetDays: any): number[] {
+    if (!targetDays) return [];
+
+    let rawList: any[] = [];
+    if (Array.isArray(targetDays)) {
+        rawList = targetDays;
+    } else if (typeof targetDays === 'string') {
+        const trimmed = targetDays.trim();
+        if (!trimmed) return [];
+        try {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed)) {
+                rawList = parsed;
+            } else if (typeof parsed === 'number') {
+                rawList = [parsed];
+            }
+        } catch {
+            // Handle comma-separated strings like "1,2,3,4,5"
+            if (trimmed.includes(',')) {
+                rawList = trimmed.split(',');
+            } else if (!isNaN(Number(trimmed))) {
+                rawList = [Number(trimmed)];
+            }
+        }
+    }
+
+    const validDays = new Set<number>();
+    for (const item of rawList) {
+        const num = typeof item === 'number' ? item : parseInt(String(item).trim(), 10);
+        // Valid JS day-of-week integers: 0 (Sunday) through 6 (Saturday)
+        if (!isNaN(num) && num >= 0 && num <= 6) {
+            validDays.add(num);
+        }
+    }
+
+    return Array.from(validDays).sort((a, b) => a - b);
+}
+
+export function formatHabitSchedule(habit: {
+    frequency?: string | null;
+    target_days?: any;
+    interval?: number | null;
+}): string {
+    const freq = habit?.frequency || 'daily';
+
+    if (freq === 'daily') {
+        return 'Every day';
+    }
+
+    if (freq === 'weekly') {
+        const days = parseTargetDays(habit?.target_days);
+        const count = days.length;
+        if (count === 0) return 'Weekly';
+        if (count === 7) return '7 days per week';
+        if (count === 1) return '1 day per week';
+        return `${count} days per week`;
+    }
+
+    if (freq === 'interval') {
+        const interval = Math.max(1, Number(habit?.interval) || 1);
+        if (interval === 1) return 'Every day';
+        return `Every ${interval} days`;
+    }
+
+    if (freq === 'monthly') {
+        return 'Monthly';
+    }
+
+    return 'Every day';
+}
+
 export function getDefaultReminderTimesForSessions(tod: any): Date[] {
     const times: TimeOfDay[] = parseTimesOfDay(tod);
     const timeMap: Record<TimeOfDay, { hour: number; minute: number }> = {
@@ -190,9 +261,7 @@ export async function refreshHabitNotifications(
     const hasPermission = await requestNotificationPermissions();
     if (!hasPermission) return [];
 
-    const targetDays = typeof habit.target_days === 'string'
-        ? JSON.parse(habit.target_days)
-        : (habit.target_days || []);
+    const targetDays = parseTargetDays(habit.target_days);
 
     const newIds: string[] = [];
     const progress = trackedMinutesToday / (habit.planned_time_minutes || 1);
@@ -223,7 +292,19 @@ export async function refreshHabitNotifications(
             if (date.getTime() < Date.now()) continue;
 
             const dayOfWeek = date.getDay(); // 0 is Sunday
-            const isTargetDay = targetDays.length === 0 || targetDays.includes(dayOfWeek);
+            let isTargetDay = true;
+            if (habit.frequency === 'weekly') {
+                isTargetDay = targetDays.length === 0 || targetDays.includes(dayOfWeek);
+            } else if (habit.frequency === 'interval') {
+                const interval = Math.max(1, Number(habit.interval) || 1);
+                if (interval > 1) {
+                    const startDateStr = habit.start_date ? habit.start_date.split('T')[0] : todayISO;
+                    const start = new Date(startDateStr + 'T00:00:00');
+                    const diffMs = date.getTime() - start.getTime();
+                    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+                    isTargetDay = diffDays >= 0 && diffDays % interval === 0;
+                }
+            }
 
             if (!isTargetDay) continue;
 

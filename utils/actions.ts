@@ -3,7 +3,7 @@ import * as Crypto from 'expo-crypto';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { getDb } from './database';
-import { getHabitTotalReminders, cancelHabitNotifications } from './notifications';
+import { getHabitTotalReminders, cancelHabitNotifications, parseTargetDays } from './notifications';
 import { Habit, HabitEntry } from "./types";
 
 export async function getHabits(): Promise<Habit[]> {
@@ -536,19 +536,20 @@ export function isHabitScheduledForDate(habit: Habit, dateISO: string): boolean 
   }
 
   if (habit.frequency === 'weekly') {
-    if (!habit.target_days) return true;
-    try {
-      const days =
-        typeof habit.target_days === 'string'
-          ? JSON.parse(habit.target_days)
-          : habit.target_days;
-      if (Array.isArray(days) && days.length > 0) {
-        return days.includes(d.getDay());
-      }
-    } catch {
-      return true;
-    }
-    return true;
+    const days = parseTargetDays(habit.target_days);
+    if (days.length === 0) return true;
+    return days.includes(d.getDay());
+  }
+
+  if (habit.frequency === 'interval') {
+    const interval = Math.max(1, Number(habit.interval) || 1);
+    if (interval <= 1) return true;
+    const startDateStr = habit.start_date ? habit.start_date.split('T')[0] : dateISO;
+    const start = new Date(startDateStr + 'T00:00:00');
+    const diffMs = d.getTime() - start.getTime();
+    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) return false;
+    return diffDays % interval === 0;
   }
 
   if (habit.frequency === 'monthly') {

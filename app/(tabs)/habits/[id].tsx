@@ -54,7 +54,7 @@ import {
   updateHabitNotificationIds,
 } from '@/utils/actions';
 import { CustomAlert as Alert } from '@/utils/custom-alert';
-import { formatTimesOfDay, getHabitTotalReminders, parseNotifyTimes, refreshHabitNotifications } from '@/utils/notifications';
+import { formatHabitSchedule, formatTimesOfDay, getHabitTotalReminders, parseNotifyTimes, refreshHabitNotifications } from '@/utils/notifications';
 import { Habit, HabitEntry } from '@/utils/types';
 
 function formatCreatedDate(dateStr?: string | null): string {
@@ -340,12 +340,7 @@ export default function HabitScreen() {
   const isFullyDoneToday = (habit.today_completed_count || 0) >= totalDailyTarget;
 
   const timesOfDayLabel = formatTimesOfDay(habit.time_of_day);
-  const frequencyLabel =
-    habit.frequency === 'daily'
-      ? 'Every day'
-      : habit.frequency === 'weekly'
-        ? `${habit.target_days?.length ?? 5} days/week`
-        : `Every ${habit.interval} days`;
+  const frequencyLabel = formatHabitSchedule(habit);
 
   const goalLabel =
     habit.completion_type === 'time'
