@@ -240,13 +240,22 @@ export function HabitTimerScreen({ habit, onClose }: HabitTimerProps) {
 
     const handleSaveAtTime = useCallback(async (
         seconds: number,
-        status: 'Completed' | 'Missed' | 'Skipped' | 'Partial',
+        preferredStatus: 'Completed' | 'Missed' | 'Skipped' | 'Partial',
         alertTitle?: string,
         alertMessage?: string
     ) => {
         const actualMinutes = Math.max(1, Math.round(seconds / 60));
         try {
             const totalMinutesToday = (habit.today_tracked_minutes || 0) + actualMinutes;
+            const plannedSeconds = (habit.planned_time_minutes || 0) * 60;
+            const cumulativeSeconds = ((habit.today_tracked_minutes || 0) * 60) + seconds;
+
+            let status = preferredStatus;
+            if (status !== 'Missed' && status !== 'Skipped') {
+                const isCompleted = plannedSeconds <= 0 || cumulativeSeconds >= (plannedSeconds * 0.5);
+                status = isCompleted ? 'Completed' : 'Partial';
+            }
+
             const isDone = status === 'Completed';
             const newNotificationIds = await refreshHabitNotifications(habit, totalMinutesToday, isDone);
 

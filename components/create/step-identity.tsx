@@ -21,6 +21,8 @@ interface StepIdentityProps {
   onChangeDescription: (desc: string) => void;
   color: string;
   onChangeColor: (color: string) => void;
+  onFocusName?: () => void;
+  onFocusDescription?: () => void;
 }
 
 export function StepIdentity({
@@ -32,6 +34,8 @@ export function StepIdentity({
   onChangeDescription,
   color,
   onChangeColor,
+  onFocusName,
+  onFocusDescription,
 }: StepIdentityProps) {
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
   const colorScheme = useColorScheme();
@@ -82,6 +86,7 @@ export function StepIdentity({
         accentColor={selectedTheme.accent}
         autoFocus={!name}
         maxLength={60}
+        onFocus={onFocusName}
       />
 
       <FormInput
@@ -94,6 +99,7 @@ export function StepIdentity({
         numberOfLines={2}
         maxLength={140}
         helperText="Optional"
+        onFocus={onFocusDescription}
       />
 
       <View className="gap-2">

@@ -719,7 +719,7 @@ export default function HabitScreen() {
                 No entries yet. Track your first session!
               </Text>
             ) : (
-              activity.slice(0, 12).map((entry: any) => (
+              activity.slice(0, 5).map((entry: any) => (
                 <View
                   key={entry.id || entry.entry_date}
                   className="flex-row items-center p-3 rounded-2xl border gap-2.5 mb-1.5"
@@ -774,51 +774,59 @@ export default function HabitScreen() {
           }}
         >
           {isTimerActive ? (
-            <View className="gap-1.5">
-              <TouchableOpacity
-                activeOpacity={0.88}
-                onPress={() => {
-                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                  saveTimer('Completed');
-                }}
-                className="flex-row items-center justify-center gap-2.5 py-4 rounded-[18px]"
-                style={{ backgroundColor: accentColor }}
-              >
-                <TickIcon size={18} color={getContrastTextColor(accentColor)} />
-                <Text
-                  className="font-pbold text-base tracking-[-0.2px]"
-                  style={{ color: getContrastTextColor(accentColor) }}
-                >
-                  Finish & Save · {Math.max(1, Math.round(secondsElapsed / 60))}m
-                </Text>
-              </TouchableOpacity>
+            (() => {
+              const plannedSec = (habit?.planned_time_minutes || 0) * 60;
+              const cumulativeSec = ((habit?.today_tracked_minutes || 0) * 60) + secondsElapsed;
+              const isThresholdMet = plannedSec <= 0 || cumulativeSec >= (plannedSec * 0.5);
 
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  Alert.alert(
-                    'Discard Session?',
-                    'Are you sure you want to discard this timer session? The time will not be logged.',
-                    [
-                      { text: 'Keep Going', style: 'cancel' },
-                      {
-                        text: 'Discard',
-                        style: 'destructive',
-                        onPress: () => {
-                          cancelTimer();
-                        },
-                      },
-                    ]
-                  );
-                }}
-                className="items-center justify-center py-1.5"
-              >
-                <Text className="font-pmedium text-xs text-red-500">
-                  Discard session
-                </Text>
-              </TouchableOpacity>
-            </View>
+              return (
+                <View className="gap-1.5">
+                  <TouchableOpacity
+                    activeOpacity={0.88}
+                    onPress={() => {
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      saveTimer();
+                    }}
+                    className="flex-row items-center justify-center gap-2.5 py-4 rounded-[18px]"
+                    style={{ backgroundColor: accentColor }}
+                  >
+                    <TickIcon size={18} color={getContrastTextColor(accentColor)} />
+                    <Text
+                      className="font-pbold text-base tracking-[-0.2px]"
+                      style={{ color: getContrastTextColor(accentColor) }}
+                    >
+                      {isThresholdMet ? 'Finish & Save' : 'Save Progress'} · {Math.max(1, Math.round(secondsElapsed / 60))}m
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      Alert.alert(
+                        'Discard Session?',
+                        'Are you sure you want to discard this timer session? The time will not be logged.',
+                        [
+                          { text: 'Keep Going', style: 'cancel' },
+                          {
+                            text: 'Discard',
+                            style: 'destructive',
+                            onPress: () => {
+                              cancelTimer();
+                            },
+                          },
+                        ]
+                      );
+                    }}
+                    className="items-center justify-center py-1.5"
+                  >
+                    <Text className="font-pmedium text-xs text-red-500">
+                      Discard session
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })()
           ) : (
             <TouchableOpacity
               activeOpacity={0.88}

@@ -31,8 +31,8 @@ interface TimerContextValue extends TimerState {
     resumeTimer: () => void;
     /** Stop timer without saving. Shows a discard prompt if time was already elapsed. */
     cancelTimer: () => void;
-    /** Save the current elapsed time with the given status, then clear state. */
-    saveTimer: (status: 'Completed' | 'Partial') => Promise<void>;
+    /** Save the current elapsed time. Evaluates the 50% threshold to decide Completed vs Partial. */
+    saveTimer: (status?: 'Completed' | 'Partial') => Promise<void>;
 }
 
 const TimerContext = createContext<TimerContextValue | null>(null);
@@ -117,13 +117,20 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
 
     const persistSave = useCallback(async (
         seconds: number,
-        status: 'Completed' | 'Partial',
+        preferredStatus: 'Completed' | 'Partial',
         h: any
     ) => {
         await cancelTimerNotifications();
         const actualMinutes = Math.max(1, Math.round(seconds / 60));
         try {
             const totalMinutesToday = (h.today_tracked_minutes || 0) + actualMinutes;
+            const plannedSeconds = (h.planned_time_minutes || 0) * 60;
+            const cumulativeSeconds = ((h.today_tracked_minutes || 0) * 60) + seconds;
+
+            // 50% completion threshold evaluated with second-level precision
+            const isCompleted = plannedSeconds <= 0 || cumulativeSeconds >= (plannedSeconds * 0.5);
+            const status: 'Completed' | 'Partial' = isCompleted ? 'Completed' : 'Partial';
+
             const isDone = status === 'Completed';
             const newNotificationIds = await refreshHabitNotifications(h, totalMinutesToday, isDone);
             const trackedResult = await trackHabit({
@@ -359,12 +366,12 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
         );
     }, [clearTimerState, cancelTimerNotifications, persistSave, startInterval, stopInterval]);
 
-    const saveTimer = useCallback(async (status: 'Completed' | 'Partial') => {
+    const saveTimer = useCallback(async (status?: 'Completed' | 'Partial') => {
         const h = habitRef.current;
         const elapsed = secondsElapsedRef.current;
         stopInterval();
         if (h && elapsed > 0) {
-            await persistSave(elapsed, status, h);
+            await persistSave(elapsed, status || 'Completed', h);
         }
         clearTimerState();
     }, [clearTimerState, persistSave, stopInterval]);

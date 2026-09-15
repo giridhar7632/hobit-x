@@ -126,10 +126,14 @@ export default function FormInput({
           selectionColor={accentColor}
           cursorColor={accentColor}
           placeholderTextColor={placeholderTextColor || defaultPlaceholderColor}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => {
+          onFocus={(e) => {
+            setIsFocused(true);
+            rest.onFocus?.(e);
+          }}
+          onBlur={(e) => {
             setIsFocused(false);
             handleBlur?.();
+            rest.onBlur?.(e);
           }}
           onChangeText={handleTextChange}
           value={value}

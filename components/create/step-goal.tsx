@@ -21,6 +21,9 @@ interface StepGoalProps {
   targetUnit: string;
   onChangeTargetUnit: (unit: string) => void;
   accentColor?: string;
+  onFocusPlannedMinutes?: () => void;
+  onFocusTargetValue?: () => void;
+  onFocusTargetUnit?: () => void;
 }
 
 const TIME_SUGGESTIONS = [
@@ -52,6 +55,9 @@ export function StepGoal({
   targetUnit,
   onChangeTargetUnit,
   accentColor = '#4655E0',
+  onFocusPlannedMinutes,
+  onFocusTargetValue,
+  onFocusTargetUnit,
 }: StepGoalProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -243,6 +249,7 @@ export function StepGoal({
               placeholder="0"
               placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}
               maxLength={4}
+              onFocus={onFocusPlannedMinutes}
             />
             <Text className="font-psemibold text-sm ml-2 text-neutral-400 dark:text-neutral-500">
               minutes
@@ -301,6 +308,7 @@ export function StepGoal({
               placeholder="0"
               placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}
               maxLength={5}
+              onFocus={onFocusTargetValue}
             />
             <Text className="font-psemibold text-sm ml-2 text-neutral-400 dark:text-neutral-500">
               {targetUnit || 'units'}
@@ -372,6 +380,7 @@ export function StepGoal({
               placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}
               className="font-pmedium h-12 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] px-4 text-sm mt-1.5 bg-neutral-100 dark:bg-[#26272B] text-neutral-900 dark:text-neutral-100"
               maxLength={20}
+              onFocus={onFocusTargetUnit}
             />
           )}
         </View>

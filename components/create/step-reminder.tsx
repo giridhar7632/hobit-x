@@ -39,6 +39,7 @@ interface StepReminderProps {
   targetValue?: number;
   targetUnit?: string;
   onJumpToStep?: (step: number) => void;
+  onFocusReminderMessage?: () => void;
 }
 
 export function StepReminder({
@@ -65,6 +66,7 @@ export function StepReminder({
   targetValue = 0,
   targetUnit = '',
   onJumpToStep,
+  onFocusReminderMessage,
 }: StepReminderProps) {
   const [isTimePickerVisible, setIsTimePickerVisible] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -167,6 +169,8 @@ export function StepReminder({
           value={notify}
           onValueChange={onChangeNotify}
           activeColor={accentColor}
+          accessibilityLabel="Enable Reminders"
+          testID="enable-reminders-switch"
         />
       </View>
 
@@ -245,6 +249,7 @@ export function StepReminder({
               label="NOTIFICATION MESSAGE"
               value={reminderMessage}
               onChangeText={onChangeReminderMessage}
+              onFocus={onFocusReminderMessage}
               placeholder={name ? `Time for ${name}!` : "e.g. Time to build momentum!"}
               accentColor={accentColor}
               size="md"

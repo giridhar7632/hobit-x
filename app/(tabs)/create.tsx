@@ -2,7 +2,7 @@ import * as Crypto from 'expo-crypto';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useMeridianMutation, useQueryClient } from 'meridian-lite';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Keyboard,
   KeyboardAvoidingView,
@@ -101,7 +101,9 @@ export default function CreateScreen() {
   const [stage, setStage] = useState<WizardStage>('templates');
   const [draft, setDraft] = useState<HabitDraft>(DEFAULT_DRAFT);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
+  const scrollViewRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const currentTheme = colorScheme === 'dark' ? 'dark' : 'light';
@@ -114,6 +116,35 @@ export default function CreateScreen() {
       resetColor();
     };
   }, [resetColor]);
+
+  // Track keyboard visibility dynamically
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  // Scroll to top when stage changes
+  useEffect(() => {
+    scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+  }, [stage]);
+
+  const handleScrollToInput = (yOffset: number) => {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: yOffset, animated: true });
+    }, 100);
+  };
 
   const selectedColorDef = HABIT_COLORS[draft.color] || HABIT_COLORS.purple;
   const accentColor = selectedColorDef.accent;
@@ -279,10 +310,15 @@ export default function CreateScreen() {
         ) : (
           <View className="flex-1">
             <ScrollView
+              ref={scrollViewRef}
               className="flex-1"
-              contentContainerStyle={{ paddingBottom: 40, paddingTop: 8 }}
+              contentContainerStyle={{
+                paddingBottom: 40,
+                paddingTop: 8,
+              }}
               showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="always"
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
             >
               <StepProgressHeader
                 currentStep={typeof stage === 'number' ? stage : 1}
@@ -320,6 +356,7 @@ export default function CreateScreen() {
                     setDraft((d) => ({ ...d, color }));
                     setActiveColor(color);
                   }}
+                  onFocusDescription={() => handleScrollToInput(140)}
                 />
               )}
 
@@ -369,6 +406,9 @@ export default function CreateScreen() {
                     setDraft((d) => ({ ...d, target_unit }))
                   }
                   accentColor={accentColor}
+                  onFocusPlannedMinutes={() => handleScrollToInput(120)}
+                  onFocusTargetValue={() => handleScrollToInput(160)}
+                  onFocusTargetUnit={() => handleScrollToInput(240)}
                 />
               )}
 
@@ -398,6 +438,7 @@ export default function CreateScreen() {
                   targetValue={draft.target_value}
                   targetUnit={draft.target_unit}
                   onJumpToStep={(s) => setStage(s as WizardStage)}
+                  onFocusReminderMessage={() => handleScrollToInput(260)}
                 />
               )}
 
@@ -426,7 +467,7 @@ export default function CreateScreen() {
 
             <View
               style={{
-                paddingBottom: insets.bottom > 0 ? insets.bottom + 8 : 16,
+                paddingBottom: isKeyboardVisible ? 12 : (insets.bottom > 0 ? insets.bottom + 8 : 16),
                 backgroundColor: isDark ? '#191A1D' : '#FFFFFF',
                 borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
                 borderTopWidth: 1,
