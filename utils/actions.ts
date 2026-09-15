@@ -6,9 +6,9 @@ import { getDb } from './database';
 import { getHabitTotalReminders, cancelHabitNotifications, parseTargetDays } from './notifications';
 import { Habit, HabitEntry } from "./types";
 
-export async function getHabits(): Promise<Habit[]> {
+export async function getHabits(dateISO?: string): Promise<Habit[]> {
   const db = await getDb();
-  const todayISO = new Date().toISOString().split('T')[0];
+  const targetDateISO = dateISO || new Date().toISOString().split('T')[0];
   try {
     const result = await db.getAllAsync<Habit>(
       `SELECT 
@@ -18,7 +18,7 @@ export async function getHabits(): Promise<Habit[]> {
            FROM habit_entries he 
            WHERE he.habit_id = h.id 
              AND DATE(he.entry_date) = ? 
-             AND he.status = 'Completed'
+             AND (he.status = 'Completed' OR he.status = 'Partial')
          ), 0) AS today_completed_count,
          COALESCE((
            SELECT SUM(he.actual_time_minutes) 
@@ -26,8 +26,9 @@ export async function getHabits(): Promise<Habit[]> {
            WHERE he.habit_id = h.id 
              AND DATE(he.entry_date) = ?
          ), 0) AS today_tracked_minutes
-       FROM habits h`,
-      [todayISO, todayISO]
+       FROM habits h
+       ORDER BY h.sort_order ASC, h.created_at DESC`,
+      [targetDateISO, targetDateISO]
     );
     return result || [];
   } catch (error: any) {
@@ -286,23 +287,25 @@ export async function deleteEntry(entry_id: string, habit_id: string) {
   }
 }
 
-export async function untrackHabitToday(habit_id: string) {
+export async function untrackHabitToday(habit_id: string, dateISO?: string) {
   const db = await getDb();
-  const todayISO = new Date().toISOString().split('T')[0];
+  const targetDateISO = dateISO || new Date().toISOString().split('T')[0];
   try {
     const todayEntry: any = await db.getFirstAsync(
       `SELECT id FROM habit_entries WHERE habit_id = ? AND DATE(entry_date) = ? ORDER BY entry_date DESC LIMIT 1`,
-      [habit_id, todayISO]
+      [habit_id, targetDateISO]
     );
     if (todayEntry) {
       return await deleteEntry(todayEntry.id, habit_id);
     }
     return null;
   } catch (error) {
-    console.error('Error untracking habit today:', error);
+    console.error('Error untracking habit:', error);
     throw error;
   }
 }
+
+export const untrackHabitDate = untrackHabitToday;
 
 export async function trackHabit(formData: {
   entry_id?: string;

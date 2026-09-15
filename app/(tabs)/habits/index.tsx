@@ -102,7 +102,7 @@ export default function HabitsScreen() {
     }, [resetColor])
   );
 
-  const habitsQueryKey = useMemo(() => ['habits'], []);
+  const habitsQueryKey = useMemo(() => ['habits', selectedDate], [selectedDate]);
 
   const {
     data: habits,
@@ -111,7 +111,7 @@ export default function HabitsScreen() {
     error,
   } = useQuery({
     queryKey: habitsQueryKey,
-    queryFn: getHabits,
+    queryFn: () => getHabits(selectedDate),
   });
 
   useEffect(() => {
@@ -158,24 +158,32 @@ export default function HabitsScreen() {
       dismissFirstHint();
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const totalMinutesToday =
+    const totalMinutes =
       (habit.today_tracked_minutes || 0) + (habit.planned_time_minutes || 0);
     const currentCompletedCount = (habit.today_completed_count || 0) + 1;
     const totalReminders = getHabitTotalReminders(habit);
     const isFullyDone = currentCompletedCount >= totalReminders;
 
-    const newNotificationIds = await refreshHabitNotifications(
-      habit,
-      totalMinutesToday,
-      isFullyDone
-    );
+    const isToday = selectedDate === getTodayISO();
+    if (isToday) {
+      const newNotificationIds = await refreshHabitNotifications(
+        habit,
+        totalMinutes,
+        isFullyDone
+      );
+      await updateHabitNotificationIds({
+        id: habit.id,
+        notification_ids: JSON.stringify(newNotificationIds),
+      });
+    }
+
+    const entryDate = isToday ? new Date().toISOString() : `${selectedDate}T12:00:00.000Z`;
 
     const trackedResult = await trackHabit({
       habit_id: habit.id,
       actual_time_minutes: habit.planned_time_minutes,
       status: 'Completed',
-      entry_date: new Date().toISOString(),
-      notification_ids: JSON.stringify(newNotificationIds),
+      entry_date: entryDate,
       note: '',
     });
 
@@ -192,13 +200,15 @@ export default function HabitsScreen() {
       dismissFirstHint();
     }
     try {
-      const result = await untrackHabitToday(habit.id);
+      const result = await untrackHabitToday(habit.id, selectedDate);
       if (result) {
-        const newNotificationIds = await refreshHabitNotifications(habit, 0, false);
-        await updateHabitNotificationIds({
-          id: habit.id,
-          notification_ids: JSON.stringify(newNotificationIds),
-        });
+        if (selectedDate === getTodayISO()) {
+          const newNotificationIds = await refreshHabitNotifications(habit, 0, false);
+          await updateHabitNotificationIds({
+            id: habit.id,
+            notification_ids: JSON.stringify(newNotificationIds),
+          });
+        }
 
         queryClient.invalidateQueries({ queryKey: ['habits'] });
         queryClient.invalidateQueries({ queryKey: ['habit_entries', habit.id] });
@@ -211,21 +221,21 @@ export default function HabitsScreen() {
     }
   };
 
-  const isFullyCompletedToday = (habit: any) => {
+  const isFullyCompletedForSelectedDate = (habit: any) => {
     const total = getHabitTotalReminders(habit);
     const count = habit.today_completed_count ?? 0;
-    return count >= total;
+    return count >= total && total > 0;
   };
 
   const scheduledHabits = useMemo(() => {
     if (!habits) return [];
-    return habits.filter((h) => isHabitScheduledForDate(h, selectedDate));
+    return habits.filter((h) => isHabitScheduledForDate(h, selectedDate) || (h.today_completed_count ?? 0) > 0);
   }, [habits, selectedDate]);
 
   const sortedHabits = useMemo(() => {
     return scheduledHabits.slice().sort((a, b) => {
-      const aDone = isFullyCompletedToday(a) ? 1 : 0;
-      const bDone = isFullyCompletedToday(b) ? 1 : 0;
+      const aDone = isFullyCompletedForSelectedDate(a) ? 1 : 0;
+      const bDone = isFullyCompletedForSelectedDate(b) ? 1 : 0;
       if (aDone !== bDone) return aDone - bDone;
       const aDate = a.last_completed_date || '';
       const bDate = b.last_completed_date || '';
@@ -435,7 +445,7 @@ export default function HabitsScreen() {
                   onTrackHabit={handleQuickTrack}
                   onUntrackHabit={handleUntrack}
                   onTimerPress={() => {}}
-                  isFullyCompleted={isFullyCompletedToday}
+                  isFullyCompleted={isFullyCompletedForSelectedDate}
                 />
               )}
 
@@ -446,7 +456,7 @@ export default function HabitsScreen() {
                   onTrackHabit={handleQuickTrack}
                   onUntrackHabit={handleUntrack}
                   onTimerPress={() => {}}
-                  isFullyCompleted={isFullyCompletedToday}
+                  isFullyCompleted={isFullyCompletedForSelectedDate}
                 />
               )}
 
@@ -457,7 +467,7 @@ export default function HabitsScreen() {
                   onTrackHabit={handleQuickTrack}
                   onUntrackHabit={handleUntrack}
                   onTimerPress={() => {}}
-                  isFullyCompleted={isFullyCompletedToday}
+                  isFullyCompleted={isFullyCompletedForSelectedDate}
                 />
               )}
             </>
