@@ -1,13 +1,145 @@
-import { ENCOURAGING_MESSAGES, NOTIFICATION_TITLES } from '@/constants/messages';
+import { HABIT_NOTIFICATIONS } from '@/constants/messages';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { Habit } from './types';
 
-export function getRandomNotification(habitName: string): { title: string; body: string } {
-    const randomBodyTemplate = ENCOURAGING_MESSAGES[Math.floor(Math.random() * ENCOURAGING_MESSAGES.length)];
-    const randomTitle = NOTIFICATION_TITLES[Math.floor(Math.random() * NOTIFICATION_TITLES.length)];
+export function getSmartNotification(
+    habit: Pick<
+        Habit,
+        | 'id'
+        | 'name'
+        | 'completion_type'
+        | 'current_streak'
+        | 'reminder_message'
+    >,
+    scheduledHour?: number,
+    date: string = new Date().toISOString().slice(0, 10)
+): {
+    title: string;
+    body: string;
+} {
+    const habitName = habit.name?.trim() || 'your habit';
+
+    if (habit.reminder_message?.trim()) {
+        let body = habit.reminder_message
+            .trim()
+            .replace(/\{habit\}/g, habitName);
+
+        return {
+            title: 'Quick Reminder',
+            body,
+        };
+    }
+
+    let timeTag:
+        | 'morning'
+        | 'afternoon'
+        | 'evening'
+        | undefined;
+
+    if (scheduledHour !== undefined && Number.isFinite(scheduledHour)) {
+        if (scheduledHour < 12) {
+            timeTag = 'morning';
+        } else if (scheduledHour < 17) {
+            timeTag = 'afternoon';
+        } else {
+            timeTag = 'evening';
+        }
+    }
+
+    const completionType =
+        habit.completion_type === 'check' ||
+            habit.completion_type === 'time' ||
+            habit.completion_type === 'quantity'
+            ? habit.completion_type
+            : 'check';
+
+    const streak =
+        typeof habit.current_streak === 'number'
+            ? Math.max(0, habit.current_streak)
+            : 0;
+
+    const candidates = HABIT_NOTIFICATIONS
+        .map((template) => {
+            let score = 0;
+
+            if (template.tags.includes('general')) {
+                score += 4;
+            }
+
+            if (
+                timeTag &&
+                template.tags.includes(timeTag)
+            ) {
+                score += 6;
+            }
+
+            if (
+                template.tags.includes(
+                    completionType
+                )
+            ) {
+                score += 9;
+            }
+
+            if (template.tags.includes('streak')) {
+                if (streak >= 3) {
+                    score += 5;
+                } else {
+                    score = 0;
+                }
+            }
+
+            return {
+                template,
+                score,
+            };
+        })
+        .filter(
+            (candidate) => candidate.score > 0
+        );
+
+    const seedString = `${habit.id}:${date}:${scheduledHour ?? 'unknown'}`;
+
+    let hash = 0;
+    for (let i = 0; i < seedString.length; i++) {
+        hash =
+            (hash << 5) -
+            hash +
+            seedString.charCodeAt(i);
+
+        hash |= 0;
+    }
+
+    const positiveHash = Math.abs(hash);
+    const totalWeight = candidates.reduce(
+        (sum, candidate) =>
+            sum + candidate.score,
+        0
+    );
+
+    let random = (positiveHash % 1000000) / 1000000 * totalWeight;
+    let selected = candidates[candidates.length - 1].template;
+
+    for (const candidate of candidates) {
+        random -= candidate.score;
+        if (random <= 0) {
+            selected = candidate.template;
+            break;
+        }
+    }
+
+    const placeholderCount = (selected.title.match(/\{habit\}/g)?.length ?? 0) + (selected.body.match(/\{habit\}/g)?.length ?? 0);
+
+    if (placeholderCount !== 1) {
+        return {
+            title: 'Almost Time',
+            body: `${habitName} starts in 5 minutes. Start getting ready when you can.`,
+        };
+    }
     return {
-        title: randomTitle,
-        body: randomBodyTemplate.replace(/\{habit\}/g, habitName),
+        title: selected.title.replace(/\{habit\}/g, habitName),
+        body: selected.body.replace(/\{habit\}/g, habitName),
     };
 }
 
@@ -308,7 +440,7 @@ export async function refreshHabitNotifications(
 
             if (!isTargetDay) continue;
 
-            let { title, body } = getRandomNotification(habit.name);
+            let { title, body } = getSmartNotification(habit, hour);
             if (habit.reminder_message && habit.reminder_message.trim()) {
                 body = habit.reminder_message.trim();
             }
