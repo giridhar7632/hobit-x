@@ -639,6 +639,7 @@ export default function HabitScreen() {
             {!isLoadingDates ? (
               <Heatmap
                 completedDates={completedDates}
+                habit={habit}
                 onDayPress={handleHeatmapDatePress}
               />
             ) : (

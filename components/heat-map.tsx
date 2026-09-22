@@ -1,5 +1,7 @@
 import { useAppTheme } from '@/context/theme-context';
+import { isHabitScheduledForDate } from '@/utils/actions';
 import { CustomAlert as Alert } from '@/utils/custom-alert';
+import { Habit } from '@/utils/types';
 import React, { useMemo } from 'react';
 import { Dimensions, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
 
@@ -25,10 +27,11 @@ interface HeatmapDateEntry {
 
 interface HeatmapProps {
     completedDates: HeatmapDateEntry[];
+    habit?: Habit | null;
     onDayPress?: (dateStr: string, status: string | null, displayDate: string) => void;
 }
 
-export default function Heatmap({ completedDates = [], onDayPress }: HeatmapProps) {
+export default function Heatmap({ completedDates = [], habit, onDayPress }: HeatmapProps) {
     const { activeColor } = useAppTheme();
     const colorScheme = useColorScheme();
     const isDark = colorScheme === 'dark';
@@ -50,6 +53,11 @@ export default function Heatmap({ completedDates = [], onDayPress }: HeatmapProp
             d.setDate(today.getDate() - i);
             const dateString = formatDate(d);
 
+            // If habit is provided, check if this day is scheduled.
+            // Unscheduled days are completely excluded from the heatmap.
+            const isScheduled = habit ? isHabitScheduledForDate(habit, dateString) : true;
+            if (!isScheduled) continue;
+
             const status = dateStatusMap.get(dateString);
 
             daysData.push({
@@ -59,13 +67,14 @@ export default function Heatmap({ completedDates = [], onDayPress }: HeatmapProp
             });
         }
 
+        // Group into columns of up to 7 for visual layout
         const weeks = [];
         for (let i = 0; i < daysData.length; i += 7) {
             weeks.push(daysData.slice(i, i + 7));
         }
 
         return weeks;
-    }, [dateStatusMap]);
+    }, [dateStatusMap, habit]);
 
     const handleSquarePress = (day: any) => {
         if (onDayPress) {
@@ -85,7 +94,7 @@ export default function Heatmap({ completedDates = [], onDayPress }: HeatmapProp
         <View className="w-full">
             <View
                 className="flex-row px-4"
-                style={{ gap: GAP_SIZE, justifyContent: 'center' }}
+                style={{ gap: GAP_SIZE, justifyContent: 'flex-end' }}
             >
                 {columns.map((week, weekIndex) => (
                     <View key={weekIndex} style={{ gap: GAP_SIZE }}>

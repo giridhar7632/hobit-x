@@ -6,6 +6,39 @@ import { getDb } from './database';
 import { getHabitTotalReminders, cancelHabitNotifications, parseTargetDays } from './notifications';
 import { Habit, HabitEntry } from "./types";
 
+/**
+ * Returns the maximum number of calendar days allowed between two consecutive
+ * entries before the streak is considered broken.
+ * Includes a 2-day grace period on top of the natural gap.
+ *
+ * Examples:
+ *  - daily  → 1 + 2 = 3 days gap allowed
+ *  - every 3 days (interval) → 3 + 2 = 5 days gap allowed
+ *  - weekly (e.g. Mon/Wed/Fri) → 7 + 2 = 9 days gap allowed
+ *  - monthly → 31 + 2 = 33 days gap allowed
+ */
+export function getMaxStreakGapDays(habit: any): number {
+  const GRACE_DAYS = 2;
+  const freq = habit?.frequency || 'daily';
+
+  if (freq === 'interval') {
+    const interval = Math.max(1, Number(habit.interval) || 1);
+    return interval + GRACE_DAYS;
+  }
+
+  if (freq === 'weekly') {
+    // Worst case: once a week, 7 days apart
+    return 7 + GRACE_DAYS;
+  }
+
+  if (freq === 'monthly') {
+    return 31 + GRACE_DAYS;
+  }
+
+  // daily
+  return 1 + GRACE_DAYS;
+}
+
 export async function getHabits(dateISO?: string): Promise<Habit[]> {
   const db = await getDb();
   const targetDateISO = dateISO || new Date().toISOString().split('T')[0];
@@ -321,11 +354,14 @@ export async function trackHabit(formData: {
   const entry_id = formData.entry_id || Crypto.randomUUID();
   const todayISO = new Date(entry_date).toISOString().split('T')[0];
   const realTodayISO = new Date().toISOString().split('T')[0];
-  const isBackdate = todayISO < realTodayISO;
 
-  const yesterday = new Date(entry_date);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayISO = yesterday.toISOString().split('T')[0];
+  // Grace period: entries within 2 calendar days of real today count as "live"
+  // Only entries older than that are treated as true retroactive backdates
+  const GRACE_DAYS = 2;
+  const graceDate = new Date();
+  graceDate.setDate(graceDate.getDate() - GRACE_DAYS);
+  const graceDateISO = graceDate.toISOString().split('T')[0];
+  const isBackdate = todayISO < graceDateISO;
 
   try {
     const habit: any = await db.getFirstAsync(
@@ -383,13 +419,32 @@ export async function trackHabit(formData: {
     let streakOnDay = 0;
 
     if (isBackdate) {
-      // Retroactive logging preserves honest live streak
+      // True retroactive logging (> 2 days ago) preserves honest live streak
       streakOnDay = 0;
     } else {
-      const yesterdayEntry: any = await db.getFirstAsync(
-        `SELECT streak_on_day, status FROM habit_entries WHERE habit_id = ? AND DATE(entry_date) = ? AND status IN ('Completed', 'Skipped') ORDER BY entry_date DESC LIMIT 1`,
-        [habit_id, yesterdayISO]
+      // Find the most recent previous entry (Completed or Skipped) BEFORE this entry's date
+      // This correctly handles interval/weekly/monthly habits where the previous
+      // entry may be several days ago, not just yesterday.
+      const previousEntry: any = await db.getFirstAsync(
+        `SELECT streak_on_day, status, DATE(entry_date) as entry_date_iso
+         FROM habit_entries
+         WHERE habit_id = ? AND DATE(entry_date) < ? AND status IN ('Completed', 'Skipped')
+         ORDER BY entry_date DESC LIMIT 1`,
+        [habit_id, todayISO]
       );
+
+      // Calculate max allowed gap between entries for this habit's frequency
+      const maxGapDays = getMaxStreakGapDays(habit);
+
+      // Check if the previous entry is within the allowed gap
+      let previousEntryWithinGap = false;
+      if (previousEntry && previousEntry.entry_date_iso) {
+        const prevDate = new Date(previousEntry.entry_date_iso + 'T00:00:00');
+        const currDate = new Date(todayISO + 'T00:00:00');
+        const diffMs = currDate.getTime() - prevDate.getTime();
+        const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+        previousEntryWithinGap = diffDays > 0 && diffDays <= maxGapDays;
+      }
 
       newLastActive = entry_date;
       streakOnDay = newStreak;
@@ -400,14 +455,17 @@ export async function trackHabit(formData: {
         newStreak = 0;
         streakOnDay = 0;
       } else if (finalStatus === 'Skipped') {
+        // Skipped freezes the streak: preserve the current value without incrementing
         streakOnDay = newStreak;
       } else if (countsForStreak) {
         if (todayCount === 0) {
-          const yesterdayKeepsStreak = yesterdayEntry && yesterdayEntry.streak_on_day > 0;
-          newStreak = yesterdayKeepsStreak ? yesterdayEntry.streak_on_day + 1 : 1;
+          // First completion for this date — decide whether to continue or start fresh
+          const continuesStreak = previousEntryWithinGap && previousEntry && previousEntry.streak_on_day > 0;
+          newStreak = continuesStreak ? previousEntry.streak_on_day + 1 : 1;
           newLongest = Math.max(newStreak, habit.longest_streak || 0);
           streakOnDay = newStreak;
         } else {
+          // Already tracked today — just preserve current streak
           streakOnDay = newStreak;
         }
       } else {
@@ -482,14 +540,37 @@ export async function trackHabit(formData: {
 export async function recalculateStreaks() {
   const db = await getDb();
   try {
-    await db.runAsync(
-      `UPDATE habits SET current_streak = 0 
-       WHERE current_streak > 0 
-       AND (
-         (last_active_date IS NOT NULL AND DATE(last_active_date) < DATE('now', '-1 day'))
-         OR (last_active_date IS NULL AND last_completed_date IS NOT NULL AND DATE(last_completed_date) < DATE('now', '-1 day'))
-       )`
+    // Fetch all habits with active streaks and check each individually
+    // because the allowed gap varies by frequency type
+    const habitsWithStreaks: any[] = await db.getAllAsync(
+      `SELECT id, frequency, interval, last_active_date, last_completed_date
+       FROM habits
+       WHERE current_streak > 0`
     );
+
+    for (const habit of habitsWithStreaks) {
+      const maxGapDays = getMaxStreakGapDays(habit);
+      const lastDate = habit.last_active_date || habit.last_completed_date;
+
+      if (!lastDate) continue;
+
+      const lastDateObj = new Date(lastDate);
+      if (isNaN(lastDateObj.getTime())) continue;
+
+      const lastDateISO = lastDateObj.toISOString().split('T')[0];
+      const now = new Date();
+      const nowISO = now.toISOString().split('T')[0];
+      const diffMs = new Date(nowISO + 'T00:00:00').getTime() - new Date(lastDateISO + 'T00:00:00').getTime();
+      const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+      // Reset streak if the gap exceeds the allowed window for this habit's frequency
+      if (diffDays > maxGapDays) {
+        await db.runAsync(
+          `UPDATE habits SET current_streak = 0 WHERE id = ?`,
+          [habit.id]
+        );
+      }
+    }
   } catch (error) {
     console.error('Error recalculating streaks:', error);
   }
